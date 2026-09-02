@@ -843,10 +843,7 @@ public class ZipFileSystemCore : IDisposable
                 lock (_archiveLock)
                 {
                     using var entryStream = entry.OpenEntryStream();
-                    var capacity = entrySize > 0 ? (int)Math.Min(entrySize, int.MaxValue) : 4096;
-                    using var tempMs = new MemoryStream(capacity);
-                    entryStream.CopyTo(tempMs);
-                    return tempMs.ToArray();
+                    return DecompressEntryToBuffer(entrySize, entryStream.CopyTo);
                 }
             });
         }
@@ -875,6 +872,28 @@ public class ZipFileSystemCore : IDisposable
         LogMessage($"Memory cache: '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB) opened from shared cache.");
         LogMessage("");
         return sharedStream;
+    }
+
+    /// <summary>
+    ///     Decompresses an entry directly into a preallocated, exact-size buffer.
+    ///     Writing into the final array instead of a growing <see cref="MemoryStream" /> followed by
+    ///     <see cref="MemoryStream.ToArray" /> avoids a transient second copy of the entry, halving
+    ///     the peak memory footprint during decompression of large entries. Resizes (copies) only in
+    ///     the rare case the decompressed length differs from the declared entry size.
+    /// </summary>
+    /// <param name="entrySize">Declared uncompressed size of the entry; used to preallocate.</param>
+    /// <param name="decompressInto">Callback that writes the decompressed bytes to the given stream.</param>
+    /// <returns>Buffer containing exactly the decompressed bytes.</returns>
+    private static byte[] DecompressEntryToBuffer(long entrySize, Action<Stream> decompressInto)
+    {
+        var capacity = entrySize is > 0 and <= int.MaxValue ? (int)entrySize : 4096;
+        var buffer = new byte[capacity];
+
+        using var ms = new MemoryStream(buffer, 0, capacity, true, false);
+        decompressInto(ms);
+        var written = (int)ms.Position;
+
+        return written == capacity ? buffer : buffer[..written];
     }
 
     /// <summary>
@@ -1365,13 +1384,12 @@ public class ZipFileSystemCore : IDisposable
 
             // Small file: use the shared memory cache.
             return AcquireSharedMemoryStream(normalizedPath, entrySize, () =>
-            {
-                using var ms = new MemoryStream();
-                if (!_sevenZipFallback.TryExtractEntry(normalizedPath, ms))
-                    throw new InvalidOperationException("SevenZip fallback extraction failed.");
-
-                return ms.ToArray();
-            });
+                DecompressEntryToBuffer(entrySize,
+                    output =>
+                    {
+                        if (!_sevenZipFallback.TryExtractEntry(normalizedPath, output))
+                            throw new InvalidOperationException("SevenZip fallback extraction failed.");
+                    }));
         }
         catch
         {
