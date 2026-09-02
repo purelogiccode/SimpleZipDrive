@@ -12,17 +12,12 @@ namespace SimpleZipDrive.Core.Services;
 /// </summary>
 public partial class UpdateService : IUpdateService
 {
-    private const string PrimaryRepoOwner = "purelogiccode";
-    private const string FallbackRepoOwner = "drpetersonfernandes";
+    private const string RepoOwner = "purelogiccode";
     private const string RepoName = "SimpleZipDrive";
 
-    /// <summary>Primary release-check endpoint (new repo owner).</summary>
-    internal const string PrimaryLatestApiUrl =
-        $"https://api.github.com/repos/{PrimaryRepoOwner}/{RepoName}/releases/latest";
-
-    /// <summary>Fallback release-check endpoint used while the repository transfer to the new owner is in flight.</summary>
-    internal const string FallbackLatestApiUrl =
-        $"https://api.github.com/repos/{FallbackRepoOwner}/{RepoName}/releases/latest";
+    /// <summary>Release-check endpoint (canonical repository owner).</summary>
+    internal const string LatestApiUrl =
+        $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
 
     private static readonly SocketsHttpHandler DefaultHttpHandler = new()
     {
@@ -71,12 +66,7 @@ public partial class UpdateService : IUpdateService
 
             var client = GetHttpClient();
 
-            // Prefer the new repo owner. If that endpoint does not resolve (e.g. the repository
-            // transfer has not completed yet), fall back to the previous owner's endpoint.
-            // Network-level failures are not retried against the fallback: if the machine is
-            // offline, both endpoints would fail and retrying would only double the wait time.
-            var release = await TryGetLatestReleaseAsync(client, PrimaryLatestApiUrl, cancellationToken)
-                          ?? await TryGetLatestReleaseAsync(client, FallbackLatestApiUrl, cancellationToken);
+            var release = await TryGetLatestReleaseAsync(client, LatestApiUrl, cancellationToken);
 
             if (release is null) return;
 

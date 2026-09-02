@@ -239,33 +239,25 @@ public partial class UpdateCheckerTests
     [Fact]
     public void RepositoryConfigurationIsValid()
     {
-        // Primary endpoint must point to the new owner; fallback keeps working while
-        // the repository transfer from the previous owner is in flight.
+        // The update check must point at the canonical repository owner.
         const string expectedRepo = "SimpleZipDrive";
 
         Assert.Equal("https://api.github.com/repos/purelogiccode/SimpleZipDrive/releases/latest",
-            UpdateService.PrimaryLatestApiUrl);
-        Assert.Contains(expectedRepo, UpdateService.PrimaryLatestApiUrl, StringComparison.OrdinalIgnoreCase);
-        Assert.StartsWith("https://api.github.com/repos/", UpdateService.PrimaryLatestApiUrl,
+            UpdateService.LatestApiUrl);
+        Assert.Contains(expectedRepo, UpdateService.LatestApiUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith("https://api.github.com/repos/", UpdateService.LatestApiUrl,
             StringComparison.OrdinalIgnoreCase);
-        Assert.EndsWith("/releases/latest", UpdateService.PrimaryLatestApiUrl, StringComparison.OrdinalIgnoreCase);
-
-        Assert.Equal("https://api.github.com/repos/drpetersonfernandes/SimpleZipDrive/releases/latest",
-            UpdateService.FallbackLatestApiUrl);
-        Assert.Contains(expectedRepo, UpdateService.FallbackLatestApiUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith("/releases/latest", UpdateService.LatestApiUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void ApiUrlConstructionIsCorrect()
     {
-        const string primaryOwner = "purelogiccode";
-        const string fallbackOwner = "drpetersonfernandes";
+        const string owner = "purelogiccode";
         const string repoName = "SimpleZipDrive";
-        const string expectedPrimary = $"https://api.github.com/repos/{primaryOwner}/{repoName}/releases/latest";
-        const string expectedFallback = $"https://api.github.com/repos/{fallbackOwner}/{repoName}/releases/latest";
+        const string expectedUrl = $"https://api.github.com/repos/{owner}/{repoName}/releases/latest";
 
-        Assert.Equal(expectedPrimary, UpdateService.PrimaryLatestApiUrl);
-        Assert.Equal(expectedFallback, UpdateService.FallbackLatestApiUrl);
+        Assert.Equal(expectedUrl, UpdateService.LatestApiUrl);
     }
 
     #endregion

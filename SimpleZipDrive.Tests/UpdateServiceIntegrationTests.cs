@@ -232,60 +232,16 @@ public class UpdateServiceIntegrationTests
 
     #endregion
 
-    #region Primary / Fallback Repo Owner Tests
+    #region Repo Owner Tests
 
     [Fact]
-    public async Task CheckForUpdateAsync_WhenPrimaryRepoNotFound_FallsBackToPreviousOwner()
+    public async Task CheckForUpdateAsync_WhenRepoNotFound_DoesNotNotifyUser()
     {
-        // Arrange - primary owner (purelogiccode) has no release yet (transfer not done),
-        // fallback owner (drpetersonfernandes) still serves the latest release.
-        const string tagName = "release_99.0.1";
-        var json = CreateGitHubReleaseJson(tagName);
-        using var httpClient = new HttpClient(new RoutingMockHttpMessageHandler(
-            new Dictionary<string, (HttpStatusCode Status, string Content)>(StringComparer.OrdinalIgnoreCase)
-            {
-                [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.NotFound, "{}"),
-                [UpdateService.FallbackLatestApiUrl] = (HttpStatusCode.OK, json)
-            }));
-        var updateService = new UpdateService(_fakeNotificationService, httpClient);
-
-        // Act
-        await updateService.CheckForUpdateAsync(CancellationToken.None);
-
-        // Assert
-        Assert.True(_fakeNotificationService.ShowUpdateAvailableCalled);
-    }
-
-    [Fact]
-    public async Task CheckForUpdateAsync_WhenPrimaryRepoAvailable_DoesNotCallFallback()
-    {
-        // Arrange - primary endpoint serves the release; fallback must not be requested.
-        const string tagName = "release_99.0.1";
-        var json = CreateGitHubReleaseJson(tagName);
+        // Arrange - the endpoint does not resolve to a release.
         using var handler = new RoutingMockHttpMessageHandler(
             new Dictionary<string, (HttpStatusCode Status, string Content)>(StringComparer.OrdinalIgnoreCase)
             {
-                [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.OK, json)
-            });
-        var updateService = new UpdateService(_fakeNotificationService, new HttpClient(handler));
-
-        // Act
-        await updateService.CheckForUpdateAsync(CancellationToken.None);
-
-        // Assert
-        Assert.True(_fakeNotificationService.ShowUpdateAvailableCalled);
-        Assert.Equal([UpdateService.PrimaryLatestApiUrl], handler.RequestedUrls);
-    }
-
-    [Fact]
-    public async Task CheckForUpdateAsync_WhenBothReposUnavailable_DoesNotNotifyUser()
-    {
-        // Arrange - neither endpoint resolves to a release.
-        using var handler = new RoutingMockHttpMessageHandler(
-            new Dictionary<string, (HttpStatusCode Status, string Content)>(StringComparer.OrdinalIgnoreCase)
-            {
-                [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.NotFound, "{}"),
-                [UpdateService.FallbackLatestApiUrl] = (HttpStatusCode.NotFound, "{}")
+                [UpdateService.LatestApiUrl] = (HttpStatusCode.NotFound, "{}")
             });
         var updateService = new UpdateService(_fakeNotificationService, new HttpClient(handler));
 
@@ -294,14 +250,35 @@ public class UpdateServiceIntegrationTests
 
         // Assert
         Assert.False(_fakeNotificationService.ShowUpdateAvailableCalled);
-        Assert.Equal(2, handler.RequestedUrls.Count);
+        Assert.Equal(1, handler.RequestedUrls.Count);
     }
 
     [Fact]
-    public async Task CheckForUpdateAsync_WhenNetworkFailsOnPrimary_DoesNotRetryFallback()
+    public async Task CheckForUpdateAsync_CallsLatestApiUrl_ExactlyOnce()
     {
-        // Arrange - network-level failure must not be retried against the fallback endpoint:
-        // if the machine is offline both endpoints would fail and retrying only doubles latency.
+        // Arrange - the canonical endpoint serves the release.
+        const string tagName = "release_99.0.1";
+        var json = CreateGitHubReleaseJson(tagName);
+        using var handler = new RoutingMockHttpMessageHandler(
+            new Dictionary<string, (HttpStatusCode Status, string Content)>(StringComparer.OrdinalIgnoreCase)
+            {
+                [UpdateService.LatestApiUrl] = (HttpStatusCode.OK, json)
+            });
+        var updateService = new UpdateService(_fakeNotificationService, new HttpClient(handler));
+
+        // Act
+        await updateService.CheckForUpdateAsync(CancellationToken.None);
+
+        // Assert
+        Assert.True(_fakeNotificationService.ShowUpdateAvailableCalled);
+        Assert.Equal([UpdateService.LatestApiUrl], handler.RequestedUrls);
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenNetworkFails_DoesNotRetry()
+    {
+        // Arrange - network-level failures are expected environment conditions and must not
+        // be retried inside the check (the next quiet check will run again).
         using var handler = new ThrowingMockHttpMessageHandler(new HttpRequestException("No such host is known."));
         var updateService = new UpdateService(_fakeNotificationService, new HttpClient(handler));
 
