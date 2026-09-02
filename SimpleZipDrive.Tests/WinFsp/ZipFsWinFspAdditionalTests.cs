@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Security.AccessControl;
 using System.Text;
 using SimpleZipDrive.Core;
+using SimpleZipDrive.Core.Models;
 using WinFspZipFs = SimpleZipDrive_WinFsp.ZipFs;
 
 namespace SimpleZipDrive.Tests.WinFsp;
@@ -10,12 +11,28 @@ namespace SimpleZipDrive.Tests.WinFsp;
 [SuppressMessage("ReSharper", "NullableWarningSuppressionIsUsed")]
 public class ZipFsWinFspAdditionalTests : IDisposable
 {
-    private readonly List<IDisposable> _disposables = [];
-
     private const int StatusSuccess = 0;
     private const int StatusAccessDenied = unchecked((int)0xC0000022);
     private const int StatusObjectNameNotFound = unchecked((int)0xC0000034);
     private const int StatusUnsuccessful = unchecked((int)0xC0000001);
+    private readonly List<IDisposable> _disposables = [];
+
+    public void Dispose()
+    {
+        foreach (var d in _disposables)
+        {
+            try
+            {
+                d.Dispose();
+            }
+            catch
+            {
+                /* best effort */
+            }
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
 
     private WinFspZipFs CreateZipFs(Stream? stream = null, long maxMemory = ZipFileSystemCore.DefaultMaxMemorySize)
@@ -327,7 +344,7 @@ public class ZipFsWinFspAdditionalTests : IDisposable
 
         var fileInfo = WinFspZipFs.EntryNodeToFileInfo(node);
 
-        Assert.True((fileInfo.FileAttributes & (uint)FileAttributes.Directory) != 0);
+        Assert.NotEqual(0u, fileInfo.FileAttributes & (uint)FileAttributes.Directory);
         Assert.Equal(0ul, fileInfo.FileSize);
     }
 
@@ -347,8 +364,8 @@ public class ZipFsWinFspAdditionalTests : IDisposable
 
         var fileInfo = WinFspZipFs.EntryNodeToFileInfo(node);
 
-        Assert.True((fileInfo.FileAttributes & (uint)FileAttributes.Archive) != 0);
-        Assert.True((fileInfo.FileAttributes & (uint)FileAttributes.ReadOnly) != 0);
+        Assert.NotEqual(0u, fileInfo.FileAttributes & (uint)FileAttributes.Archive);
+        Assert.NotEqual(0u, fileInfo.FileAttributes & (uint)FileAttributes.ReadOnly);
         Assert.Equal(12345ul, fileInfo.FileSize);
     }
 
@@ -390,7 +407,7 @@ public class ZipFsWinFspAdditionalTests : IDisposable
         var result = zipFs.GetSecurityByName("\\readme.txt", out var fileAttributes, ref secDesc);
 
         Assert.Equal(StatusSuccess, result);
-        Assert.True((fileAttributes & (uint)FileAttributes.Archive) != 0);
+        Assert.NotEqual(0u, fileAttributes & (uint)FileAttributes.Archive);
     }
 
     // ─── GetSecurityByName: directory ───
@@ -404,7 +421,7 @@ public class ZipFsWinFspAdditionalTests : IDisposable
         var result = zipFs.GetSecurityByName("\\data", out var fileAttributes, ref secDesc);
 
         Assert.Equal(StatusSuccess, result);
-        Assert.True((fileAttributes & (uint)FileAttributes.Directory) != 0);
+        Assert.NotEqual(0u, fileAttributes & (uint)FileAttributes.Directory);
     }
 
     // ─── GetSecurityByName: non-existent ───
@@ -427,7 +444,8 @@ public class ZipFsWinFspAdditionalTests : IDisposable
     {
         var zipFs = CreateZipFs();
 
-        var result = zipFs.OpenOrCreateFile("\\readme.txt", out var fileNode, out var fileDesc, out var fileInfo, out _);
+        var result =
+            zipFs.OpenOrCreateFile("\\readme.txt", out var fileNode, out var fileDesc, out var fileInfo, out _);
 
         Assert.Equal(StatusSuccess, result);
         Assert.NotNull(fileNode);
@@ -435,22 +453,5 @@ public class ZipFsWinFspAdditionalTests : IDisposable
         Assert.True(fileInfo.FileSize > 0);
 
         zipFs.Close(fileNode, fileDesc);
-    }
-
-    public void Dispose()
-    {
-        foreach (var d in _disposables)
-        {
-            try
-            {
-                d.Dispose();
-            }
-            catch
-            {
-                /* best effort */
-            }
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using SimpleZipDrive.Core;
 
 namespace SimpleZipDrive.Tests.WinFsp;
@@ -13,6 +14,22 @@ public class WinFspDiagnosticLoggerTests : IDisposable
     {
         _tempDir = Path.Combine(Path.GetTempPath(), $"DiagLoggerTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
+    }
+
+    public void Dispose()
+    {
+        ResetState();
+        try
+        {
+            if (Directory.Exists(_tempDir))
+                Directory.Delete(_tempDir, true);
+        }
+        catch
+        {
+            // Best effort cleanup
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     private static void ResetState()
@@ -50,8 +67,8 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.Initialize(_tempDir);
 
         Assert.NotNull(DiagnosticLogger.LogFilePath);
-        Assert.StartsWith(_tempDir, DiagnosticLogger.LogFilePath);
-        Assert.EndsWith(".log", DiagnosticLogger.LogFilePath);
+        Assert.StartsWith(_tempDir, DiagnosticLogger.LogFilePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(".log", DiagnosticLogger.LogFilePath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -85,7 +102,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         Assert.NotNull(DiagnosticLogger.LogFilePath);
         Assert.True(File.Exists(DiagnosticLogger.LogFilePath));
         var content = ReadFileText(DiagnosticLogger.LogFilePath);
-        Assert.Contains("Test log message", content);
+        Assert.Contains("Test log message", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -97,7 +114,8 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.Log("Timestamped message");
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Matches(@"\[\d{2}:\d{2}:\d{2}\.\d{3}\]", content);
+        Assert.True(Regex.IsMatch(content, @"\[\d{2}:\d{2}:\d{2}\.\d{3}\]", RegexOptions.None,
+            TimeSpan.FromSeconds(1)));
     }
 
     [Fact]
@@ -109,7 +127,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.Log("Thread message");
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains($"T{Environment.CurrentManagedThreadId}", content);
+        Assert.Contains($"T{Environment.CurrentManagedThreadId}", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -132,9 +150,9 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.Log(testEx, "test context");
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("test context", content);
-        Assert.Contains("InvalidOperationException", content);
-        Assert.Contains("test error details", content);
+        Assert.Contains("test context", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("InvalidOperationException", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("test error details", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -153,7 +171,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         }
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("Stack:", content);
+        Assert.Contains("Stack:", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -165,10 +183,10 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogOperation("Read", "test.txt", 0, "detail");
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("Read", content);
-        Assert.Contains("test.txt", content);
-        Assert.Contains("SUCCESS", content);
-        Assert.Contains("[detail]", content);
+        Assert.Contains("Read", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("test.txt", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SUCCESS", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[detail]", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -180,7 +198,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogOperation("Write", "bad.txt", unchecked((int)0xC0000022));
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("0xC0000022", content);
+        Assert.Contains("0xC0000022", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -192,7 +210,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogOperation("Check", "file.txt", true);
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("true", content);
+        Assert.Contains("true", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -204,7 +222,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogOperation("Check", "file.txt", false);
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("false", content);
+        Assert.Contains("false", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -216,7 +234,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogOperation("Read", "file.txt", 0);
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.DoesNotContain("[]", content);
+        Assert.DoesNotContain("[]", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -228,8 +246,8 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogSection("TEST SECTION");
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("TEST SECTION", content);
-        Assert.Contains(new string('=', 80), content);
+        Assert.Contains("TEST SECTION", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(new string('=', 80), content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -241,7 +259,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogHeader("My Header");
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("--- My Header ---", content);
+        Assert.Contains("--- My Header ---", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -254,8 +272,8 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.Log("Second line");
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.Contains("First line", content);
-        Assert.Contains("Second line", content);
+        Assert.Contains("First line", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Second line", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -267,23 +285,7 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         DiagnosticLogger.LogOperation("Test", "path", 0);
 
         var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.DoesNotContain("[null]", content);
-        Assert.DoesNotContain("[]", content);
-    }
-
-    public void Dispose()
-    {
-        ResetState();
-        try
-        {
-            if (Directory.Exists(_tempDir))
-                Directory.Delete(_tempDir, true);
-        }
-        catch
-        {
-            // Best effort cleanup
-        }
-
-        GC.SuppressFinalize(this);
+        Assert.DoesNotContain("[null]", content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("[]", content, StringComparison.OrdinalIgnoreCase);
     }
 }

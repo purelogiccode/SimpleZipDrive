@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using SimpleZipDrive_WinFsp.Services;
+using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Core.Models;
-using SimpleZipDrive.Core.Services;
+using SimpleZipDrive_WinFsp.Services;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 
@@ -12,6 +12,11 @@ public class WinFspMountServiceAdditionalTests : IDisposable
 {
     private readonly FakeLoggingService _loggingService = new();
     private readonly FakeSettingsService _settingsService = new();
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
 
     // ─── MountAsync edge cases ───
 
@@ -66,8 +71,8 @@ public class WinFspMountServiceAdditionalTests : IDisposable
             var service = new MountService(_loggingService, _settingsService);
 
             var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.MountAsync(tempFile));
-            Assert.Contains(".iso", ex.Message);
-            Assert.Contains("not a supported archive", ex.Message);
+            Assert.Contains(".iso", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not a supported archive", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -182,7 +187,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
         var service = new MountService(_loggingService, _settingsService);
         var eventRaised = false;
 
-        service.MountStatusChanged += (_, _) => { eventRaised = true; };
+        service.MountStatusChanged += (_, _) => eventRaised = true;
 
         // Invoke via reflection
         var method = typeof(MountService).GetMethod("OnMountStatusChanged",
@@ -313,9 +318,38 @@ public class WinFspMountServiceAdditionalTests : IDisposable
         }
     }
 
-    public void Dispose()
+    // ─── GetMountStatusErrorMessage (private static, via reflection) ───
+
+    private static string InvokeGetMountStatusErrorMessage(int statusCode)
     {
-        GC.SuppressFinalize(this);
+        var method = typeof(MountService).GetMethod("GetMountStatusErrorMessage",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        return (string)method.Invoke(null, [statusCode])!;
+    }
+
+    [Theory]
+    [InlineData(unchecked((int)0xC0000035), "already in use")]
+    [InlineData(unchecked((int)0xC0000034), "not found or is not running")]
+    [InlineData(unchecked((int)0xC000003A), "path was not found")]
+    [InlineData(unchecked((int)0xC0000022), "Access denied")]
+    [InlineData(unchecked((int)0xC000009A), "Insufficient system resources")]
+    [InlineData(unchecked((int)0xC0000038), "already exists")]
+    [InlineData(unchecked((int)0xC000000E), "not available")]
+    public void GetMountStatusErrorMessage_KnownStatusCodes_ReturnsSpecificMessage(int statusCode,
+        string expectedFragment)
+    {
+        var result = InvokeGetMountStatusErrorMessage(statusCode);
+
+        Assert.Contains(expectedFragment, result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetMountStatusErrorMessage_UnknownStatusCode_ReturnsFallback()
+    {
+        var result = InvokeGetMountStatusErrorMessage(unchecked((int)0xC00000BB));
+
+        Assert.Contains("Mount failed with status", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("outdated WinFsp driver", result, StringComparison.OrdinalIgnoreCase);
     }
 
     private class FakeLoggingService : ILoggingService
@@ -354,43 +388,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
 
         public void UpdateRamLimit(int maxMemoryPerFileMb)
         {
-            if (maxMemoryPerFileMb > 0)
-            {
-                Settings.MaxMemoryPerFileMb = maxMemoryPerFileMb;
-            }
+            if (maxMemoryPerFileMb > 0) Settings.MaxMemoryPerFileMb = maxMemoryPerFileMb;
         }
-    }
-
-    // ─── GetMountStatusErrorMessage (private static, via reflection) ───
-
-    private static string InvokeGetMountStatusErrorMessage(int statusCode)
-    {
-        var method = typeof(MountService).GetMethod("GetMountStatusErrorMessage",
-            BindingFlags.NonPublic | BindingFlags.Static)!;
-        return (string)method.Invoke(null, [statusCode])!;
-    }
-
-    [Theory]
-    [InlineData(unchecked((int)0xC0000035), "already in use")]
-    [InlineData(unchecked((int)0xC0000034), "not found or is not running")]
-    [InlineData(unchecked((int)0xC000003A), "path was not found")]
-    [InlineData(unchecked((int)0xC0000022), "Access denied")]
-    [InlineData(unchecked((int)0xC000009A), "Insufficient system resources")]
-    [InlineData(unchecked((int)0xC0000038), "already exists")]
-    [InlineData(unchecked((int)0xC000000E), "not available")]
-    public void GetMountStatusErrorMessage_KnownStatusCodes_ReturnsSpecificMessage(int statusCode, string expectedFragment)
-    {
-        var result = InvokeGetMountStatusErrorMessage(statusCode);
-
-        Assert.Contains(expectedFragment, result);
-    }
-
-    [Fact]
-    public void GetMountStatusErrorMessage_UnknownStatusCode_ReturnsFallback()
-    {
-        var result = InvokeGetMountStatusErrorMessage(unchecked((int)0xC00000BB));
-
-        Assert.Contains("Mount failed with status", result);
-        Assert.Contains("outdated WinFsp driver", result);
     }
 }

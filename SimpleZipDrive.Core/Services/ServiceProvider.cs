@@ -1,14 +1,14 @@
 namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
-/// Provides access to application services.
+///     Provides access to application services.
 /// </summary>
 public static class ServiceProvider
 {
     private static readonly ConcurrentDictionary<Type, object> Services = new();
 
     /// <summary>
-    /// Registers a service instance.
+    ///     Registers a service instance.
     /// </summary>
     /// <typeparam name="T">The service interface type.</typeparam>
     /// <param name="implementation">The service implementation.</param>
@@ -18,38 +18,32 @@ public static class ServiceProvider
     }
 
     /// <summary>
-    /// Gets a registered service.
+    ///     Gets a registered service.
     /// </summary>
     /// <typeparam name="T">The service interface type.</typeparam>
     /// <returns>The service implementation.</returns>
     /// <exception cref="InvalidOperationException">Thrown when the service is not registered.</exception>
     public static T Get<T>() where T : class
     {
-        if (Services.TryGetValue(typeof(T), out var service))
-        {
-            return (T)service;
-        }
+        if (Services.TryGetValue(typeof(T), out var service)) return (T)service;
 
         throw new InvalidOperationException($"Service {typeof(T).Name} is not registered.");
     }
 
     /// <summary>
-    /// Gets a registered service or null if not registered.
+    ///     Gets a registered service or null if not registered.
     /// </summary>
     /// <typeparam name="T">The service interface type.</typeparam>
     /// <returns>The service implementation or null.</returns>
     public static T? TryGet<T>() where T : class
     {
-        if (Services.TryGetValue(typeof(T), out var service))
-        {
-            return (T)service;
-        }
+        if (Services.TryGetValue(typeof(T), out var service)) return (T)service;
 
         return null;
     }
 
     /// <summary>
-    /// Disposes all registered services that implement IDisposable.
+    ///     Disposes all registered services that implement IDisposable.
     /// </summary>
     public static void DisposeAllServices()
     {
@@ -63,7 +57,8 @@ public static class ServiceProvider
                 }
                 catch (Exception ex)
                 {
-                    ErrorLoggerStatic.ReportSilentException(ex, $"ServiceProvider.DisposeAllServices: Error disposing {service.GetType().Name}", true);
+                    ErrorLoggerStatic.ReportSilentException(ex,
+                        $"ServiceProvider.DisposeAllServices: Error disposing {service.GetType().Name}", true);
                 }
             }
         }

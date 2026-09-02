@@ -250,7 +250,7 @@ public class DiagnosticLoggerTests
             DiagnosticLogger.Close(); // Close writer before reading
 
             var content = File.ReadAllText(DiagnosticLogger.LogFilePath!);
-            Assert.Contains("test message", content);
+            Assert.Contains("test message", content, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -280,9 +280,9 @@ public class DiagnosticLoggerTests
 
             Assert.NotNull(DiagnosticLogger.LogFilePath);
             var content = File.ReadAllText(DiagnosticLogger.LogFilePath);
-            Assert.Contains("context", content);
-            Assert.Contains("InvalidOperationException", content);
-            Assert.Contains("test error", content);
+            Assert.Contains("context", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("InvalidOperationException", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("test error", content, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -311,10 +311,10 @@ public class DiagnosticLoggerTests
             DiagnosticLogger.Close();
 
             var content = File.ReadAllText(DiagnosticLogger.LogFilePath!);
-            Assert.Contains("Create", content);
-            Assert.Contains("/test", content);
-            Assert.Contains("SUCCESS", content);
-            Assert.Contains("success", content);
+            Assert.Contains("Create", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/test", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("SUCCESS", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("success", content, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -343,8 +343,8 @@ public class DiagnosticLoggerTests
             DiagnosticLogger.Close();
 
             var content = File.ReadAllText(DiagnosticLogger.LogFilePath!);
-            Assert.Contains("ReadDir", content);
-            Assert.Contains("true", content);
+            Assert.Contains("ReadDir", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("true", content, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -374,8 +374,8 @@ public class DiagnosticLoggerTests
 
             Assert.NotNull(DiagnosticLogger.LogFilePath);
             var content = File.ReadAllText(DiagnosticLogger.LogFilePath);
-            Assert.Contains("TEST SECTION", content);
-            Assert.Contains("========", content);
+            Assert.Contains("TEST SECTION", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("========", content, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -404,7 +404,7 @@ public class DiagnosticLoggerTests
             DiagnosticLogger.Close();
 
             var content = File.ReadAllText(DiagnosticLogger.LogFilePath!);
-            Assert.Contains("--- MY HEADER ---", content);
+            Assert.Contains("--- MY HEADER ---", content, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

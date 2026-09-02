@@ -3,8 +3,8 @@ using SimpleZipDrive.Core;
 namespace SimpleZipDrive.Tests;
 
 /// <summary>
-/// Tests for the shared <see cref="ArchiveFormats"/> helper used by both the Dokan
-/// and WinFsp mount services.
+///     Tests for the shared <see cref="ArchiveFormats" /> helper used by both the Dokan
+///     and WinFsp mount services.
 /// </summary>
 public class ArchiveFormatsTests
 {
@@ -48,16 +48,16 @@ public class ArchiveFormatsTests
     [Fact]
     public void DialogFilter_IncludesComicExtensions()
     {
-        Assert.Contains("*.cbz", ArchiveFormats.DialogFilter);
-        Assert.Contains("*.cbr", ArchiveFormats.DialogFilter);
-        Assert.Contains("*.cb7", ArchiveFormats.DialogFilter);
+        Assert.Contains("*.cbz", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("*.cbr", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("*.cb7", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void SupportedExtensionsDescription_IncludesComicExtensions()
     {
-        Assert.Contains(".cbz", ArchiveFormats.SupportedExtensionsDescription);
-        Assert.Contains(".cbr", ArchiveFormats.SupportedExtensionsDescription);
-        Assert.Contains(".cb7", ArchiveFormats.SupportedExtensionsDescription);
+        Assert.Contains(".cbz", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".cbr", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".cb7", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
     }
 }

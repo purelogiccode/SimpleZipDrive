@@ -40,7 +40,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         var callbackInvoked = false;
-        var stream = new SharedMemoryStream(data, () => { callbackInvoked = true; });
+        var stream = new SharedMemoryStream(data, () => callbackInvoked = true);
 
         stream.Dispose();
 
@@ -52,7 +52,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         var callCount = 0;
-        var stream = new SharedMemoryStream(data, () => { callCount++; });
+        var stream = new SharedMemoryStream(data, () => callCount++);
 
         stream.Dispose();
         stream.Dispose();
@@ -101,7 +101,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         var callbackInvoked = false;
-        var stream = new SharedMemoryStream(data, () => { callbackInvoked = true; });
+        var stream = new SharedMemoryStream(data, () => callbackInvoked = true);
 
         stream.Dispose();
         Assert.True(callbackInvoked);
@@ -113,7 +113,7 @@ public class ZipFsStreamsTests
     public void StoredEntryStream_ConstructorWithValidArgs_Succeeds()
     {
         using var source = new MemoryStream(new byte[100]);
-        var lockObj = new object();
+        var lockObj = new Lock();
 
         using var stream = new StoredEntryStream(source, 0, 50, lockObj);
 
@@ -128,7 +128,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         var buffer = new byte[5];
@@ -143,7 +143,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 0, 0, 10, 20, 30, 0, 0 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 2, 3, lockObj);
 
         var buffer = new byte[3];
@@ -160,7 +160,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Position = 3;
@@ -175,7 +175,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Position = 1;
@@ -192,7 +192,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         var result = stream.Seek(2, SeekOrigin.Begin);
@@ -206,7 +206,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         stream.Position = 1;
@@ -220,7 +220,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         var result = stream.Seek(-2, SeekOrigin.End);
@@ -233,7 +233,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         Assert.Throws<IOException>(() => stream.Seek(-10, SeekOrigin.Begin));
@@ -244,7 +244,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         Assert.Throws<IOException>(() => stream.Seek(100, SeekOrigin.Begin));
@@ -255,7 +255,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => stream.Position = -1);
@@ -266,7 +266,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => stream.Position = 100);
@@ -277,7 +277,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         var ex = Record.Exception(stream.Flush);
@@ -289,7 +289,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         Assert.Throws<NotSupportedException>(() => stream.SetLength(10));
@@ -300,7 +300,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         Assert.Throws<NotSupportedException>(() => stream.Write([1, 2], 0, 2));
@@ -311,7 +311,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Dispose();
@@ -325,7 +325,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Dispose();
@@ -338,7 +338,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Dispose();
@@ -354,7 +354,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         var buffer = new byte[5];
@@ -369,7 +369,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Position = 1;
@@ -386,7 +386,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         var buffer = new byte[3];
@@ -403,7 +403,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         var buffer = new byte[3];
@@ -417,7 +417,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         var buffer = new byte[3];
@@ -431,7 +431,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         var buffer = new byte[2];
@@ -444,7 +444,7 @@ public class ZipFsStreamsTests
     public void StoredEntryStream_ConstructorNegativeOffsetThrows()
     {
         using var source = new MemoryStream(new byte[10]);
-        var lockObj = new object();
+        var lockObj = new Lock();
 
         Assert.Throws<ArgumentOutOfRangeException>(() => new StoredEntryStream(source, -1, 5, lockObj));
     }
@@ -453,7 +453,7 @@ public class ZipFsStreamsTests
     public void StoredEntryStream_ConstructorOffsetBeyondLengthThrows()
     {
         using var source = new MemoryStream(new byte[10]);
-        var lockObj = new object();
+        var lockObj = new Lock();
 
         Assert.Throws<ArgumentOutOfRangeException>(() => new StoredEntryStream(source, 100, 5, lockObj));
     }
@@ -462,7 +462,7 @@ public class ZipFsStreamsTests
     public void StoredEntryStream_ConstructorNegativeLengthThrows()
     {
         using var source = new MemoryStream(new byte[10]);
-        var lockObj = new object();
+        var lockObj = new Lock();
 
         Assert.Throws<ArgumentOutOfRangeException>(() => new StoredEntryStream(source, 0, -1, lockObj));
     }
@@ -471,7 +471,7 @@ public class ZipFsStreamsTests
     public void StoredEntryStream_EmptyDataLengthZero_WorksCorrectly()
     {
         using var source = new MemoryStream(new byte[10]);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 5, 0, lockObj);
 
         Assert.Equal(0, stream.Length);
@@ -487,7 +487,7 @@ public class ZipFsStreamsTests
     {
         var data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 10, lockObj);
 
         var buffer1 = new byte[3];

@@ -1,3 +1,4 @@
+using System.Globalization;
 using SimpleZipDrive.Core;
 
 namespace SimpleZipDrive.Tests;
@@ -105,7 +106,7 @@ public class ZipFsHelpersTests
         var result = ZipFsHelpers.SanitizeVolumeLabel(label);
 
         Assert.Equal("A" + new string('A', 29), result);
-        Assert.DoesNotContain(" ", result);
+        Assert.DoesNotContain(" ", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -131,11 +132,11 @@ public class ZipFsHelpersTests
     {
         var dirName = ZipFsHelpers.GenerateTempDirectoryName();
 
-        var separatorIndex = dirName.IndexOf('_');
+        var separatorIndex = dirName.IndexOf('_', StringComparison.OrdinalIgnoreCase);
         Assert.True(separatorIndex > 0);
 
         var pidStr = dirName[..separatorIndex];
-        Assert.True(int.TryParse(pidStr, out var pid));
+        Assert.True(int.TryParse(pidStr, CultureInfo.InvariantCulture, out var pid));
         Assert.Equal(Environment.ProcessId, pid);
     }
 
@@ -144,7 +145,7 @@ public class ZipFsHelpersTests
     {
         var dirName = ZipFsHelpers.GenerateTempDirectoryName();
 
-        var separatorIndex = dirName.IndexOf('_');
+        var separatorIndex = dirName.IndexOf('_', StringComparison.OrdinalIgnoreCase);
         var guidPart = dirName[(separatorIndex + 1)..];
 
         // GUID without dashes is 32 hex chars
@@ -158,7 +159,7 @@ public class ZipFsHelpersTests
         var name1 = ZipFsHelpers.GenerateTempDirectoryName();
         var name2 = ZipFsHelpers.GenerateTempDirectoryName();
 
-        Assert.NotEqual(name1, name2);
+        Assert.NotEqual(name1, name2, StringComparer.OrdinalIgnoreCase);
     }
 
     // ─── TryParseProcessIdFromTempDirectoryName tests ───
@@ -166,7 +167,8 @@ public class ZipFsHelpersTests
     [Fact]
     public void TryParseProcessIdFromTempDirectoryName_ValidFormat_ParsesCorrectly()
     {
-        var result = ZipFsHelpers.TryParseProcessIdFromTempDirectoryName("12345_abcdef1234567890abcdef1234567890", out var pid);
+        var result =
+            ZipFsHelpers.TryParseProcessIdFromTempDirectoryName("12345_abcdef1234567890abcdef1234567890", out var pid);
 
         Assert.True(result);
         Assert.Equal(12345, pid);
@@ -371,14 +373,15 @@ public class ZipFsHelpersTests
     [Fact]
     public void BaseTempPath_EndsWithTemp()
     {
-        Assert.EndsWith(Path.Combine("SimpleZipDrive", "Temp"), ZipFsHelpers.BaseTempPath);
+        Assert.EndsWith(Path.Combine("SimpleZipDrive", "Temp"), ZipFsHelpers.BaseTempPath,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void BaseTempPath_IsUnderLocalAppData()
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        Assert.StartsWith(localAppData, ZipFsHelpers.BaseTempPath);
+        Assert.StartsWith(localAppData, ZipFsHelpers.BaseTempPath, StringComparison.OrdinalIgnoreCase);
     }
 
     // ─── RegisterCurrentTempDirectory tests ───

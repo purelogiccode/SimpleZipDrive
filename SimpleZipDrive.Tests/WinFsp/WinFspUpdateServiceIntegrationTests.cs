@@ -8,16 +8,78 @@ using SimpleZipDrive.Tests.Fakes;
 namespace SimpleZipDrive.Tests.WinFsp;
 
 /// <summary>
-/// Integration tests for the WinFsp UpdateService that verify the full update check flow
-/// with mocked HTTP responses.
+///     Integration tests for the WinFsp UpdateService that verify the full update check flow
+///     with mocked HTTP responses.
 /// </summary>
 [SuppressMessage("ReSharper", "NullableWarningSuppressionIsUsed")]
 public class WinFspUpdateServiceIntegrationTests
 {
-    private readonly FakeUserNotificationService _fakeNotificationService = new();
-
     private readonly Version _currentVersion = Assembly.GetExecutingAssembly().GetName().Version
                                                ?? new Version(0, 0, 0, 0);
+
+    private readonly FakeUserNotificationService _fakeNotificationService = new();
+
+    #region Cancellation Tests
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenCancelled_DoesNotNotifyUser()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        const string tagName = "release_99.0.0";
+        var json = CreateGitHubReleaseJson(tagName);
+
+        using var httpClient = CreateMockHttpClient(json);
+        var updateService = new UpdateService(_fakeNotificationService, httpClient);
+
+        // Act - UpdateService catches all exceptions internally, so no exception is thrown
+        await updateService.CheckForUpdateAsync(cts.Token);
+
+        // Assert - user should not be notified when cancellation occurs
+        Assert.False(_fakeNotificationService.ShowUpdateAvailableCalled);
+    }
+
+    #endregion
+
+    #region Mock HttpMessageHandler
+
+    private class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Exception? _exception;
+        private readonly string? _responseContent;
+        private readonly HttpStatusCode _statusCode;
+
+        public MockHttpMessageHandler(string responseContent, HttpStatusCode statusCode = HttpStatusCode.OK)
+        {
+            _responseContent = responseContent;
+            _statusCode = statusCode;
+        }
+
+        public MockHttpMessageHandler(Exception exception)
+        {
+            _exception = exception;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (_exception != null) throw _exception;
+
+            var response = new HttpResponseMessage(_statusCode)
+            {
+                Content = new StringContent(_responseContent ?? "{}")
+            };
+
+            return Task.FromResult(response);
+        }
+    }
+
+    #endregion
 
     #region Helper Methods
 
@@ -33,7 +95,8 @@ public class WinFspUpdateServiceIntegrationTests
         return new HttpClient(handler);
     }
 
-    private static string CreateGitHubReleaseJson(string tagName, string htmlUrl = "https://github.com/purelogiccode/SimpleZipDrive/releases/tag/test")
+    private static string CreateGitHubReleaseJson(string tagName,
+        string htmlUrl = "https://github.com/purelogiccode/SimpleZipDrive/releases/tag/test")
     {
         return JsonSerializer.Serialize(new
         {
@@ -282,30 +345,6 @@ public class WinFspUpdateServiceIntegrationTests
 
     #endregion
 
-    #region Cancellation Tests
-
-    [Fact]
-    public async Task CheckForUpdateAsync_WhenCancelled_DoesNotNotifyUser()
-    {
-        // Arrange
-        var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-
-        const string tagName = "release_99.0.0";
-        var json = CreateGitHubReleaseJson(tagName);
-
-        using var httpClient = CreateMockHttpClient(json);
-        var updateService = new UpdateService(_fakeNotificationService, httpClient);
-
-        // Act - UpdateService catches all exceptions internally, so no exception is thrown
-        await updateService.CheckForUpdateAsync(cts.Token);
-
-        // Assert - user should not be notified when cancellation occurs
-        Assert.False(_fakeNotificationService.ShowUpdateAvailableCalled);
-    }
-
-    #endregion
-
     #region Constructor Tests
 
     [Fact]
@@ -322,47 +361,6 @@ public class WinFspUpdateServiceIntegrationTests
         // Arrange & Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
             new UpdateService(_fakeNotificationService, null!));
-    }
-
-    #endregion
-
-    #region Mock HttpMessageHandler
-
-    private class MockHttpMessageHandler : HttpMessageHandler
-    {
-        private readonly string? _responseContent;
-        private readonly HttpStatusCode _statusCode;
-        private readonly Exception? _exception;
-
-        public MockHttpMessageHandler(string responseContent, HttpStatusCode statusCode = HttpStatusCode.OK)
-        {
-            _responseContent = responseContent;
-            _statusCode = statusCode;
-        }
-
-        public MockHttpMessageHandler(Exception exception)
-        {
-            _exception = exception;
-        }
-
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (_exception != null)
-            {
-                throw _exception;
-            }
-
-            var response = new HttpResponseMessage(_statusCode)
-            {
-                Content = new StringContent(_responseContent ?? "{}")
-            };
-
-            return Task.FromResult(response);
-        }
     }
 
     #endregion

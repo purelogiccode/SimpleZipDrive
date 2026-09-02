@@ -9,3 +9,4 @@ global using System.Threading;
 global using System.Threading.Tasks;
 global using SimpleZipDrive.Core.Models;
 global using SimpleZipDrive.Core.Services;
+global using SimpleZipDrive.Core.Interfaces;

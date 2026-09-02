@@ -5,15 +5,15 @@ using Microsoft.Win32;
 namespace SimpleZipDrive.Core.Views;
 
 /// <summary>
-/// WPF dialog for editing application settings such as RAM cache limit, mount type, and auto-open behavior.
+///     WPF dialog for editing application settings such as RAM cache limit, mount type, and auto-open behavior.
 /// </summary>
 public partial class SettingsWindow
 {
     private readonly ISettingsService _settingsService;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SettingsWindow"/> class,
-    /// populating controls with the current persisted settings.
+    ///     Initializes a new instance of the <see cref="SettingsWindow" /> class,
+    ///     populating controls with the current persisted settings.
     /// </summary>
     public SettingsWindow()
     {
@@ -34,10 +34,11 @@ public partial class SettingsWindow
     {
         try
         {
-            if (long.TryParse(RamLimitTextBox.Text, out var value) && value > 0)
+            if (long.TryParse(RamLimitTextBox.Text, CultureInfo.InvariantCulture, out var value) && value > 0)
             {
                 _settingsService.Settings.MaxMemoryPerFileMb = value;
-                _settingsService.Settings.DefaultMountType = MountTypeComboBox.SelectedIndex == 1 ? MountType.Folder : MountType.DriveLetter;
+                _settingsService.Settings.DefaultMountType =
+                    MountTypeComboBox.SelectedIndex == 1 ? MountType.Folder : MountType.DriveLetter;
                 _settingsService.Settings.AutoOpenMountedDrive = AutoOpenCheckBox.IsChecked == true;
                 _settingsService.Settings.CrossIntegrityMount = CrossIntegrityCheckBox.IsChecked == true;
                 _settingsService.Settings.CrossIntegrityMountFolder = MountFolderTextBox.Text.Trim();
@@ -50,25 +51,31 @@ public partial class SettingsWindow
                 if (actualValue < value)
                 {
                     var availableMemoryMb = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024 / 1024;
-                    loggingService?.Log($"RAM limit per file capped to {actualValue} MB (90% of available {availableMemoryMb} MB system memory).");
+                    loggingService?.Log(
+                        $"RAM limit per file capped to {actualValue} MB (90% of available {availableMemoryMb} MB system memory).");
                     loggingService?.Log($"Entered value {value} MB exceeded safe limits and was adjusted.");
                 }
                 else
                 {
-                    loggingService?.Log($"RAM limit per file updated to {actualValue} MB. New mounts will use this value.");
+                    loggingService?.Log(
+                        $"RAM limit per file updated to {actualValue} MB. New mounts will use this value.");
                 }
 
                 var mountType = _settingsService.Settings.DefaultMountType;
-                loggingService?.Log($"Default mount type set to: {(mountType == MountType.Folder ? "Folder" : "Drive Letter")}.");
+                loggingService?.Log(
+                    $"Default mount type set to: {(mountType == MountType.Folder ? "Folder" : "Drive Letter")}.");
 
-                loggingService?.Log($"Auto-open mounted drive: {(_settingsService.Settings.AutoOpenMountedDrive ? "Enabled" : "Disabled")}.");
+                loggingService?.Log(
+                    $"Auto-open mounted drive: {(_settingsService.Settings.AutoOpenMountedDrive ? "Enabled" : "Disabled")}.");
 
-                loggingService?.Log($"Cross-integrity mount: {(_settingsService.Settings.CrossIntegrityMount ? "Enabled (folder mount with permissive DACL)" : "Disabled")}.");
+                loggingService?.Log(
+                    $"Cross-integrity mount: {(_settingsService.Settings.CrossIntegrityMount ? "Enabled (folder mount with permissive DACL)" : "Disabled")}.");
 
                 var mountFolder = _settingsService.Settings.CrossIntegrityMountFolder;
                 if (_settingsService.Settings.CrossIntegrityMount)
                 {
-                    loggingService?.Log($"Cross-integrity mount folder: {(string.IsNullOrWhiteSpace(mountFolder) ? @"Default (%LOCALAPPDATA%\SimpleZipDrive\Mounts)" : mountFolder)}.");
+                    loggingService?.Log(
+                        $"Cross-integrity mount folder: {(string.IsNullOrWhiteSpace(mountFolder) ? @"Default (%LOCALAPPDATA%\SimpleZipDrive\Mounts)" : mountFolder)}.");
                 }
 
                 DialogResult = true;
@@ -97,15 +104,9 @@ public partial class SettingsWindow
         };
 
         var currentPath = MountFolderTextBox.Text.Trim();
-        if (!string.IsNullOrEmpty(currentPath) && Directory.Exists(currentPath))
-        {
-            dialog.InitialDirectory = currentPath;
-        }
+        if (!string.IsNullOrEmpty(currentPath) && Directory.Exists(currentPath)) dialog.InitialDirectory = currentPath;
 
-        if (dialog.ShowDialog() == true)
-        {
-            MountFolderTextBox.Text = dialog.FolderName;
-        }
+        if (dialog.ShowDialog() == true) MountFolderTextBox.Text = dialog.FolderName;
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)

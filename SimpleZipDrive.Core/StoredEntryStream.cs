@@ -3,123 +3,27 @@ using Microsoft.Win32.SafeHandles;
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-/// A read-only stream over a shared, cached decompressed entry buffer.
-/// Every open of the same archive entry gets its own stream instance with an independent
-/// position, but all instances share the single underlying <see cref="byte"/>[] so the entry
-/// is decompressed only once regardless of how many handles (or on-demand reads) are active.
-/// Disposing the stream releases the caller's reference; the buffer stays warm in the cache
-/// until it is evicted under memory pressure or the owning core is disposed.
-/// </summary>
-internal sealed class SharedMemoryStream : Stream
-{
-    private readonly MemoryStream _inner;
-    private readonly Action _onDispose;
-    private bool _disposed;
-
-    public SharedMemoryStream(byte[] buffer, Action onDispose)
-    {
-        _inner = new MemoryStream(buffer, false);
-        _onDispose = onDispose;
-    }
-
-    public override bool CanRead => true;
-
-    public override bool CanSeek => true;
-
-    public override bool CanWrite => false;
-
-    public override long Length => _inner.Length;
-
-    public override long Position
-    {
-        get => _inner.Position;
-        set => _inner.Position = value;
-    }
-
-    public override int Read(byte[] buffer, int offset, int count)
-    {
-        return _inner.Read(buffer, offset, count);
-    }
-
-    public override int Read(Span<byte> buffer)
-    {
-        return _inner.Read(buffer);
-    }
-
-    public override long Seek(long offset, SeekOrigin origin)
-    {
-        return _inner.Seek(offset, origin);
-    }
-
-    public override void SetLength(long value)
-    {
-        throw new NotSupportedException();
-    }
-
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        throw new NotSupportedException();
-    }
-
-    public override void Flush()
-    {
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (!_disposed)
-        {
-            _disposed = true;
-            if (disposing)
-            {
-                _onDispose();
-            }
-        }
-
-        _inner.Dispose();
-        base.Dispose(disposing);
-    }
-}
-
-/// <summary>
-/// A decompressed entry buffer shared by all open streams of the same archive entry.
-/// <see cref="RefCount"/> tracks active opens; buffers with <see cref="RefCount"/> == 0 stay
-/// warm in the memory cache and are evicted (LRU by <see cref="LastUsed"/>) only when a new
-/// allocation would exceed the total memory cache limit.
-/// </summary>
-internal sealed class MemoryEntryCacheEntry
-{
-    public required byte[] Buffer { get; init; }
-
-    public required int Size { get; init; }
-
-    public int RefCount;
-
-    public long LastUsed;
-}
-
-/// <summary>
-/// Provides direct read access to a stored (uncompressed) entry within an archive stream
-/// without extracting it to a separate cache. Uses the original archive stream with
-/// position synchronization via an external lock.
+///     Provides direct read access to a stored (uncompressed) entry within an archive stream
+///     without extracting it to a separate cache. Uses the original archive stream with
+///     position synchronization via an external lock.
 /// </summary>
 internal sealed class StoredEntryStream : Stream
 {
     private const int ReadAheadBufferSize = 4 * 1024 * 1024; // 4 MB
+    private readonly long _dataOffset;
+    private readonly SafeFileHandle? _fileHandle;
+    private readonly Lock _sourceLock;
 
     private readonly Stream _sourceStream;
-    private readonly long _dataOffset;
-    private readonly object _sourceLock;
-    private readonly SafeFileHandle? _fileHandle;
-    private long _position;
     private bool _disposed;
+    private long _lastReadEnd = -1;
+    private long _position;
 
     private byte[]? _readAheadBuffer;
     private long _readAheadFileOffset = -1;
     private int _readAheadLength;
-    private long _lastReadEnd = -1;
 
-    public StoredEntryStream(Stream sourceStream, long dataOffset, long dataLength, object sourceLock)
+    public StoredEntryStream(Stream sourceStream, long dataOffset, long dataLength, Lock sourceLock)
     {
         if (dataOffset < 0 || dataOffset > sourceStream.Length)
             throw new ArgumentOutOfRangeException(nameof(dataOffset));
@@ -134,10 +38,7 @@ internal sealed class StoredEntryStream : Stream
         _position = 0;
         _sourceStream.Position = dataOffset;
 
-        if (dataLength > ReadAheadBufferSize)
-        {
-            _readAheadBuffer = new byte[ReadAheadBufferSize];
-        }
+        if (dataLength > ReadAheadBufferSize) _readAheadBuffer = new byte[ReadAheadBufferSize];
     }
 
     public override bool CanRead => true;
@@ -176,10 +77,7 @@ internal sealed class StoredEntryStream : Stream
 
         lock (_sourceLock)
         {
-            if (_sourceStream.Position != targetPosition)
-            {
-                _sourceStream.Position = targetPosition;
-            }
+            if (_sourceStream.Position != targetPosition) _sourceStream.Position = targetPosition;
 
             var bytesRead = _sourceStream.Read(buffer, offset, maxBytes);
             _position += bytesRead;
@@ -205,10 +103,7 @@ internal sealed class StoredEntryStream : Stream
 
         lock (_sourceLock)
         {
-            if (_sourceStream.Position != targetPosition)
-            {
-                _sourceStream.Position = targetPosition;
-            }
+            if (_sourceStream.Position != targetPosition) _sourceStream.Position = targetPosition;
 
             var bytesRead = _sourceStream.Read(buffer[..maxBytes]);
             _position += bytesRead;
@@ -273,16 +168,11 @@ internal sealed class StoredEntryStream : Stream
         var targetPosition = _dataOffset + fileOffset;
 
         if (_fileHandle != null)
-        {
             return RandomAccess.Read(_fileHandle, buffer.AsSpan(bufferOffset, count), targetPosition);
-        }
 
         lock (_sourceLock)
         {
-            if (_sourceStream.Position != targetPosition)
-            {
-                _sourceStream.Position = targetPosition;
-            }
+            if (_sourceStream.Position != targetPosition) _sourceStream.Position = targetPosition;
 
             return _sourceStream.Read(buffer, bufferOffset, count);
         }

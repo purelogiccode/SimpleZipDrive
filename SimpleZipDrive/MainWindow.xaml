@@ -18,19 +18,25 @@
         <!-- Top Menu -->
         <Menu Grid.Row="0">
             <MenuItem Header="File" ToolTip="File operations">
-                <MenuItem Header="Mount as Drive Letter..." Click="MountAsDrive_ClickAsync" ToolTip="Select an archive and mount as a virtual drive letter" />
-                <MenuItem Header="Mount as Folder..." Click="MountAsFolder_ClickAsync" ToolTip="Select an archive and mount as an NTFS folder" />
+                <MenuItem Header="Mount as Drive Letter..." Click="MountAsDrive_ClickAsync"
+                          ToolTip="Select an archive and mount as a virtual drive letter" />
+                <MenuItem Header="Mount as Folder..." Click="MountAsFolder_ClickAsync"
+                          ToolTip="Select an archive and mount as an NTFS folder" />
                 <Separator />
                 <MenuItem Header="Exit" Click="Exit_Click" InputGestureText="Alt+F4" ToolTip="Close the application" />
             </MenuItem>
             <MenuItem Header="Settings" ToolTip="Application settings">
-                <MenuItem Header="Settings..." Click="SettingsRamLimit_Click" InputGestureText="Ctrl+R" ToolTip="Application settings" />
+                <MenuItem Header="Settings..." Click="SettingsRamLimit_Click" InputGestureText="Ctrl+R"
+                          ToolTip="Application settings" />
                 <Separator />
-                <MenuItem Header="Open Configuration Path" Click="OpenConfigPath_Click" ToolTip="Open the folder where settings are stored" />
-                <MenuItem Header="Clean Temp Files" Click="CleanTempFiles_Click" ToolTip="Clean temporary cache files from previous sessions" />
+                <MenuItem Header="Open Configuration Path" Click="OpenConfigPath_Click"
+                          ToolTip="Open the folder where settings are stored" />
+                <MenuItem Header="Clean Temp Files" Click="CleanTempFiles_Click"
+                          ToolTip="Clean temporary cache files from previous sessions" />
             </MenuItem>
             <MenuItem Header="Help" ToolTip="Help and information">
-                <MenuItem Header="About" Click="About_Click" InputGestureText="F1" ToolTip="View application information and credits" />
+                <MenuItem Header="About" Click="About_Click" InputGestureText="F1"
+                          ToolTip="View application information and credits" />
             </MenuItem>
         </Menu>
 
@@ -40,9 +46,9 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            
+
             <!-- Toolbar -->
-            <Border Grid.Row="0" 
+            <Border Grid.Row="0"
                     Background="{StaticResource BgSecondaryBrush}"
                     BorderBrush="{StaticResource BorderPrimaryBrush}"
                     BorderThickness="1"
@@ -52,28 +58,30 @@
                     ToolTip="Toolbar with drive mount controls and log actions">
                 <StackPanel Orientation="Horizontal">
                     <!-- Mount Button -->
-                    <Button x:Name="MountButton" 
-                            Content="Mount" 
-                            Click="Mount_ClickAsync" 
-                            Width="90" 
+                    <Button x:Name="MountButton"
+                            Content="Mount"
+                            Click="Mount_ClickAsync"
+                            Width="90"
                             Margin="0,0,8,0"
                             Style="{StaticResource PrimaryButtonStyle}"
                             ToolTip="Select a ZIP, 7Z, or RAR file to mount" />
-                    
+
                     <!-- Unmount Button -->
-                    <Button x:Name="UnmountButton" 
-                            Content="Unmount" 
-                            Click="Unmount_ClickAsync" 
-                            Width="90" 
+                    <Button x:Name="UnmountButton"
+                            Content="Unmount"
+                            Click="Unmount_ClickAsync"
+                            Width="90"
                             Margin="0,0,8,0"
                             IsEnabled="False"
                             Style="{StaticResource PrimaryButtonStyle}"
                             ToolTip="Unmount the currently mounted drive" />
-                    
-                    <Separator Style="{StaticResource {x:Static StatusBar.SeparatorStyleKey}}" Margin="0,0,16,0" ToolTip="Separates drive actions from log actions" />
-                    
+
+                    <Separator Style="{StaticResource {x:Static StatusBar.SeparatorStyleKey}}" Margin="0,0,16,0"
+                               ToolTip="Separates drive actions from log actions" />
+
                     <!-- Log Buttons -->
-                    <Button Content="Copy All" Click="CopyLog_Click" Width="90" Margin="0,0,8,0" ToolTip="Copy all log entries to clipboard" />
+                    <Button Content="Copy All" Click="CopyLog_Click" Width="90" Margin="0,0,8,0"
+                            ToolTip="Copy all log entries to clipboard" />
                     <Button Content="Clear Log" Click="ClearLog_Click" Width="90" ToolTip="Clear all log entries" />
                 </StackPanel>
             </Border>

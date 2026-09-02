@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
+using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Core.Models;
-using SimpleZipDrive.Core.Services;
 using SimpleZipDrive.Services;
 
 namespace SimpleZipDrive.Tests;
@@ -9,6 +9,13 @@ public class MountServiceAdditionalTests : IDisposable
 {
     private readonly FakeLoggingService _loggingService = new();
     private readonly FakeSettingsService _settingsService = new();
+
+    public void Dispose()
+    {
+        _loggingService.Dispose();
+        _settingsService.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     // ─── MountAsync: not mounted returns immediately ───
 
@@ -81,7 +88,7 @@ public class MountServiceAdditionalTests : IDisposable
         var service = new MountService(_loggingService, _settingsService);
         var eventRaised = false;
 
-        service.MountStatusChanged += (_, _) => { eventRaised = true; };
+        service.MountStatusChanged += (_, _) => eventRaised = true;
 
         // Event should be subscribable
         Assert.False(eventRaised);
@@ -110,15 +117,13 @@ public class MountServiceAdditionalTests : IDisposable
         Assert.Null(ex);
     }
 
-    public void Dispose()
-    {
-        _loggingService.Dispose();
-        _settingsService.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
     private class FakeLoggingService : ILoggingService, IDisposable
     {
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+        }
+
         public ObservableCollection<LogEntry> LogEntries { get; } = [];
 
         public void Log(string message)
@@ -137,15 +142,15 @@ public class MountServiceAdditionalTests : IDisposable
         {
             return string.Empty;
         }
-
-        public void Dispose()
-        {
-            GC.SuppressFinalize(this);
-        }
     }
 
     private class FakeSettingsService : ISettingsService, IDisposable
     {
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+        }
+
         public AppSettings Settings { get; } = new();
 
         public void SaveSettings()
@@ -158,11 +163,6 @@ public class MountServiceAdditionalTests : IDisposable
 
         public void UpdateRamLimit(int maxMemoryPerFileMb)
         {
-        }
-
-        public void Dispose()
-        {
-            GC.SuppressFinalize(this);
         }
     }
 }

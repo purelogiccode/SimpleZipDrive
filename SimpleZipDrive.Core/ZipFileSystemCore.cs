@@ -9,27 +9,35 @@ using SharpCompress.Common;
 using SharpCompress.Compressors.Deflate;
 using SharpCompress.Compressors.ZStandard;
 using SharpCompress.Readers;
+using CryptographicException = System.Security.Cryptography.CryptographicException;
 
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-/// Shared core filesystem logic for both Dokan and WinFsp ZipFs wrappers.
-/// Handles archive parsing, entry lookup, caching, throttling, and disposal.
+///     Shared core filesystem logic for both Dokan and WinFsp ZipFs wrappers.
+///     Handles archive parsing, entry lookup, caching, throttling, and disposal.
 /// </summary>
 public class ZipFileSystemCore : IDisposable
 {
-    private readonly Stream _sourceArchiveStream;
-    private readonly IArchive _archive;
-    internal readonly Dictionary<string, IArchiveEntry> ArchiveEntries = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, DateTime> _directoryCreationTimes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, DateTime> _directoryLastWriteTimes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, DateTime> _directoryLastAccessTimes = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Default volume label displayed in Windows Explorer.</summary>
+    public const string DefaultVolumeLabel = "SimpleZipDrive";
 
-    private readonly Action<Exception?, string?> _logErrorAction;
-    private readonly object _archiveLock = new();
+    /// <summary>Default maximum size (512 MB) for in-memory caching of a single archive entry.</summary>
+    public const long DefaultMaxMemorySize = 512L * 1024 * 1024;
+
+    internal readonly Dictionary<string, IArchiveEntry> ArchiveEntries = new(StringComparer.OrdinalIgnoreCase);
 
     // Cache for large files extracted to disk.
     internal readonly Dictionary<string, string> LargeFileCache = new(StringComparer.OrdinalIgnoreCase);
+
+    // Memory throttling for small files.
+    internal readonly long MaxTotalMemoryCache;
+    private readonly IArchive _archive;
+    private readonly string? _archiveFilePath;
+    private readonly Lock _archiveLock = new();
+    private readonly Dictionary<string, DateTime> _directoryCreationTimes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _directoryLastAccessTimes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _directoryLastWriteTimes = new(StringComparer.OrdinalIgnoreCase);
 
     // Per-entry semaphores for extraction synchronization (Fix: reduce global lock contention).
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _entryLocks = new(StringComparer.OrdinalIgnoreCase);
@@ -37,32 +45,24 @@ public class ZipFileSystemCore : IDisposable
     // Cache for entries that failed to decompress.
     private readonly HashSet<string> _failedEntries = new(StringComparer.OrdinalIgnoreCase);
 
-    // Memory throttling for small files.
-    internal readonly long MaxTotalMemoryCache;
-    internal long CurrentMemoryUsage;
-    private readonly object _memoryLock = new();
+    private readonly Action<Exception?, string?> _logErrorAction;
 
     // Shared memory cache for decompressed entries: one decompressed buffer per entry,
     // shared by all open streams (refcounted). Buffers stay warm after the last handle
     // closes and are evicted (LRU) only when the total cache limit would be exceeded.
-    private readonly Dictionary<string, MemoryEntryCacheEntry> _memoryEntryCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, MemoryEntryCacheEntry>
+        _memoryEntryCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Lock _memoryLock = new();
 
     private readonly Func<string?> _passwordProvider;
     private readonly SevenZipFallback? _sevenZipFallback;
-    private readonly string? _archiveFilePath;
+    private readonly Stream _sourceArchiveStream;
+    internal long CurrentMemoryUsage;
     private int _disposedInt;
 
-    /// <summary>Default volume label displayed in Windows Explorer.</summary>
-    public const string DefaultVolumeLabel = "SimpleZipDrive";
-
-    /// <summary>Default maximum size (512 MB) for in-memory caching of a single archive entry.</summary>
-    public const long DefaultMaxMemorySize = 512L * 1024 * 1024;
-
-    /// <summary>Gets the volume label displayed for the mounted archive.</summary>
-    public string VolumeLabel { get; }
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="ZipFileSystemCore"/> class.
+    ///     Initializes a new instance of the <see cref="ZipFileSystemCore" /> class.
     /// </summary>
     public ZipFileSystemCore(
         Stream archiveStream,
@@ -93,24 +93,16 @@ public class ZipFileSystemCore : IDisposable
             Directory.CreateDirectory(TempDirectoryPath);
 
             // Get file path for SevenZip fallback (if stream is a FileStream)
-            if (archiveStream is FileStream fs)
-            {
-                _archiveFilePath = fs.Name;
-            }
+            if (archiveStream is FileStream fs) _archiveFilePath = fs.Name;
 
-            if (archiveStream.CanSeek)
-            {
-                archiveStream.Position = 0;
-            }
+            if (archiveStream.CanSeek) archiveStream.Position = 0;
 
             _archive = OpenArchive(archiveStream);
             InitializeEntries();
 
             // Initialize SevenZip fallback if 7z.dll is available
             if (_archiveFilePath != null && SevenZipFallback.IsAvailable())
-            {
                 _sevenZipFallback = new SevenZipFallback(_archiveFilePath, _passwordProvider);
-            }
 
             DiagnosticLogger.LogSection("ZipFs CONSTRUCTED");
             DiagnosticLogger.Log($"  Archive type: {ArchiveType}");
@@ -121,7 +113,8 @@ public class ZipFileSystemCore : IDisposable
             DiagnosticLogger.Log($"  Max total memory: {MaxTotalMemoryCache / 1024.0 / 1024.0:F0} MB");
             DiagnosticLogger.Log($"  Temp directory: {TempDirectoryPath}");
             DiagnosticLogger.Log($"  Source stream CanSeek: {archiveStream.CanSeek}");
-            DiagnosticLogger.Log($"  Source stream Length: {(archiveStream.CanSeek ? archiveStream.Length / 1024.0 / 1024.0 : -1):F2} MB");
+            DiagnosticLogger.Log(
+                $"  Source stream Length: {(archiveStream.CanSeek ? archiveStream.Length / 1024.0 / 1024.0 : -1):F2} MB");
         }
         catch (Exception ex)
         {
@@ -131,6 +124,9 @@ public class ZipFileSystemCore : IDisposable
             throw;
         }
     }
+
+    /// <summary>Gets the volume label displayed for the mounted archive.</summary>
+    public string VolumeLabel { get; }
 
     /// <summary>Gets a value indicating whether this instance has been disposed.</summary>
     public bool IsDisposed => Volatile.Read(ref _disposedInt) != 0;
@@ -146,6 +142,80 @@ public class ZipFileSystemCore : IDisposable
 
     /// <summary>Gets the total size in bytes of the source archive stream, or 0 if the stream is not seekable.</summary>
     public long TotalSize => _sourceArchiveStream.CanSeek ? _sourceArchiveStream.Length : 0;
+
+    /// <summary>
+    ///     Releases all resources used by the <see cref="ZipFileSystemCore" />, including the archive,
+    ///     source stream, cached temp files, and the temporary directory.
+    /// </summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposedInt, 1) != 0)
+            return;
+
+        DiagnosticLogger.LogHeader("ZipFs DISPOSE");
+
+        _sevenZipFallback?.Dispose();
+        _archive.Dispose();
+        _sourceArchiveStream.Dispose();
+
+        lock (_archiveLock)
+        {
+            foreach (var tempFile in LargeFileCache.Values)
+            {
+                try
+                {
+                    if (File.Exists(tempFile)) File.Delete(tempFile);
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        _logErrorAction(ex, $"Failed to delete temp file on dispose: {tempFile}");
+                    }
+                    catch
+                    {
+                        // Best-effort logging during disposal; ignore failures.
+                    }
+                }
+            }
+
+            LargeFileCache.Clear();
+        }
+
+        lock (_memoryLock)
+        {
+            _memoryEntryCache.Clear();
+            CurrentMemoryUsage = 0;
+        }
+
+        foreach (var semaphore in _entryLocks.Values) semaphore.Dispose();
+
+        _entryLocks.Clear();
+
+        try
+        {
+            if (Directory.Exists(TempDirectoryPath)) Directory.Delete(TempDirectoryPath, true);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                _logErrorAction(ex, $"Failed to delete working directory on dispose: {TempDirectoryPath}");
+            }
+            catch
+            {
+                // Best-effort logging during disposal; ignore failures.
+            }
+        }
+
+        lock (_memoryLock)
+        {
+            CurrentMemoryUsage = 0;
+        }
+
+        DiagnosticLogger.LogHeader("ZipFs DISPOSE complete");
+        GC.SuppressFinalize(this);
+    }
 
     private IArchive OpenArchive(Stream stream)
     {
@@ -166,10 +236,7 @@ public class ZipFileSystemCore : IDisposable
 
             // Determine whether the archive can be used without a password
             var usability = GetArchiveUsability(archiveWithoutPassword);
-            if (usability == ArchiveUsability.Usable)
-            {
-                return archiveWithoutPassword;
-            }
+            if (usability == ArchiveUsability.Usable) return archiveWithoutPassword;
 
             encryptionConfirmed = usability == ArchiveUsability.Encrypted;
             archiveWithoutPassword.Dispose();
@@ -185,7 +252,8 @@ public class ZipFileSystemCore : IDisposable
         catch (Exception ex) when (!ZipFsHelpers.IsPasswordRequiredException(ex) && !IsCryptoException(ex))
         {
             throw new InvalidOperationException(
-                "The archive file appears to be corrupted, incomplete, or uses an unsupported format/feature that could not be parsed.", ex);
+                "The archive file appears to be corrupted, incomplete, or uses an unsupported format/feature that could not be parsed.",
+                ex);
         }
         catch (Exception)
         {
@@ -198,10 +266,7 @@ public class ZipFileSystemCore : IDisposable
             // Not confirmed as encrypted (e.g. corrupt or unsupported format): keep the legacy
             // behavior of opening without a password so the genuine parse error surfaces later,
             // instead of showing a pointless password dialog for damaged archives.
-            if (stream.CanSeek)
-            {
-                stream.Position = 0;
-            }
+            if (stream.CanSeek) stream.Position = 0;
 
             return OpenArchiveWithPassword(stream, null);
         }
@@ -210,14 +275,15 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Opens the archive using the supplied password without any accessibility verification.
+    ///     Opens the archive using the supplied password without any accessibility verification.
     /// </summary>
     private IArchive OpenArchiveWithPassword(Stream stream, string? password)
     {
         return ArchiveType switch
         {
             "zip" => ZipArchive.OpenArchive(stream, new ReaderOptions { Password = password, LeaveStreamOpen = true }),
-            "7z" => SevenZipArchive.OpenArchive(stream, new ReaderOptions { Password = password, LeaveStreamOpen = true }),
+            "7z" => SevenZipArchive.OpenArchive(stream,
+                new ReaderOptions { Password = password, LeaveStreamOpen = true }),
             "rar" => RarArchive.OpenArchive(stream, new ReaderOptions { Password = password, LeaveStreamOpen = true }),
             "tar" => TarArchive.OpenArchive(stream, new ReaderOptions { Password = password, LeaveStreamOpen = true }),
             _ => throw new NotSupportedException($"Archive type '{ArchiveType}' is not supported.")
@@ -225,10 +291,10 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Handles a confirmed-encrypted archive: prompts for a password and verifies it by forcing
-    /// entry enumeration before accepting the archive. SharpCompress parses lazily, so without
-    /// this verification a wrong or cancelled password would only surface later as a
-    /// CryptographicException during initialization.
+    ///     Handles a confirmed-encrypted archive: prompts for a password and verifies it by forcing
+    ///     entry enumeration before accepting the archive. SharpCompress parses lazily, so without
+    ///     this verification a wrong or cancelled password would only surface later as a
+    ///     CryptographicException during initialization.
     /// </summary>
     private IArchive PromptAndOpenEncryptedArchive(Stream stream)
     {
@@ -236,27 +302,18 @@ public class ZipFileSystemCore : IDisposable
 
         for (var attempt = 1;; attempt++)
         {
-            if (stream.CanSeek)
-            {
-                stream.Position = 0;
-            }
+            if (stream.CanSeek) stream.Position = 0;
 
             var password = _passwordProvider();
 
-            if (string.IsNullOrEmpty(password))
-            {
-                throw new OperationCanceledException("Mount cancelled by user.");
-            }
+            if (string.IsNullOrEmpty(password)) throw new OperationCanceledException("Mount cancelled by user.");
 
             IArchive? archive = null;
             try
             {
                 archive = OpenArchiveWithPassword(stream, password);
 
-                if (!VerifyArchiveAccessible(archive))
-                {
-                    throw new System.Security.Cryptography.CryptographicException("The password did not match.");
-                }
+                if (!VerifyArchiveAccessible(archive)) throw new CryptographicException("The password did not match.");
             }
             catch (Exception ex) when (IsPasswordMismatch(ex))
             {
@@ -265,10 +322,12 @@ public class ZipFileSystemCore : IDisposable
                 if (attempt >= maxPasswordAttempts)
                 {
                     throw new InvalidOperationException(
-                        $"The provided password did not match the encrypted {ArchiveType.ToUpperInvariant()} archive. Mount aborted after {attempt} attempts.", ex);
+                        $"The provided password did not match the encrypted {ArchiveType.ToUpperInvariant()} archive. Mount aborted after {attempt} attempts.",
+                        ex);
                 }
 
-                _logErrorAction?.Invoke(null, $"Incorrect password for '{ArchiveType}' archive (attempt {attempt} of {maxPasswordAttempts}). Please try again.");
+                _logErrorAction?.Invoke(null,
+                    $"Incorrect password for '{ArchiveType}' archive (attempt {attempt} of {maxPasswordAttempts}). Please try again.");
                 continue;
             }
             catch
@@ -282,8 +341,8 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Determines whether the exception indicates that decryption failed because an incorrect
-    /// password was supplied (as opposed to cancellation or unrelated failures).
+    ///     Determines whether the exception indicates that decryption failed because an incorrect
+    ///     password was supplied (as opposed to cancellation or unrelated failures).
     /// </summary>
     private static bool IsPasswordMismatch(Exception ex)
     {
@@ -291,9 +350,9 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Forces full entry enumeration to confirm the supplied password can actually decrypt the
-    /// archive. Returns <see langword="false"/> only when a password/crypto failure occurs; when
-    /// accessibility cannot be determined (e.g. no testable entries) the archive is accepted.
+    ///     Forces full entry enumeration to confirm the supplied password can actually decrypt the
+    ///     archive. Returns <see langword="false" /> only when a password/crypto failure occurs; when
+    ///     accessibility cannot be determined (e.g. no testable entries) the archive is accepted.
     /// </summary>
     private static bool VerifyArchiveAccessible(IArchive archive)
     {
@@ -301,10 +360,7 @@ public class ZipFileSystemCore : IDisposable
         {
             foreach (var entry in archive.Entries)
             {
-                if (entry.IsDirectory || !entry.IsEncrypted || entry.Size <= 0)
-                {
-                    continue;
-                }
+                if (entry.IsDirectory || !entry.IsEncrypted || entry.Size <= 0) continue;
 
                 using var entryStream = entry.OpenEntryStream();
                 var buffer = new byte[Math.Min(1024, entry.Size)];
@@ -312,10 +368,7 @@ public class ZipFileSystemCore : IDisposable
                 while (totalRead < buffer.Length)
                 {
                     var bytesRead = entryStream.Read(buffer, totalRead, buffer.Length - totalRead);
-                    if (bytesRead == 0)
-                    {
-                        break;
-                    }
+                    if (bytesRead == 0) break;
 
                     totalRead += bytesRead;
                 }
@@ -337,26 +390,14 @@ public class ZipFileSystemCore : IDisposable
 
     private static bool IsCryptoException(Exception ex)
     {
-        return ex is System.Security.Cryptography.CryptographicException ||
+        return ex is CryptographicException ||
                ex.GetType().Name.Contains("CryptographicException", StringComparison.OrdinalIgnoreCase);
     }
 
-    private enum ArchiveUsability
-    {
-        /// <summary>The archive can be used without a password.</summary>
-        Usable,
-
-        /// <summary>The archive requires a password (encryption confirmed).</summary>
-        Encrypted,
-
-        /// <summary>Accessibility could not be determined (e.g. parse failure) - encryption is not confirmed.</summary>
-        Indeterminate
-    }
-
     /// <summary>
-    /// Determines whether an archive can be used without a password by enumerating entries and
-    /// test-reading one. Distinguishes confirmed encryption from indeterminate failures so that
-    /// corrupt archives do not trigger a pointless password prompt.
+    ///     Determines whether an archive can be used without a password by enumerating entries and
+    ///     test-reading one. Distinguishes confirmed encryption from indeterminate failures so that
+    ///     corrupt archives do not trigger a pointless password prompt.
     /// </summary>
     private static ArchiveUsability GetArchiveUsability(IArchive archive)
     {
@@ -400,10 +441,7 @@ public class ZipFileSystemCore : IDisposable
             while (totalRead < buffer.Length)
             {
                 var bytesRead = entryStream.Read(buffer, totalRead, buffer.Length - totalRead);
-                if (bytesRead == 0)
-                {
-                    break;
-                }
+                if (bytesRead == 0) break;
 
                 totalRead += bytesRead;
             }
@@ -466,41 +504,51 @@ public class ZipFileSystemCore : IDisposable
             var stackTrace = ex.StackTrace ?? "";
             var isDataCorruptionError = ex is IndexOutOfRangeException ||
                                         ex is EndOfStreamException ||
-                                        exceptionTypeName.Contains("InvalidFormat", StringComparison.OrdinalIgnoreCase) ||
+                                        exceptionTypeName.Contains("InvalidFormat",
+                                            StringComparison.OrdinalIgnoreCase) ||
                                         exceptionTypeName.Contains("DataError", StringComparison.OrdinalIgnoreCase) ||
                                         message.Contains("Data Error", StringComparison.OrdinalIgnoreCase) ||
                                         // SharpCompress throws this for truncated or non-RAR files.
                                         message.Contains("Unknown Rar Header", StringComparison.OrdinalIgnoreCase) ||
                                         // Truncated archives fail with seek-beyond-end-of-stream errors.
-                                        message.Contains("Cannot seek to position", StringComparison.OrdinalIgnoreCase) ||
+                                        message.Contains("Cannot seek to position",
+                                            StringComparison.OrdinalIgnoreCase) ||
                                         message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase) ||
-                                        stackTrace.Contains("SharpCompress.Compressors.LZMA", StringComparison.OrdinalIgnoreCase) ||
-                                        stackTrace.Contains("SharpCompress.Archives.Zip.ZipArchive.LoadEntries", StringComparison.OrdinalIgnoreCase);
+                                        stackTrace.Contains("SharpCompress.Compressors.LZMA",
+                                            StringComparison.OrdinalIgnoreCase) ||
+                                        stackTrace.Contains("SharpCompress.Archives.Zip.ZipArchive.LoadEntries",
+                                            StringComparison.OrdinalIgnoreCase);
 
             if (isDataCorruptionError)
             {
-                var contextMessage = "Archive data corruption detected during initialization. The archive file appears to be damaged, incomplete, or uses an unsupported compression method. " +
-                                     "Archive type: " + ArchiveType + ". " +
-                                     "Entries loaded before error: " + ArchiveEntries.Count + ". " +
-                                     "Exception: " + exceptionTypeName + ": " + ex.Message;
+                var contextMessage =
+                    "Archive data corruption detected during initialization. The archive file appears to be damaged, incomplete, or uses an unsupported compression method. " +
+                    "Archive type: " + ArchiveType + ". " +
+                    "Entries loaded before error: " + ArchiveEntries.Count + ". " +
+                    "Exception: " + exceptionTypeName + ": " + ex.Message;
                 _logErrorAction?.Invoke(ex, contextMessage);
                 throw new InvalidOperationException(contextMessage, ex);
             }
 
-            _logErrorAction?.Invoke(ex, "Error during ZipFs.InitializeEntries. Archive type: " + ArchiveType + ", Entries loaded: " + ArchiveEntries.Count + ".");
+            _logErrorAction?.Invoke(ex,
+                "Error during ZipFs.InitializeEntries. Archive type: " + ArchiveType + ", Entries loaded: " +
+                ArchiveEntries.Count + ".");
             throw;
         }
     }
 
     /// <summary>
-    /// Determines whether the specified archive entry is stored (uncompressed) and can be
-    /// read directly from the source stream without extraction.
+    ///     Determines whether the specified archive entry is stored (uncompressed) and can be
+    ///     read directly from the source stream without extraction.
     /// </summary>
     /// <param name="entry">The archive entry to check.</param>
-    /// <returns><see langword="true"/> if the entry is stored uncompressed in a seekable zip archive; otherwise, <see langword="false"/>.</returns>
+    /// <returns>
+    ///     <see langword="true" /> if the entry is stored uncompressed in a seekable zip archive; otherwise,
+    ///     <see langword="false" />.
+    /// </returns>
     public bool IsStoredEntry(IArchiveEntry entry)
     {
-        if (ArchiveType != "zip")
+        if (!string.Equals(ArchiveType, "zip", StringComparison.OrdinalIgnoreCase))
             return false;
 
         if (entry.IsDirectory || entry.IsEncrypted || entry.IsSolid || entry.Size <= 0)
@@ -514,11 +562,11 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Determines whether the specified entry has previously failed to decompress and is
-    /// excluded from further open attempts.
+    ///     Determines whether the specified entry has previously failed to decompress and is
+    ///     excluded from further open attempts.
     /// </summary>
     /// <param name="normalizedPath">The normalized archive path of the entry.</param>
-    /// <returns><see langword="true"/> if the entry is in the failed list; otherwise, <see langword="false"/>.</returns>
+    /// <returns><see langword="true" /> if the entry is in the failed list; otherwise, <see langword="false" />.</returns>
     public bool IsFailedEntry(string normalizedPath)
     {
         lock (_archiveLock)
@@ -528,7 +576,7 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Marks an entry as failed so subsequent open attempts return immediately without retrying extraction.
+    ///     Marks an entry as failed so subsequent open attempts return immediately without retrying extraction.
     /// </summary>
     /// <param name="normalizedPath">The normalized archive path of the entry to mark as failed.</param>
     public void AddFailedEntry(string normalizedPath)
@@ -540,7 +588,7 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Gets an entry node for the given normalized path, or null if not found.
+    ///     Gets an entry node for the given normalized path, or null if not found.
     /// </summary>
     public EntryNode? GetEntryNode(string normalizedPath)
     {
@@ -553,7 +601,8 @@ public class ZipFileSystemCore : IDisposable
         lock (_archiveLock)
         {
             ArchiveEntries.TryGetValue(normalizedPath, out entry);
-            isImplicitDir = _directoryCreationTimes.ContainsKey(normalizedPath) || normalizedPath == "/";
+            isImplicitDir = _directoryCreationTimes.ContainsKey(normalizedPath) ||
+                            string.Equals(normalizedPath, "/", StringComparison.OrdinalIgnoreCase);
 
             if (entry == null && isImplicitDir)
             {
@@ -580,22 +629,21 @@ public class ZipFileSystemCore : IDisposable
                     LastAccessTime = DateTime.Now
                 };
             }
-            else
+
+            return new EntryNode
             {
-                return new EntryNode
-                {
-                    NormalizedPath = normalizedPath,
-                    CanonicalPath = canonicalPath,
-                    IsDir = false,
-                    Entry = entry,
-                    FileSize = entry.Size,
-                    CreationTime = entry.CreatedTime ?? DateTime.Now,
-                    LastWriteTime = entry.LastModifiedTime ?? DateTime.Now,
-                    LastAccessTime = DateTime.Now
-                };
-            }
+                NormalizedPath = normalizedPath,
+                CanonicalPath = canonicalPath,
+                IsDir = false,
+                Entry = entry,
+                FileSize = entry.Size,
+                CreationTime = entry.CreatedTime ?? DateTime.Now,
+                LastWriteTime = entry.LastModifiedTime ?? DateTime.Now,
+                LastAccessTime = DateTime.Now
+            };
         }
-        else if (isImplicitDir)
+
+        if (isImplicitDir)
         {
             return new EntryNode
             {
@@ -614,9 +662,9 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Resolves a raw file name to a normalized path and entry node.
+    ///     Resolves a raw file name to a normalized path and entry node.
     /// </summary>
-    public bool TryResolvePath(string fileName, out string normalizedPath)
+    public static bool TryResolvePath(string fileName, out string normalizedPath)
     {
         normalizedPath = ZipFsHelpers.NormalizePath(fileName);
         normalizedPath = ZipFsHelpers.ResolveSpecialPaths(normalizedPath);
@@ -624,25 +672,26 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Lists the immediate children of a directory as <see cref="EntryNode"/> items.
-    /// Returns an empty list if the path is not a directory.
+    ///     Lists the immediate children of a directory as <see cref="EntryNode" /> items.
+    ///     Returns an empty list if the path is not a directory.
     /// </summary>
     public List<EntryNode> ListDirectory(string normalizedPath)
     {
         var result = new List<EntryNode>();
         var seenFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var isExplicitDirEntry = ArchiveEntries.TryGetValue(normalizedPath, out var dirEntry) && ZipFsHelpers.IsDirectory(dirEntry);
-        var isImplicitDir = _directoryCreationTimes.ContainsKey(normalizedPath) || normalizedPath == "/";
+        var isExplicitDirEntry = ArchiveEntries.TryGetValue(normalizedPath, out var dirEntry) &&
+                                 ZipFsHelpers.IsDirectory(dirEntry);
+        var isImplicitDir = _directoryCreationTimes.ContainsKey(normalizedPath) ||
+                            string.Equals(normalizedPath, "/", StringComparison.OrdinalIgnoreCase);
 
-        if (!isExplicitDirEntry && !isImplicitDir)
-        {
-            return result;
-        }
+        if (!isExplicitDirEntry && !isImplicitDir) return result;
 
         Thread.MemoryBarrier();
 
-        var searchPrefix = normalizedPath == "/" ? "/" : normalizedPath.TrimEnd('/') + "/";
+        var searchPrefix = string.Equals(normalizedPath, "/", StringComparison.OrdinalIgnoreCase)
+            ? "/"
+            : normalizedPath.TrimEnd('/') + "/";
 
         foreach (var kvp in ArchiveEntries)
         {
@@ -651,7 +700,7 @@ public class ZipFileSystemCore : IDisposable
             if (!path.StartsWith(searchPrefix, StringComparison.OrdinalIgnoreCase)) continue;
 
             var remainder = path.Substring(searchPrefix.Length);
-            var slashIndex = remainder.IndexOf('/');
+            var slashIndex = remainder.IndexOf('/', StringComparison.OrdinalIgnoreCase);
             if (slashIndex != -1)
             {
                 if (!(remainder.EndsWith('/') && slashIndex == remainder.Length - 1))
@@ -705,7 +754,11 @@ public class ZipFileSystemCore : IDisposable
             if (!dirPathKey.StartsWith(searchPrefix, StringComparison.OrdinalIgnoreCase)) continue;
 
             var remainder = dirPathKey.Substring(searchPrefix.Length);
-            if (remainder.Contains('/') || string.IsNullOrEmpty(remainder)) continue;
+            if (remainder.Contains('/', StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrEmpty(remainder))
+            {
+                continue;
+            }
 
             var name = dirPathKey.Split('/').LastOrDefault(static s => !string.IsNullOrEmpty(s));
             if (!string.IsNullOrEmpty(name) && seenFileNames.Add(name))
@@ -737,17 +790,14 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Opens a stream for reading an archive entry with caching.
-    /// Returns null only if the entry is in the failed list.
-    /// Throws <see cref="IOException"/> on disk space or cache file errors.
-    /// May throw other exceptions on extraction errors.
+    ///     Opens a stream for reading an archive entry with caching.
+    ///     Returns null only if the entry is in the failed list.
+    ///     Throws <see cref="IOException" /> on disk space or cache file errors.
+    ///     May throw other exceptions on extraction errors.
     /// </summary>
     public Stream? OpenEntryStream(IArchiveEntry entry, string normalizedPath)
     {
-        if (IsFailedEntry(normalizedPath))
-        {
-            return null;
-        }
+        if (IsFailedEntry(normalizedPath)) return null;
 
         var entrySize = entry.Size;
 
@@ -765,13 +815,15 @@ public class ZipFileSystemCore : IDisposable
                 }
                 catch (Exception storedEx)
                 {
-                    ErrorLoggerStatic.ReportSilentException(storedEx, $"ZipFs.OpenEntryStream: StoredEntryStream creation failed for '{normalizedPath}'", true);
+                    ErrorLoggerStatic.ReportSilentException(storedEx,
+                        $"ZipFs.OpenEntryStream: StoredEntryStream creation failed for '{normalizedPath}'", true);
                 }
             }
 
             if (storedStream != null)
             {
-                LogMessage($"Stored entry detected: '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB). Using direct-read mode (no cache).");
+                LogMessage(
+                    $"Stored entry detected: '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB). Using direct-read mode (no cache).");
                 LogMessage("");
                 return storedStream;
             }
@@ -779,9 +831,7 @@ public class ZipFileSystemCore : IDisposable
 
         // Large file: cache to disk.
         if (entrySize >= MaxMemorySize || entrySize < 0)
-        {
             return OpenDiskCachedStream(entry, normalizedPath, entrySize, true);
-        }
 
         // Small file: cache in memory as a shared, refcounted buffer (decompressed once per
         // entry regardless of how many handles are opened concurrently or on demand).
@@ -817,7 +867,8 @@ public class ZipFileSystemCore : IDisposable
         if (sharedStream == null)
         {
             // Memory cache limit reached (or decompression ran out of memory): use disk cache.
-            LogMessage($"Memory limit approaching. Using disk cache for small file '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB).");
+            LogMessage(
+                $"Memory limit approaching. Using disk cache for small file '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB).");
             return OpenDiskCachedStream(entry, normalizedPath, entrySize, false);
         }
 
@@ -827,12 +878,13 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Acquires a stream over the shared in-memory copy of the entry, decompressing it on first
-    /// use via <paramref name="decompress"/>. Concurrent and repeated opens share the single
-    /// decompressed buffer (refcounted). Returns null when the total memory cache limit would
-    /// be exceeded or decompression ran out of memory (caller falls back to disk caching).
+    ///     Acquires a stream over the shared in-memory copy of the entry, decompressing it on first
+    ///     use via <paramref name="decompress" />. Concurrent and repeated opens share the single
+    ///     decompressed buffer (refcounted). Returns null when the total memory cache limit would
+    ///     be exceeded or decompression ran out of memory (caller falls back to disk caching).
     /// </summary>
-    private SharedMemoryStream? AcquireSharedMemoryStream(string normalizedPath, long entrySize, Func<byte[]> decompress)
+    private SharedMemoryStream? AcquireSharedMemoryStream(string normalizedPath, long entrySize,
+        Func<byte[]> decompress)
     {
         lock (_memoryLock)
         {
@@ -922,10 +974,7 @@ public class ZipFileSystemCore : IDisposable
             if (!_memoryEntryCache.TryGetValue(normalizedPath, out var entry))
                 return;
 
-            if (entry.RefCount > 0)
-            {
-                entry.RefCount--;
-            }
+            if (entry.RefCount > 0) entry.RefCount--;
 
             entry.LastUsed = Environment.TickCount64;
             // The buffer stays warm in the cache (RefCount == 0) until memory pressure evicts
@@ -950,22 +999,17 @@ public class ZipFileSystemCore : IDisposable
 
             _memoryEntryCache.Remove(kv.Key);
             CurrentMemoryUsage -= kv.Value.Size;
-            if (CurrentMemoryUsage < 0)
-            {
-                CurrentMemoryUsage = 0;
-            }
+            if (CurrentMemoryUsage < 0) CurrentMemoryUsage = 0;
         }
     }
 
-    private FileStream? OpenDiskCachedStream(IArchiveEntry entry, string normalizedPath, long entrySize, bool isLargeFile)
+    private FileStream? OpenDiskCachedStream(IArchiveEntry entry, string normalizedPath, long entrySize,
+        bool isLargeFile)
     {
         string? cachedPath = null;
         lock (_archiveLock)
         {
-            if (LargeFileCache.TryGetValue(normalizedPath, out var path))
-            {
-                cachedPath = path;
-            }
+            if (LargeFileCache.TryGetValue(normalizedPath, out var path)) cachedPath = path;
         }
 
         if (cachedPath != null)
@@ -991,10 +1035,7 @@ public class ZipFileSystemCore : IDisposable
                 // Double-check after acquiring per-entry lock.
                 lock (_archiveLock)
                 {
-                    if (LargeFileCache.TryGetValue(normalizedPath, out var existingPath))
-                    {
-                        cachedPath = existingPath;
-                    }
+                    if (LargeFileCache.TryGetValue(normalizedPath, out var existingPath)) cachedPath = existingPath;
                 }
 
                 if (cachedPath != null)
@@ -1005,7 +1046,8 @@ public class ZipFileSystemCore : IDisposable
                 {
                     if (isLargeFile)
                     {
-                        LogMessage($"Large file detected: '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB). Extracting to temporary disk cache...");
+                        LogMessage(
+                            $"Large file detected: '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB). Extracting to temporary disk cache...");
                         LogMessage("");
                     }
 
@@ -1025,10 +1067,13 @@ public class ZipFileSystemCore : IDisposable
                                 }
                                 catch (Exception ex)
                                 {
-                                    ErrorLoggerStatic.ReportSilentException(ex, $"ZipFs.OpenDiskCachedStream: Failed to delete temp file '{newTempFilePath}' during disk space check", true);
+                                    ErrorLoggerStatic.ReportSilentException(ex,
+                                        $"ZipFs.OpenDiskCachedStream: Failed to delete temp file '{newTempFilePath}' during disk space check",
+                                        true);
                                 }
 
-                                var errorMessage = $"Insufficient disk space to extract file '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB). Available: {tempDrive.AvailableFreeSpace / 1024.0 / 1024.0:F2} MB, Required: {entrySize / 1024.0 / 1024.0:F2} MB.";
+                                var errorMessage =
+                                    $"Insufficient disk space to extract file '{normalizedPath}' ({entrySize / 1024.0 / 1024.0:F2} MB). Available: {tempDrive.AvailableFreeSpace / 1024.0 / 1024.0:F2} MB, Required: {entrySize / 1024.0 / 1024.0:F2} MB.";
                                 throw new IOException(errorMessage);
                             }
                         }
@@ -1038,7 +1083,8 @@ public class ZipFileSystemCore : IDisposable
                         }
                         catch (Exception driveEx)
                         {
-                            _logErrorAction(driveEx, $"Error checking disk space for file extraction of '{normalizedPath}'.");
+                            _logErrorAction(driveEx,
+                                $"Error checking disk space for file extraction of '{normalizedPath}'.");
                         }
                     }
 
@@ -1051,26 +1097,28 @@ public class ZipFileSystemCore : IDisposable
                     }
                     catch (Exception ex) when (IsExtractionFailure(ex))
                     {
-                        LogMessage($"Disk-cached extraction failed for '{normalizedPath}' ({ex.GetType().Name}), trying fallback...");
+                        LogMessage(
+                            $"Disk-cached extraction failed for '{normalizedPath}' ({ex.GetType().Name}), trying fallback...");
                         if (_sevenZipFallback != null)
                         {
                             try
                             {
-                                using var fallbackOutput = new FileStream(newTempFilePath, FileMode.Truncate, FileAccess.Write, FileShare.None);
+                                using var fallbackOutput = new FileStream(newTempFilePath, FileMode.Truncate,
+                                    FileAccess.Write, FileShare.None);
                                 if (_sevenZipFallback.TryExtractEntry(normalizedPath, fallbackOutput))
-                                {
                                     extractionSucceeded = true;
-                                }
                             }
                             catch (Exception fallbackEx)
                             {
-                                LogMessage($"SevenZip fallback also failed for '{normalizedPath}': {fallbackEx.Message}");
+                                LogMessage(
+                                    $"SevenZip fallback also failed for '{normalizedPath}': {fallbackEx.Message}");
                             }
                         }
 
                         if (!extractionSucceeded)
                         {
-                            LogMessage($"Extraction failed for '{normalizedPath}' ({ex.GetType().Name}), no fallback available. Entry marked as failed.");
+                            LogMessage(
+                                $"Extraction failed for '{normalizedPath}' ({ex.GetType().Name}), no fallback available. Entry marked as failed.");
                             AddFailedEntry(normalizedPath);
                             CleanupTempFile(newTempFilePath);
                             return null;
@@ -1078,10 +1126,12 @@ public class ZipFileSystemCore : IDisposable
                     }
                     catch (Exception ex)
                     {
-                        LogMessage($"Disk-cached extraction failed for '{normalizedPath}' ({ex.GetType().Name}). Entry marked as failed.");
+                        LogMessage(
+                            $"Disk-cached extraction failed for '{normalizedPath}' ({ex.GetType().Name}). Entry marked as failed.");
                         AddFailedEntry(normalizedPath);
                         CleanupTempFile(newTempFilePath);
-                        _logErrorAction(ex, $"ZipFs.OpenDiskCachedStream: Non-extraction exception during disk caching of '{normalizedPath}'.");
+                        _logErrorAction(ex,
+                            $"ZipFs.OpenDiskCachedStream: Non-extraction exception during disk caching of '{normalizedPath}'.");
                         return null;
                     }
 
@@ -1109,7 +1159,8 @@ public class ZipFileSystemCore : IDisposable
 
         if (string.IsNullOrEmpty(cachedPath))
         {
-            throw new IOException($"Disk caching failed for file '{normalizedPath}'. The cached path is unexpectedly null after extraction.");
+            throw new IOException(
+                $"Disk caching failed for file '{normalizedPath}'. The cached path is unexpectedly null after extraction.");
         }
 
         try
@@ -1118,42 +1169,35 @@ public class ZipFileSystemCore : IDisposable
         }
         catch (Exception fsEx)
         {
-            throw new IOException($"Failed to open cached temp file '{cachedPath}' for reading file '{normalizedPath}'.", fsEx);
+            throw new IOException(
+                $"Failed to open cached temp file '{cachedPath}' for reading file '{normalizedPath}'.", fsEx);
         }
     }
 
     /// <summary>
-    /// Reads from a cached entry stream, handling StoredEntryStream and seekable/non-seekable streams.
+    ///     Reads from a cached entry stream, handling StoredEntryStream and seekable/non-seekable streams.
     /// </summary>
-    public int ReadStream(Stream stream, long offset, byte[] buffer, int bufferOffset, int count)
+    public static int ReadStream(Stream stream, long offset, byte[] buffer, int bufferOffset, int count)
     {
-        if (stream is StoredEntryStream stored)
-        {
-            return stored.ReadAt(offset, buffer, bufferOffset, count);
-        }
+        if (stream is StoredEntryStream stored) return stored.ReadAt(offset, buffer, bufferOffset, count);
 
         if (stream.CanSeek)
         {
-            if (offset >= stream.Length)
-            {
-                return 0;
-            }
+            if (offset >= stream.Length) return 0;
 
             stream.Position = offset;
         }
         else
         {
             if (offset != stream.Position)
-            {
                 throw new InvalidOperationException("Non-sequential read requested for non-seekable stream.");
-            }
         }
 
         return stream.Read(buffer, bufferOffset, count);
     }
 
     /// <summary>
-    /// Validates path length and logs an error if it exceeds limits.
+    ///     Validates path length and logs an error if it exceeds limits.
     /// </summary>
     public bool ValidatePathLength(string path, string operationName)
     {
@@ -1187,7 +1231,7 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Creates a temporary file with restricted permissions accessible only to the current user.
+    ///     Creates a temporary file with restricted permissions accessible only to the current user.
     /// </summary>
     public string CreateSecureTempFile()
     {
@@ -1204,13 +1248,11 @@ public class ZipFileSystemCore : IDisposable
             fileSecurity.SetAccessRuleProtection(true, false);
 
             var existingRules = fileSecurity.GetAccessRules(true, true, typeof(SecurityIdentifier));
-            foreach (FileSystemAccessRule rule in existingRules)
-            {
-                fileSecurity.RemoveAccessRule(rule);
-            }
+            foreach (FileSystemAccessRule rule in existingRules) fileSecurity.RemoveAccessRule(rule);
 
             var currentUser = WindowsIdentity.GetCurrent();
-            var currentUserSid = currentUser.User ?? throw new InvalidOperationException("Unable to get current user SID");
+            var currentUserSid =
+                currentUser.User ?? throw new InvalidOperationException("Unable to get current user SID");
 
             var accessRule = new FileSystemAccessRule(
                 currentUserSid,
@@ -1222,18 +1264,20 @@ public class ZipFileSystemCore : IDisposable
         }
         catch (PlatformNotSupportedException ex)
         {
-            ErrorLoggerStatic.ReportSilentException(ex, $"ZipFs.CreateSecureTempFile: Platform not supported for ACL on '{tempFilePath}'", true);
+            ErrorLoggerStatic.ReportSilentException(ex,
+                $"ZipFs.CreateSecureTempFile: Platform not supported for ACL on '{tempFilePath}'", true);
         }
         catch (InvalidOperationException ex)
         {
-            ErrorLoggerStatic.ReportSilentException(ex, $"ZipFs.CreateSecureTempFile: Invalid operation setting ACL on '{tempFilePath}'", true);
+            ErrorLoggerStatic.ReportSilentException(ex,
+                $"ZipFs.CreateSecureTempFile: Invalid operation setting ACL on '{tempFilePath}'", true);
         }
 
         return tempFilePath;
     }
 
     /// <summary>
-    /// Determines whether an exception indicates an extraction failure that should trigger the fallback.
+    ///     Determines whether an exception indicates an extraction failure that should trigger the fallback.
     /// </summary>
     private static bool IsExtractionFailure(Exception ex)
     {
@@ -1247,9 +1291,9 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Checks whether a broad exception type (e.g. ArgumentNullException) originates from a compression library.
-    /// This prevents masking real application bugs — only exceptions from SharpCompress, zlib, zstd, or SevenZip
-    /// are treated as extraction failures.
+    ///     Checks whether a broad exception type (e.g. ArgumentNullException) originates from a compression library.
+    ///     This prevents masking real application bugs — only exceptions from SharpCompress, zlib, zstd, or SevenZip
+    ///     are treated as extraction failures.
     /// </summary>
     private static bool IsCompressionLibraryException(Exception ex)
     {
@@ -1267,15 +1311,16 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Extracts an entry to a disk file using SharpCompress.
-    /// Throws on failure; the caller is responsible for fallback handling.
+    ///     Extracts an entry to a disk file using SharpCompress.
+    ///     Throws on failure; the caller is responsible for fallback handling.
     /// </summary>
     private static void ExtractEntryToDisk(IArchiveEntry entry, string tempFilePath)
     {
         try
         {
             using var entryStream = entry.OpenEntryStream();
-            using var tempFileStream = new FileStream(tempFilePath, FileMode.Truncate, FileAccess.Write, FileShare.None);
+            using var tempFileStream =
+                new FileStream(tempFilePath, FileMode.Truncate, FileAccess.Write, FileShare.None);
             entryStream.CopyTo(tempFileStream);
         }
         catch
@@ -1286,8 +1331,8 @@ public class ZipFileSystemCore : IDisposable
     }
 
     /// <summary>
-    /// Tries to extract an entry using the SevenZip fallback to a memory or disk cached stream.
-    /// Returns the stream if successful, null otherwise.
+    ///     Tries to extract an entry using the SevenZip fallback to a memory or disk cached stream.
+    ///     Returns the stream if successful, null otherwise.
     /// </summary>
     private Stream? TryFallbackExtraction(string normalizedPath, long entrySize, bool isLargeFile)
     {
@@ -1300,7 +1345,8 @@ public class ZipFileSystemCore : IDisposable
             if (entrySize >= MaxMemorySize || entrySize < 0 || isLargeFile)
             {
                 var tempFilePath = CreateSecureTempFile();
-                using (var outputStream = new FileStream(tempFilePath, FileMode.Truncate, FileAccess.Write, FileShare.None))
+                using (var outputStream =
+                       new FileStream(tempFilePath, FileMode.Truncate, FileAccess.Write, FileShare.None))
                 {
                     if (!_sevenZipFallback.TryExtractEntry(normalizedPath, outputStream))
                     {
@@ -1322,9 +1368,7 @@ public class ZipFileSystemCore : IDisposable
             {
                 using var ms = new MemoryStream();
                 if (!_sevenZipFallback.TryExtractEntry(normalizedPath, ms))
-                {
                     throw new InvalidOperationException("SevenZip fallback extraction failed.");
-                }
 
                 return ms.ToArray();
             });
@@ -1343,13 +1387,14 @@ public class ZipFileSystemCore : IDisposable
         }
         catch (Exception cleanupEx)
         {
-            ErrorLoggerStatic.ReportSilentException(cleanupEx, $"ZipFs.CleanupTempFile: Failed to delete '{tempFilePath}'", true);
+            ErrorLoggerStatic.ReportSilentException(cleanupEx,
+                $"ZipFs.CleanupTempFile: Failed to delete '{tempFilePath}'", true);
         }
     }
 
     /// <summary>
-    /// Dumps a diagnostic listing of all archive entries, implicit directories, and failed entries
-    /// to the <see cref="DiagnosticLogger"/> output.
+    ///     Dumps a diagnostic listing of all archive entries, implicit directories, and failed entries
+    ///     to the <see cref="DiagnosticLogger" /> output.
     /// </summary>
     /// <param name="maxEntries">Maximum number of entries to display per category.</param>
     public void DumpEntries(int maxEntries = 100)
@@ -1364,7 +1409,7 @@ public class ZipFileSystemCore : IDisposable
             var count = 0;
             lock (_archiveLock)
             {
-                foreach (var kvp in ArchiveEntries.OrderBy(static k => k.Key))
+                foreach (var kvp in ArchiveEntries.OrderBy(static k => k.Key, StringComparer.OrdinalIgnoreCase))
                 {
                     if (count >= maxEntries)
                     {
@@ -1387,7 +1432,8 @@ public class ZipFileSystemCore : IDisposable
                 count = 0;
                 lock (_archiveLock)
                 {
-                    foreach (var kvp in _directoryCreationTimes.OrderBy(static k => k.Key))
+                    foreach (var kvp in _directoryCreationTimes.OrderBy(static k => k.Key,
+                                 StringComparer.OrdinalIgnoreCase))
                     {
                         if (count >= maxEntries) break;
 
@@ -1406,10 +1452,7 @@ public class ZipFileSystemCore : IDisposable
                     failedSnapshot = _failedEntries.ToArray();
                 }
 
-                foreach (var failed in failedSnapshot)
-                {
-                    DiagnosticLogger.Log($"  [FAILED] {failed}");
-                }
+                foreach (var failed in failedSnapshot) DiagnosticLogger.Log($"  [FAILED] {failed}");
             }
 
             DiagnosticLogger.LogHeader("END ENTRY DUMP");
@@ -1421,116 +1464,15 @@ public class ZipFileSystemCore : IDisposable
         }
     }
 
-    /// <summary>
-    /// Releases all resources used by the <see cref="ZipFileSystemCore"/>, including the archive,
-    /// source stream, cached temp files, and the temporary directory.
-    /// </summary>
-    public void Dispose()
+    private enum ArchiveUsability
     {
-        if (Interlocked.Exchange(ref _disposedInt, 1) != 0)
-            return;
+        /// <summary>The archive can be used without a password.</summary>
+        Usable,
 
-        DiagnosticLogger.LogHeader("ZipFs DISPOSE");
+        /// <summary>The archive requires a password (encryption confirmed).</summary>
+        Encrypted,
 
-        _sevenZipFallback?.Dispose();
-        _archive.Dispose();
-        _sourceArchiveStream.Dispose();
-
-        lock (_archiveLock)
-        {
-            foreach (var tempFile in LargeFileCache.Values)
-            {
-                try
-                {
-                    if (File.Exists(tempFile))
-                    {
-                        File.Delete(tempFile);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    try
-                    {
-                        _logErrorAction(ex, $"Failed to delete temp file on dispose: {tempFile}");
-                    }
-                    catch
-                    {
-                        // Best-effort logging during disposal; ignore failures.
-                    }
-                }
-            }
-
-            LargeFileCache.Clear();
-        }
-
-        lock (_memoryLock)
-        {
-            _memoryEntryCache.Clear();
-            CurrentMemoryUsage = 0;
-        }
-
-        foreach (var semaphore in _entryLocks.Values)
-        {
-            semaphore.Dispose();
-        }
-
-        _entryLocks.Clear();
-
-        try
-        {
-            if (Directory.Exists(TempDirectoryPath))
-            {
-                Directory.Delete(TempDirectoryPath, true);
-            }
-        }
-        catch (Exception ex)
-        {
-            try
-            {
-                _logErrorAction(ex, $"Failed to delete working directory on dispose: {TempDirectoryPath}");
-            }
-            catch
-            {
-                // Best-effort logging during disposal; ignore failures.
-            }
-        }
-
-        lock (_memoryLock)
-        {
-            CurrentMemoryUsage = 0;
-        }
-
-        DiagnosticLogger.LogHeader("ZipFs DISPOSE complete");
-        GC.SuppressFinalize(this);
+        /// <summary>Accessibility could not be determined (e.g. parse failure) - encryption is not confirmed.</summary>
+        Indeterminate
     }
-}
-
-/// <summary>
-/// Represents a resolved filesystem entry (file or directory) within the archive.
-/// </summary>
-public sealed class EntryNode
-{
-    /// <summary>Gets or sets the normalized forward-slash-separated path (e.g., "/folder/file.txt").</summary>
-    public string NormalizedPath { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the canonical path as it appears in the archive entry key.</summary>
-    public string CanonicalPath { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets a value indicating whether this node represents a directory.</summary>
-    public bool IsDir { get; set; }
-
-    /// <summary>Gets or sets the underlying archive entry, or <see langword="null"/> for implicit directories.</summary>
-    public IArchiveEntry? Entry { get; set; }
-
-    /// <summary>Gets or sets the uncompressed file size in bytes (0 for directories).</summary>
-    public long FileSize { get; set; }
-
-    /// <summary>Gets or sets the creation timestamp of this entry.</summary>
-    public DateTime CreationTime { get; set; }
-
-    /// <summary>Gets or sets the last-modified timestamp of this entry.</summary>
-    public DateTime LastWriteTime { get; set; }
-
-    /// <summary>Gets or sets the last-accessed timestamp of this entry.</summary>
-    public DateTime LastAccessTime { get; set; }
 }

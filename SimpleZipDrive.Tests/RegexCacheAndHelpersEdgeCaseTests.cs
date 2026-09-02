@@ -1,3 +1,4 @@
+using System.Globalization;
 using SimpleZipDrive.Core;
 
 namespace SimpleZipDrive.Tests;
@@ -234,13 +235,6 @@ public class RegexCacheAndHelpersEdgeCaseTests
         Assert.True(ZipFsHelpers.IsDataErrorException(ex));
     }
 
-    private class TestDataErrorException : Exception
-    {
-        public TestDataErrorException(string message) : base(message)
-        {
-        }
-    }
-
     // ─── GenerateTempDirectoryName: format validation ───
 
     [Fact]
@@ -251,7 +245,7 @@ public class RegexCacheAndHelpersEdgeCaseTests
         // Should be {pid}_{guid}
         var parts = name.Split('_');
         Assert.Equal(2, parts.Length);
-        Assert.True(int.TryParse(parts[0], out _));
+        Assert.True(int.TryParse(parts[0], CultureInfo.InvariantCulture, out _));
         Assert.Equal(32, parts[1].Length);
     }
 
@@ -260,7 +254,8 @@ public class RegexCacheAndHelpersEdgeCaseTests
     [Fact]
     public void TryParseProcessIdFromTempDirectoryName_VeryLargePid_ParsesCorrectly()
     {
-        var result = ZipFsHelpers.TryParseProcessIdFromTempDirectoryName("999999_abcdef1234567890abcdef1234567890", out var pid);
+        var result =
+            ZipFsHelpers.TryParseProcessIdFromTempDirectoryName("999999_abcdef1234567890abcdef1234567890", out var pid);
 
         Assert.True(result);
         Assert.Equal(999999, pid);
@@ -275,5 +270,20 @@ public class RegexCacheAndHelpersEdgeCaseTests
         var path2 = ZipFsHelpers.BaseTempPath;
 
         Assert.Equal(path1, path2);
+    }
+
+    private class TestDataErrorException : Exception
+    {
+        public TestDataErrorException(string message) : base(message)
+        {
+        }
+
+        public TestDataErrorException()
+        {
+        }
+
+        public TestDataErrorException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
     }
 }

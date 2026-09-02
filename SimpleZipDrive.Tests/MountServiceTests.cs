@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Core.Models;
-using SimpleZipDrive.Core.Services;
 using SimpleZipDrive.Services;
 
 namespace SimpleZipDrive.Tests;
@@ -11,6 +11,13 @@ public class MountServiceTests : IDisposable
 {
     private readonly FakeLoggingService _loggingService = new();
     private readonly FakeSettingsService _settingsService = new();
+
+    public void Dispose()
+    {
+        _loggingService.Dispose();
+        _settingsService.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     [Fact]
     public void Constructor_NullLoggingService_ThrowsArgumentNullException()
@@ -106,15 +113,13 @@ public class MountServiceTests : IDisposable
         Assert.Equal(string.Empty, result);
     }
 
-    public void Dispose()
-    {
-        _loggingService.Dispose();
-        _settingsService.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
     private class FakeLoggingService : ILoggingService, IDisposable
     {
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+        }
+
         public ObservableCollection<LogEntry> LogEntries { get; } = [];
 
         public void Log(string message)
@@ -133,15 +138,15 @@ public class MountServiceTests : IDisposable
         {
             return string.Empty;
         }
-
-        public void Dispose()
-        {
-            GC.SuppressFinalize(this);
-        }
     }
 
     private class FakeSettingsService : ISettingsService, IDisposable
     {
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+        }
+
         public AppSettings Settings { get; } = new();
 
         public void SaveSettings()
@@ -154,15 +159,7 @@ public class MountServiceTests : IDisposable
 
         public void UpdateRamLimit(int maxMemoryPerFileMb)
         {
-            if (maxMemoryPerFileMb > 0)
-            {
-                Settings.MaxMemoryPerFileMb = maxMemoryPerFileMb;
-            }
-        }
-
-        public void Dispose()
-        {
-            GC.SuppressFinalize(this);
+            if (maxMemoryPerFileMb > 0) Settings.MaxMemoryPerFileMb = maxMemoryPerFileMb;
         }
     }
 }

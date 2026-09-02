@@ -161,7 +161,8 @@ static void PauseIfConsole()
 }
 
 [DllImport("ntdll.dll", SetLastError = true)]
-static extern int NtSetSystemInformation(int systemInformationClass, IntPtr systemInformation, int systemInformationLength);
+static extern int NtSetSystemInformation(int systemInformationClass, IntPtr systemInformation,
+    int systemInformationLength);
 
 static void ClearWindowsFileCache()
 {
@@ -218,7 +219,8 @@ static void RunSequentialReadTest(string filePath, long fileSizeBytes, StringBui
 
     try
     {
-        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, noBuffering | sequentialScan);
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize,
+            noBuffering | sequentialScan);
         var buffer = new byte[bufferSize];
         int bytesRead;
         while ((bytesRead = fs.Read(buffer, 0, bufferSize)) > 0)
@@ -231,7 +233,8 @@ static void RunSequentialReadTest(string filePath, long fileSizeBytes, StringBui
         Console.WriteLine("Unbuffered read failed, falling back to buffered...");
         sw.Restart();
         totalRead = 0;
-        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan);
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize,
+            FileOptions.SequentialScan);
         var buffer = new byte[bufferSize];
         int bytesRead;
         while ((bytesRead = fs.Read(buffer, 0, bufferSize)) > 0)
@@ -315,7 +318,8 @@ static void RunXxh3RandomAccessTest(string xxhsumPath, string filePath, long fil
     };
 
     using var raProcess = Process.Start(raPsi)!;
-    using var raFs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.RandomAccess);
+    using var raFs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
+        FileOptions.RandomAccess);
 
     var maxOffset = fileSizeBytes - randomBlockSize;
     var raBuffer = new byte[randomBlockSize];
@@ -340,9 +344,11 @@ static void RunXxh3RandomAccessTest(string xxhsumPath, string filePath, long fil
 
     sb.AppendLine("Algorithm: XXH3 Random Access");
     sb.AppendLine(CultureInfo.InvariantCulture, $"Random XXH3 Hash: {raHash}");
-    sb.AppendLine(CultureInfo.InvariantCulture, $"Random reads: {randomBlockCount} blocks of {randomBlockSize} bytes ({Math.Round(randomTotalRead / 1024.0, 2)} KB total)");
+    sb.AppendLine(CultureInfo.InvariantCulture,
+        $"Random reads: {randomBlockCount} blocks of {randomBlockSize} bytes ({Math.Round(randomTotalRead / 1024.0, 2)} KB total)");
     sb.AppendLine(CultureInfo.InvariantCulture, $"Random access time: {raSeconds} seconds");
     sb.AppendLine(CultureInfo.InvariantCulture, $"Random access speed: {raSpeedMBs} MB/s");
 
-    Console.WriteLine($"XXH3 Random Access: {raSeconds}s @ {raSpeedMBs} MB/s ({randomBlockCount} x {randomBlockSize}B reads)");
+    Console.WriteLine(
+        $"XXH3 Random Access: {raSeconds}s @ {raSpeedMBs} MB/s ({randomBlockCount} x {randomBlockSize}B reads)");
 }

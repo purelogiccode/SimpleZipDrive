@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
-/// Implementation of the update service.
+///     Implementation of the update service.
 /// </summary>
 public partial class UpdateService : IUpdateService
 {
@@ -17,10 +17,12 @@ public partial class UpdateService : IUpdateService
     private const string RepoName = "SimpleZipDrive";
 
     /// <summary>Primary release-check endpoint (new repo owner).</summary>
-    internal const string PrimaryLatestApiUrl = $"https://api.github.com/repos/{PrimaryRepoOwner}/{RepoName}/releases/latest";
+    internal const string PrimaryLatestApiUrl =
+        $"https://api.github.com/repos/{PrimaryRepoOwner}/{RepoName}/releases/latest";
 
     /// <summary>Fallback release-check endpoint used while the repository transfer to the new owner is in flight.</summary>
-    internal const string FallbackLatestApiUrl = $"https://api.github.com/repos/{FallbackRepoOwner}/{RepoName}/releases/latest";
+    internal const string FallbackLatestApiUrl =
+        $"https://api.github.com/repos/{FallbackRepoOwner}/{RepoName}/releases/latest";
 
     private static readonly SocketsHttpHandler DefaultHttpHandler = new()
     {
@@ -31,54 +33,31 @@ public partial class UpdateService : IUpdateService
     };
 
     private static HttpClient? _defaultHttpClient;
-    private static readonly object HttpClientLock = new();
-
-    private readonly IUserNotificationService _userNotificationService;
+    private static readonly Lock HttpClientLock = new();
     private readonly HttpClient? _injectedHttpClient;
 
-    private static HttpClient CreateDefaultHttpClient()
-    {
-        var client = new HttpClient(DefaultHttpHandler)
-        {
-            Timeout = TimeSpan.FromSeconds(15)
-        };
-        client.DefaultRequestHeaders.Add("User-Agent", $"{RepoName}-UpdateChecker");
-        return client;
-    }
-
-    private HttpClient GetHttpClient()
-    {
-        if (_injectedHttpClient != null) return _injectedHttpClient;
-
-        if (_defaultHttpClient == null)
-        {
-            lock (HttpClientLock)
-            {
-                _defaultHttpClient ??= CreateDefaultHttpClient();
-            }
-        }
-
-        return _defaultHttpClient;
-    }
+    private readonly IUserNotificationService _userNotificationService;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UpdateService"/> class.
+    ///     Initializes a new instance of the <see cref="UpdateService" /> class.
     /// </summary>
     /// <param name="userNotificationService">The user notification service.</param>
     public UpdateService(IUserNotificationService userNotificationService)
     {
-        _userNotificationService = userNotificationService ?? throw new ArgumentNullException(nameof(userNotificationService));
+        _userNotificationService =
+            userNotificationService ?? throw new ArgumentNullException(nameof(userNotificationService));
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UpdateService"/> class with a custom HttpClient.
-    /// This constructor is intended for testing purposes.
+    ///     Initializes a new instance of the <see cref="UpdateService" /> class with a custom HttpClient.
+    ///     This constructor is intended for testing purposes.
     /// </summary>
     /// <param name="userNotificationService">The user notification service.</param>
     /// <param name="httpClient">The HttpClient to use for HTTP requests.</param>
     public UpdateService(IUserNotificationService userNotificationService, HttpClient httpClient)
     {
-        _userNotificationService = userNotificationService ?? throw new ArgumentNullException(nameof(userNotificationService));
+        _userNotificationService =
+            userNotificationService ?? throw new ArgumentNullException(nameof(userNotificationService));
         _injectedHttpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
     }
 
@@ -108,10 +87,7 @@ public partial class UpdateService : IUpdateService
 
             var latest = Version.Parse(m.Value);
 
-            if (latest <= current)
-            {
-                return;
-            }
+            if (latest <= current) return;
 
             _userNotificationService.ShowUpdateAvailable(current, latest, htmlUrl);
         }
@@ -127,10 +103,35 @@ public partial class UpdateService : IUpdateService
         }
     }
 
+    private static HttpClient CreateDefaultHttpClient()
+    {
+        var client = new HttpClient(DefaultHttpHandler)
+        {
+            Timeout = TimeSpan.FromSeconds(15)
+        };
+        client.DefaultRequestHeaders.Add("User-Agent", $"{RepoName}-UpdateChecker");
+        return client;
+    }
+
+    private HttpClient GetHttpClient()
+    {
+        if (_injectedHttpClient != null) return _injectedHttpClient;
+
+        if (_defaultHttpClient == null)
+        {
+            lock (HttpClientLock)
+            {
+                _defaultHttpClient ??= CreateDefaultHttpClient();
+            }
+        }
+
+        return _defaultHttpClient;
+    }
+
     /// <summary>
-    /// Fetches and parses the latest release payload from the given GitHub API endpoint.
-    /// Returns <see langword="null"/> when the endpoint reports a non-success status or the
-    /// payload lacks required fields; network-level exceptions propagate to the caller.
+    ///     Fetches and parses the latest release payload from the given GitHub API endpoint.
+    ///     Returns <see langword="null" /> when the endpoint reports a non-success status or the
+    ///     payload lacks required fields; network-level exceptions propagate to the caller.
     /// </summary>
     private static async Task<(string TagName, string HtmlUrl)?> TryGetLatestReleaseAsync(
         HttpClient client, string url, CancellationToken cancellationToken)
@@ -148,6 +149,6 @@ public partial class UpdateService : IUpdateService
         return (tagName, htmlUrl);
     }
 
-    [GeneratedRegex(@"\d+\.\d+\.\d+", RegexOptions.Compiled)]
+    [GeneratedRegex(@"\d+\.\d+\.\d+", RegexOptions.Compiled, "00:00:01")]
     private static partial Regex VersionRegex();
 }

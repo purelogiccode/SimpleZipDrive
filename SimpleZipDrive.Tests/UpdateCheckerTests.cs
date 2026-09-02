@@ -6,10 +6,55 @@ using SimpleZipDrive.Tests.Fakes;
 namespace SimpleZipDrive.Tests;
 
 /// <summary>
-/// Tests for the UpdateChecker functionality to ensure users are notified when new versions are available on GitHub.
+///     Tests for the UpdateChecker functionality to ensure users are notified when new versions are available on GitHub.
 /// </summary>
 public partial class UpdateCheckerTests
 {
+    #region Integration Test Helpers
+
+    /// <summary>
+    ///     Simulates the complete update check flow without making actual network calls.
+    ///     This validates the logic flow of the UpdateChecker.
+    /// </summary>
+    [Theory]
+    [InlineData("release_1.9.0", "1.10.0", false)] // No update - GitHub has older (1.9.0 vs 1.10.0)
+    [InlineData("release_1.10.1", "1.10.1", false)] // No update - same version
+    [InlineData("release_1.10.1", "1.10.0", true)] // Update needed - patch available
+    [InlineData("release_2.0.0", "1.10.1", true)] // Update needed - major version
+    public void CompleteUpdateCheckFlowSimulation(string tagName, string currentVersionStr, bool expectUpdate)
+    {
+        // Step 1: Parse version from GitHub tag
+        var versionRegex = VersionRegex();
+        var match = versionRegex.Match(tagName);
+        Assert.True(match.Success, "Should be able to parse version from tag");
+
+        var latestVersion = Version.Parse(match.Value);
+        var currentVersion = Version.Parse(currentVersionStr);
+
+        // Step 2: Compare versions
+        var isUpdateAvailable = latestVersion > currentVersion;
+
+        // Step 3: Verify expectation
+        Assert.Equal(expectUpdate, isUpdateAvailable);
+    }
+
+    #endregion
+
+    #region Version Edge Cases
+
+    [Theory]
+    [InlineData("0.0.1", "1.0.0", true)] // Zero-based versioning
+    [InlineData("1.0.0", "1.0.0.1", true)] // Extra version component (revision different)
+    public void VersionEdgeCasesHandledCorrectly(string current, string latest, bool expectUpdate)
+    {
+        var currentVersion = Version.Parse(current);
+        var latestVersion = Version.Parse(latest);
+
+        Assert.Equal(expectUpdate, latestVersion > currentVersion);
+    }
+
+    #endregion
+
     #region Version Parsing Tests
 
     [Theory]
@@ -56,7 +101,8 @@ public partial class UpdateCheckerTests
     [InlineData("1.10.1", "1.10.0", false)] // Older version
     [InlineData("1.0.0", "1.0.0", false)] // Same version
     [InlineData("2.0.0", "1.9.9", false)] // Major downgrade
-    public void VersionComparisonCorrectlyDetectsUpdateAvailability(string currentVersionStr, string latestVersionStr, bool updateExpected)
+    public void VersionComparisonCorrectlyDetectsUpdateAvailability(string currentVersionStr, string latestVersionStr,
+        bool updateExpected)
     {
         var current = Version.Parse(currentVersionStr);
         var latest = Version.Parse(latestVersionStr);
@@ -100,8 +146,8 @@ public partial class UpdateCheckerTests
 
         Assert.NotNull(tagName);
         Assert.NotNull(htmlUrl);
-        Assert.Contains("release_1.10.1", tagName);
-        Assert.Contains("github.com", htmlUrl);
+        Assert.Contains("release_1.10.1", tagName, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("github.com", htmlUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -134,7 +180,8 @@ public partial class UpdateCheckerTests
         var match = versionRegex.Match(tagName);
 
         var canParseVersion = match.Success;
-        var hasValidUrl = !string.IsNullOrEmpty(htmlUrl) && htmlUrl.StartsWith("https://github.com/", StringComparison.Ordinal);
+        var hasValidUrl = !string.IsNullOrEmpty(htmlUrl) &&
+                          htmlUrl.StartsWith("https://github.com/", StringComparison.Ordinal);
 
         Assert.Equal(isValid, canParseVersion && hasValidUrl);
     }
@@ -153,8 +200,8 @@ public partial class UpdateCheckerTests
         // Verify that when an update is available, the appropriate details are generated
         Assert.True(latestVersion > currentVersion);
         Assert.NotNull(releaseUrl);
-        Assert.Contains("github.com", releaseUrl);
-        Assert.Contains("release_1.10.1", releaseUrl);
+        Assert.Contains("github.com", releaseUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("release_1.10.1", releaseUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -196,13 +243,16 @@ public partial class UpdateCheckerTests
         // the repository transfer from the previous owner is in flight.
         const string expectedRepo = "SimpleZipDrive";
 
-        Assert.Equal("https://api.github.com/repos/purelogiccode/SimpleZipDrive/releases/latest", UpdateService.PrimaryLatestApiUrl);
-        Assert.Contains(expectedRepo, UpdateService.PrimaryLatestApiUrl);
-        Assert.StartsWith("https://api.github.com/repos/", UpdateService.PrimaryLatestApiUrl);
-        Assert.EndsWith("/releases/latest", UpdateService.PrimaryLatestApiUrl);
+        Assert.Equal("https://api.github.com/repos/purelogiccode/SimpleZipDrive/releases/latest",
+            UpdateService.PrimaryLatestApiUrl);
+        Assert.Contains(expectedRepo, UpdateService.PrimaryLatestApiUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith("https://api.github.com/repos/", UpdateService.PrimaryLatestApiUrl,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith("/releases/latest", UpdateService.PrimaryLatestApiUrl, StringComparison.OrdinalIgnoreCase);
 
-        Assert.Equal("https://api.github.com/repos/drpetersonfernandes/SimpleZipDrive/releases/latest", UpdateService.FallbackLatestApiUrl);
-        Assert.Contains(expectedRepo, UpdateService.FallbackLatestApiUrl);
+        Assert.Equal("https://api.github.com/repos/drpetersonfernandes/SimpleZipDrive/releases/latest",
+            UpdateService.FallbackLatestApiUrl);
+        Assert.Contains(expectedRepo, UpdateService.FallbackLatestApiUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -240,52 +290,7 @@ public partial class UpdateCheckerTests
         const string userAgent = $"{appName}-UpdateChecker";
 
         Assert.NotNull(userAgent);
-        Assert.Contains(appName, userAgent);
-    }
-
-    #endregion
-
-    #region Integration Test Helpers
-
-    /// <summary>
-    /// Simulates the complete update check flow without making actual network calls.
-    /// This validates the logic flow of the UpdateChecker.
-    /// </summary>
-    [Theory]
-    [InlineData("release_1.9.0", "1.10.0", false)] // No update - GitHub has older (1.9.0 vs 1.10.0)
-    [InlineData("release_1.10.1", "1.10.1", false)] // No update - same version
-    [InlineData("release_1.10.1", "1.10.0", true)] // Update needed - patch available
-    [InlineData("release_2.0.0", "1.10.1", true)] // Update needed - major version
-    public void CompleteUpdateCheckFlowSimulation(string tagName, string currentVersionStr, bool expectUpdate)
-    {
-        // Step 1: Parse version from GitHub tag
-        var versionRegex = VersionRegex();
-        var match = versionRegex.Match(tagName);
-        Assert.True(match.Success, "Should be able to parse version from tag");
-
-        var latestVersion = Version.Parse(match.Value);
-        var currentVersion = Version.Parse(currentVersionStr);
-
-        // Step 2: Compare versions
-        var isUpdateAvailable = latestVersion > currentVersion;
-
-        // Step 3: Verify expectation
-        Assert.Equal(expectUpdate, isUpdateAvailable);
-    }
-
-    #endregion
-
-    #region Version Edge Cases
-
-    [Theory]
-    [InlineData("0.0.1", "1.0.0", true)] // Zero-based versioning
-    [InlineData("1.0.0", "1.0.0.1", true)] // Extra version component (revision different)
-    public void VersionEdgeCasesHandledCorrectly(string current, string latest, bool expectUpdate)
-    {
-        var currentVersion = Version.Parse(current);
-        var latestVersion = Version.Parse(latest);
-
-        Assert.Equal(expectUpdate, latestVersion > currentVersion);
+        Assert.Contains(appName, userAgent, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -297,9 +302,9 @@ public partial class UpdateCheckerTests
     {
         const string htmlUrl = "https://github.com/purelogiccode/SimpleZipDrive/releases/tag/release_1.10.1";
 
-        Assert.StartsWith("https://", htmlUrl);
-        Assert.Contains("github.com", htmlUrl);
-        Assert.Contains("/releases/tag/", htmlUrl);
+        Assert.StartsWith("https://", htmlUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("github.com", htmlUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/releases/tag/", htmlUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -310,13 +315,13 @@ public partial class UpdateCheckerTests
     public void BrowserUrlValidation(string url, bool isValid)
     {
         var isHttps = url.StartsWith("https://", StringComparison.Ordinal);
-        var isGitHub = url.Contains("github.com");
-        var hasReleases = url.Contains("/releases/");
+        var isGitHub = url.Contains("github.com", StringComparison.OrdinalIgnoreCase);
+        var hasReleases = url.Contains("/releases/", StringComparison.OrdinalIgnoreCase);
 
         Assert.Equal(isValid, isHttps && isGitHub && hasReleases);
     }
 
-    [GeneratedRegex(@"\d+\.\d+(?:\.\d+)?", RegexOptions.Compiled)]
+    [GeneratedRegex(@"\d+\.\d+(?:\.\d+)?", RegexOptions.Compiled, "00:00:01")]
     private static partial Regex VersionRegex();
 
     #endregion
@@ -385,7 +390,8 @@ public partial class UpdateCheckerTests
     {
         const string repoName = "SimpleZipDrive";
 
-        Assert.Contains(repoName, "A newer version of SimpleZipDrive is available.");
+        Assert.Contains(repoName, "A newer version of SimpleZipDrive is available.",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -394,7 +400,7 @@ public partial class UpdateCheckerTests
         var current = new Version(1, 10, 0);
         var message = $"Current version: {current}";
 
-        Assert.Contains("1.10.0", message);
+        Assert.Contains("1.10.0", message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -403,7 +409,7 @@ public partial class UpdateCheckerTests
         var latest = new Version(1, 10, 1);
         var message = $"Latest version: {latest}";
 
-        Assert.Contains("1.10.1", message);
+        Assert.Contains("1.10.1", message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -411,7 +417,7 @@ public partial class UpdateCheckerTests
     {
         const string prompt = "Would you like to open the download page in your browser?";
 
-        Assert.Contains("download page", prompt);
+        Assert.Contains("download page", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.EndsWith("?", prompt, StringComparison.Ordinal);
     }
 
@@ -470,10 +476,7 @@ public partial class UpdateCheckerTests
         var latest = Version.Parse(latestStr);
         var fake = new FakeUserNotificationService();
 
-        if (latest > current)
-        {
-            fake.ShowUpdateAvailable(current, latest, downloadUrl);
-        }
+        if (latest > current) fake.ShowUpdateAvailable(current, latest, downloadUrl);
 
         Assert.Equal(shouldNotify, fake.ShowUpdateAvailableCalled);
     }

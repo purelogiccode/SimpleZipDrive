@@ -8,6 +8,12 @@ public class LoggingServiceAdditionalTests : IDisposable
 {
     private readonly LoggingService _service = new();
 
+    public void Dispose()
+    {
+        _service.Clear();
+        GC.SuppressFinalize(this);
+    }
+
     // ─── Log: message with only \r ───
 
     [Fact]
@@ -80,7 +86,7 @@ public class LoggingServiceAdditionalTests : IDisposable
         _service.Log("Test message");
 
         var result = _service.GetAllLogsAsText();
-        Assert.Contains("Test message", result);
+        Assert.Contains("Test message", result, StringComparison.OrdinalIgnoreCase);
     }
 
     // ─── GetAllLogsAsText: error prefix ───
@@ -91,12 +97,6 @@ public class LoggingServiceAdditionalTests : IDisposable
         _service.LogError("Error occurred");
 
         var result = _service.GetAllLogsAsText();
-        Assert.Contains("[ERROR]", result);
-    }
-
-    public void Dispose()
-    {
-        _service.Clear();
-        GC.SuppressFinalize(this);
+        Assert.Contains("[ERROR]", result, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using SimpleZipDrive.Core;
 
 namespace SimpleZipDrive.Tests;
@@ -115,8 +116,9 @@ public class ErrorLoggerAdditionalTests
         using var logger = new ErrorLogger();
         var result = logger.GetEnvironmentDetails();
 
-        Assert.Contains("Bitness:", result);
-        Assert.True(result.Contains("64-bit") || result.Contains("32-bit"));
+        Assert.Contains("Bitness:", result, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.Contains("64-bit", StringComparison.OrdinalIgnoreCase) ||
+                    result.Contains("32-bit", StringComparison.OrdinalIgnoreCase));
     }
 
     // ─── GetEnvironmentDetails: includes Windows version ───
@@ -127,7 +129,7 @@ public class ErrorLoggerAdditionalTests
         using var logger = new ErrorLogger();
         var result = logger.GetEnvironmentDetails();
 
-        Assert.Contains("Windows Version:", result);
+        Assert.Contains("Windows Version:", result, StringComparison.OrdinalIgnoreCase);
     }
 
     // ─── GetEnvironmentDetails: includes processor count ───
@@ -138,8 +140,9 @@ public class ErrorLoggerAdditionalTests
         using var logger = new ErrorLogger();
         var result = logger.GetEnvironmentDetails();
 
-        Assert.Contains("Processor Count:", result);
-        Assert.Contains(Environment.ProcessorCount.ToString(CultureInfo.InvariantCulture), result);
+        Assert.Contains("Processor Count:", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(Environment.ProcessorCount.ToString(CultureInfo.InvariantCulture), result,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     // ─── ReportSilentException: does not throw ───
@@ -150,7 +153,7 @@ public class ErrorLoggerAdditionalTests
         var thrown = Record.Exception(() =>
         {
             using var logger = new ErrorLogger();
-            logger.ReportSilentException(new InvalidOperationException("test"), "test context");
+            ErrorLogger.ReportSilentException(new InvalidOperationException("test"), "test context");
         });
 
         Assert.Null(thrown);
@@ -168,10 +171,10 @@ public class ErrorLoggerAdditionalTests
             using var capture = new StringWriter();
             Console.SetError(capture);
 
-            logger.ReportSilentException(new InvalidOperationException("test"), "test context", true);
+            ErrorLogger.ReportSilentException(new InvalidOperationException("test"), "test context", true);
 
             var output = capture.ToString();
-            Assert.DoesNotContain("SILENT EXCEPTION CAUGHT", output);
+            Assert.DoesNotContain("SILENT EXCEPTION CAUGHT", output, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -356,7 +359,8 @@ public class ErrorLoggerAdditionalTests
     // Wrong RAR password (SharpCompress CryptographicException text)
     [InlineData("Mount error: The password did not match.")]
     // Archive locked by another process (antivirus / download manager / torrent client)
-    [InlineData(@"Mount error: The process cannot access the file 'C:\GAMES\game.rar' because it is being used by another process.")]
+    [InlineData(
+        @"Mount error: The process cannot access the file 'C:\GAMES\game.rar' because it is being used by another process.")]
     // Corrupt/truncated RAR file
     [InlineData("Mount error: Unknown Rar Header: 0")]
     // Truncated multi-part archive
@@ -374,7 +378,7 @@ public class ErrorLoggerAdditionalTests
     public void IsUserError_CryptographicException_ReturnsTrue()
     {
         // In this application CryptographicException comes from archive decryption failures
-        var result = ErrorLogger.IsUserError(new System.Security.Cryptography.CryptographicException("The password did not match."));
+        var result = ErrorLogger.IsUserError(new CryptographicException("The password did not match."));
         Assert.True(result);
     }
 
@@ -382,7 +386,10 @@ public class ErrorLoggerAdditionalTests
     public void IsUserError_BadImageFormatException_ReturnsTrue()
     {
         // Architecture/binary mismatches are environment problems
-        var result = ErrorLogger.IsUserError(new BadImageFormatException("An attempt was made to load a program with an incorrect format. (0x8007000B)"));
+        var result =
+            ErrorLogger.IsUserError(
+                new BadImageFormatException(
+                    "An attempt was made to load a program with an incorrect format. (0x8007000B)"));
         Assert.True(result);
     }
 
@@ -390,7 +397,8 @@ public class ErrorLoggerAdditionalTests
     public void IsUserError_IndexOutOfRangeExceptionWithoutSharpCompressContext_ReturnsFalse()
     {
         // Without SharpCompress context this must stay reportable (could be a real app bug)
-        var result = ErrorLogger.IsUserError(new IndexOutOfRangeException("Index was outside the bounds of the array."));
+        var result =
+            ErrorLogger.IsUserError(new IndexOutOfRangeException("Index was outside the bounds of the array."));
         Assert.False(result);
     }
 
@@ -416,7 +424,11 @@ public class ErrorLoggerAdditionalTests
     {
         // Method name intentionally references SharpCompress so the captured stack trace
         // contains the library name, simulating an exception thrown inside SharpCompress code.
+        // MA0012: IndexOutOfRangeException is intentional - it mirrors the exact runtime
+        // exception thrown by SharpCompress.ZipArchive.LoadEntries (bug #65320/#65321).
+#pragma warning disable MA0012
         throw new IndexOutOfRangeException("Index was outside the bounds of the array.");
+#pragma warning restore MA0012
     }
 
     [Fact]

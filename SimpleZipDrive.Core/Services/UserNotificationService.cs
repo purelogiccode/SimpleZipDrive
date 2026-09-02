@@ -4,8 +4,8 @@ using System.Windows;
 namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
-/// WPF-based implementation of <see cref="IUserNotificationService"/> that displays
-/// MessageBox dialogs and launches the browser for update downloads.
+///     WPF-based implementation of <see cref="IUserNotificationService" /> that displays
+///     MessageBox dialogs and launches the browser for update downloads.
 /// </summary>
 public class UserNotificationService : IUserNotificationService
 {
@@ -13,7 +13,7 @@ public class UserNotificationService : IUserNotificationService
     private readonly ILoggingService _loggingService;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UserNotificationService"/> class.
+    ///     Initializes a new instance of the <see cref="UserNotificationService" /> class.
     /// </summary>
     /// <param name="loggingService">The logging service used to record user actions.</param>
     public UserNotificationService(ILoggingService loggingService)
@@ -21,7 +21,7 @@ public class UserNotificationService : IUserNotificationService
         _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public bool ShowUpdateAvailable(Version currentVersion, Version latestVersion, string downloadUrl)
     {
         var dispatcher = Application.Current?.Dispatcher;
@@ -33,9 +33,10 @@ public class UserNotificationService : IUserNotificationService
             var message = $"A newer version of {RepoName} is available.\n\n" +
                           $"Current version: {currentVersion}\n" +
                           $"Latest version: {latestVersion}\n\n" +
-                          $"Would you like to open the download page in your browser?";
+                          "Would you like to open the download page in your browser?";
 
-            var result = MessageBox.Show(message, "Update Available", MessageBoxButton.YesNo, MessageBoxImage.Information);
+            var result = MessageBox.Show(message, "Update Available", MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
 
             if (result == MessageBoxResult.Yes)
             {
@@ -51,7 +52,8 @@ public class UserNotificationService : IUserNotificationService
                 }
                 catch (Exception ex)
                 {
-                    ErrorLoggerStatic.ReportSilentException(ex, "UserNotificationService: Failed to launch browser for update download", true);
+                    ErrorLoggerStatic.ReportSilentException(ex,
+                        "UserNotificationService: Failed to launch browser for update download", true);
                     _loggingService.Log($"Could not launch browser: {ex.Message}");
                     MessageBox.Show($"Could not open browser automatically.\n\nPlease visit:\n{downloadUrl}",
                         "Browser Error", MessageBoxButton.OK, MessageBoxImage.Warning);

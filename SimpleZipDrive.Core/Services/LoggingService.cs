@@ -5,12 +5,12 @@ using System.Windows.Threading;
 namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
-/// Implementation of the logging service.
+///     Implementation of the logging service.
 /// </summary>
 public class LoggingService : ILoggingService
 {
     private const int MaxLogEntries = 5000;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     /// <inheritdoc />
     public ObservableCollection<LogEntry> LogEntries { get; } = [];
@@ -70,15 +70,15 @@ public class LoggingService : ILoggingService
     {
         var dispatcher = Application.Current?.Dispatcher;
 
-        if (dispatcher != null && !dispatcher.CheckAccess())
+        if (dispatcher?.CheckAccess() == false)
         {
-            dispatcher.BeginInvoke(() =>
-            {
-                lock (_lock)
-                {
-                    AddEntryCore(entry);
-                }
-            }, DispatcherPriority.Normal);
+            _ = dispatcher.BeginInvoke(() =>
+                    {
+                        lock (_lock)
+                        {
+                            AddEntryCore(entry);
+                        }
+                    }, DispatcherPriority.Normal);
         }
         else
         {
@@ -95,9 +95,11 @@ public class LoggingService : ILoggingService
         if (LogEntries.Count > 0)
         {
             var lastEntry = LogEntries[^1];
-            if (lastEntry.Message == entry.Message &&
+            if (string.Equals(lastEntry.Message, entry.Message, StringComparison.OrdinalIgnoreCase) &&
                 (entry.Timestamp - lastEntry.Timestamp).TotalMilliseconds < 100)
+            {
                 return;
+            }
         }
 
         LogEntries.Add(entry);

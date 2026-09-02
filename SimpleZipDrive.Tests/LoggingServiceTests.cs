@@ -8,6 +8,12 @@ public class LoggingServiceTests : IDisposable
 {
     private readonly LoggingService _service = new();
 
+    public void Dispose()
+    {
+        _service.Clear();
+        GC.SuppressFinalize(this);
+    }
+
     [Fact]
     public void ConstructorCreatesEmptyLogEntries()
     {
@@ -103,9 +109,9 @@ public class LoggingServiceTests : IDisposable
 
         var result = _service.GetAllLogsAsText();
 
-        Assert.Contains("First message", result);
-        Assert.Contains("Second message", result);
-        Assert.Contains("[ERROR]", result);
+        Assert.Contains("First message", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Second message", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[ERROR]", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -156,34 +162,22 @@ public class LoggingServiceTests : IDisposable
     {
         // The LoggingService has a MaxLogEntries = 5000 cap.
         // After exceeding it, the oldest entries should be removed.
-        for (var i = 0; i < 5010; i++)
-        {
-            _service.Log($"Message {i}");
-        }
+        for (var i = 0; i < 5010; i++) _service.Log($"Message {i}");
 
         Assert.True(_service.LogEntries.Count <= 5000,
             $"Expected at most 5000 entries, but got {_service.LogEntries.Count}.");
 
         // The first entries should have been removed; verify the tail is preserved
-        Assert.Contains("Message 5009", _service.LogEntries[^1].Message);
+        Assert.Contains("Message 5009", _service.LogEntries[^1].Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void LogError_MaxEntriesReached_RemovesOldestEntries()
     {
-        for (var i = 0; i < 5005; i++)
-        {
-            _service.LogError($"Error {i}");
-        }
+        for (var i = 0; i < 5005; i++) _service.LogError($"Error {i}");
 
         Assert.True(_service.LogEntries.Count <= 5000,
             $"Expected at most 5000 entries, but got {_service.LogEntries.Count}.");
-        Assert.Contains("Error 5004", _service.LogEntries[^1].Message);
-    }
-
-    public void Dispose()
-    {
-        _service.Clear();
-        GC.SuppressFinalize(this);
+        Assert.Contains("Error 5004", _service.LogEntries[^1].Message, StringComparison.OrdinalIgnoreCase);
     }
 }

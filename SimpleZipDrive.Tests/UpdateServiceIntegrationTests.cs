@@ -8,16 +8,40 @@ using SimpleZipDrive.Tests.Fakes;
 namespace SimpleZipDrive.Tests;
 
 /// <summary>
-/// Integration tests for the UpdateService that verify the full update check flow
-/// with mocked HTTP responses.
+///     Integration tests for the UpdateService that verify the full update check flow
+///     with mocked HTTP responses.
 /// </summary>
 [SuppressMessage("ReSharper", "NullableWarningSuppressionIsUsed")]
 public class UpdateServiceIntegrationTests
 {
-    private readonly FakeUserNotificationService _fakeNotificationService = new();
-
     private readonly Version _currentVersion = Assembly.GetExecutingAssembly().GetName().Version
                                                ?? new Version(0, 0, 0, 0);
+
+    private readonly FakeUserNotificationService _fakeNotificationService = new();
+
+    #region Cancellation Tests
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenCancelled_DoesNotNotifyUser()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        const string tagName = "release_99.0.0";
+        var json = CreateGitHubReleaseJson(tagName);
+
+        using var httpClient = CreateMockHttpClient(json);
+        var updateService = new UpdateService(_fakeNotificationService, httpClient);
+
+        // Act - UpdateService catches all exceptions internally, so no exception is thrown
+        await updateService.CheckForUpdateAsync(cts.Token);
+
+        // Assert - user should not be notified when cancellation occurs
+        Assert.False(_fakeNotificationService.ShowUpdateAvailableCalled);
+    }
+
+    #endregion
 
     #region Helper Methods
 
@@ -33,7 +57,8 @@ public class UpdateServiceIntegrationTests
         return new HttpClient(handler);
     }
 
-    private static string CreateGitHubReleaseJson(string tagName, string htmlUrl = "https://github.com/purelogiccode/SimpleZipDrive/releases/tag/test")
+    private static string CreateGitHubReleaseJson(string tagName,
+        string htmlUrl = "https://github.com/purelogiccode/SimpleZipDrive/releases/tag/test")
     {
         return JsonSerializer.Serialize(new
         {
@@ -216,11 +241,12 @@ public class UpdateServiceIntegrationTests
         // fallback owner (drpetersonfernandes) still serves the latest release.
         const string tagName = "release_99.0.1";
         var json = CreateGitHubReleaseJson(tagName);
-        using var httpClient = new HttpClient(new RoutingMockHttpMessageHandler(new Dictionary<string, (HttpStatusCode Status, string Content)>
-        {
-            [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.NotFound, "{}"),
-            [UpdateService.FallbackLatestApiUrl] = (HttpStatusCode.OK, json)
-        }));
+        using var httpClient = new HttpClient(new RoutingMockHttpMessageHandler(
+            new Dictionary<string, (HttpStatusCode Status, string Content)>(StringComparer.OrdinalIgnoreCase)
+            {
+                [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.NotFound, "{}"),
+                [UpdateService.FallbackLatestApiUrl] = (HttpStatusCode.OK, json)
+            }));
         var updateService = new UpdateService(_fakeNotificationService, httpClient);
 
         // Act
@@ -236,10 +262,11 @@ public class UpdateServiceIntegrationTests
         // Arrange - primary endpoint serves the release; fallback must not be requested.
         const string tagName = "release_99.0.1";
         var json = CreateGitHubReleaseJson(tagName);
-        using var handler = new RoutingMockHttpMessageHandler(new Dictionary<string, (HttpStatusCode Status, string Content)>
-        {
-            [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.OK, json)
-        });
+        using var handler = new RoutingMockHttpMessageHandler(
+            new Dictionary<string, (HttpStatusCode Status, string Content)>(StringComparer.OrdinalIgnoreCase)
+            {
+                [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.OK, json)
+            });
         var updateService = new UpdateService(_fakeNotificationService, new HttpClient(handler));
 
         // Act
@@ -254,11 +281,12 @@ public class UpdateServiceIntegrationTests
     public async Task CheckForUpdateAsync_WhenBothReposUnavailable_DoesNotNotifyUser()
     {
         // Arrange - neither endpoint resolves to a release.
-        using var handler = new RoutingMockHttpMessageHandler(new Dictionary<string, (HttpStatusCode Status, string Content)>
-        {
-            [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.NotFound, "{}"),
-            [UpdateService.FallbackLatestApiUrl] = (HttpStatusCode.NotFound, "{}")
-        });
+        using var handler = new RoutingMockHttpMessageHandler(
+            new Dictionary<string, (HttpStatusCode Status, string Content)>(StringComparer.OrdinalIgnoreCase)
+            {
+                [UpdateService.PrimaryLatestApiUrl] = (HttpStatusCode.NotFound, "{}"),
+                [UpdateService.FallbackLatestApiUrl] = (HttpStatusCode.NotFound, "{}")
+            });
         var updateService = new UpdateService(_fakeNotificationService, new HttpClient(handler));
 
         // Act
@@ -362,30 +390,6 @@ public class UpdateServiceIntegrationTests
 
     #endregion
 
-    #region Cancellation Tests
-
-    [Fact]
-    public async Task CheckForUpdateAsync_WhenCancelled_DoesNotNotifyUser()
-    {
-        // Arrange
-        var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-
-        const string tagName = "release_99.0.0";
-        var json = CreateGitHubReleaseJson(tagName);
-
-        using var httpClient = CreateMockHttpClient(json);
-        var updateService = new UpdateService(_fakeNotificationService, httpClient);
-
-        // Act - UpdateService catches all exceptions internally, so no exception is thrown
-        await updateService.CheckForUpdateAsync(cts.Token);
-
-        // Assert - user should not be notified when cancellation occurs
-        Assert.False(_fakeNotificationService.ShowUpdateAvailableCalled);
-    }
-
-    #endregion
-
     #region Constructor Tests
 
     [Fact]
@@ -410,9 +414,9 @@ public class UpdateServiceIntegrationTests
 
     private class MockHttpMessageHandler : HttpMessageHandler
     {
+        private readonly Exception? _exception;
         private readonly string? _responseContent;
         private readonly HttpStatusCode _statusCode;
-        private readonly Exception? _exception;
 
         public MockHttpMessageHandler(string responseContent, HttpStatusCode statusCode = HttpStatusCode.OK)
         {
@@ -431,10 +435,7 @@ public class UpdateServiceIntegrationTests
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (_exception != null)
-            {
-                throw _exception;
-            }
+            if (_exception != null) throw _exception;
 
             var response = new HttpResponseMessage(_statusCode)
             {
@@ -446,19 +447,19 @@ public class UpdateServiceIntegrationTests
     }
 
     /// <summary>
-    /// Mock handler that routes each request URL to a configured status/content pair,
-    /// recording every requested URL.
+    ///     Mock handler that routes each request URL to a configured status/content pair,
+    ///     recording every requested URL.
     /// </summary>
     private sealed class RoutingMockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Dictionary<string, (HttpStatusCode Status, string Content)> _responses;
 
-        public List<string> RequestedUrls { get; } = [];
-
         public RoutingMockHttpMessageHandler(Dictionary<string, (HttpStatusCode Status, string Content)> responses)
         {
             _responses = responses;
         }
+
+        public List<string> RequestedUrls { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -469,10 +470,7 @@ public class UpdateServiceIntegrationTests
             var url = request.RequestUri?.ToString() ?? string.Empty;
             RequestedUrls.Add(url);
 
-            if (!_responses.TryGetValue(url, out var route))
-            {
-                Assert.Fail($"Unexpected request URL: {url}");
-            }
+            if (!_responses.TryGetValue(url, out var route)) Assert.Fail($"Unexpected request URL: {url}");
 
             return Task.FromResult(new HttpResponseMessage(route.Status)
             {
@@ -482,18 +480,18 @@ public class UpdateServiceIntegrationTests
     }
 
     /// <summary>
-    /// Mock handler that always throws the given exception and counts requests.
+    ///     Mock handler that always throws the given exception and counts requests.
     /// </summary>
     private sealed class ThrowingMockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Exception _exception;
 
-        public int RequestCount { get; private set; }
-
         public ThrowingMockHttpMessageHandler(Exception exception)
         {
             _exception = exception;
         }
+
+        public int RequestCount { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,

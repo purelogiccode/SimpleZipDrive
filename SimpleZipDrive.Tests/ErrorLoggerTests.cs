@@ -21,6 +21,13 @@ public class ErrorLoggerTests : IDisposable
         CleanupLogFile();
     }
 
+    public void Dispose()
+    {
+        _errorLogger.Dispose();
+        CleanupLogFile();
+        GC.SuppressFinalize(this);
+    }
+
     private void CleanupLogFile()
     {
         try
@@ -58,7 +65,7 @@ public class ErrorLoggerTests : IDisposable
     public async Task LogErrorAsyncUserError_DoesNotThrowAsync()
     {
         var ex = new DirectoryNotFoundException("test dir missing");
-        var thrown = await Record.ExceptionAsync(() => _errorLogger.LogErrorAsync(ex, "async test"));
+        var thrown = await Record.ExceptionAsync(() => ErrorLogger.LogErrorAsync(ex, "async test"));
 
         Assert.Null(thrown);
         Assert.False(File.Exists(_tempLogFilePath));
@@ -77,7 +84,7 @@ public class ErrorLoggerTests : IDisposable
     public async Task LogErrorAsyncNullContext_DoesNotThrowAsync()
     {
         var ex = new FileNotFoundException("test");
-        var thrown = await Record.ExceptionAsync(() => _errorLogger.LogErrorAsync(ex));
+        var thrown = await Record.ExceptionAsync(() => ErrorLogger.LogErrorAsync(ex));
 
         Assert.Null(thrown);
     }
@@ -95,7 +102,7 @@ public class ErrorLoggerTests : IDisposable
     [Fact]
     public async Task LogErrorAsyncNullException_DoesNotThrowAsync()
     {
-        var thrown = await Record.ExceptionAsync(() => _errorLogger.LogErrorAsync(null, "async null test"));
+        var thrown = await Record.ExceptionAsync(() => ErrorLogger.LogErrorAsync(null, "async null test"));
 
         Assert.Null(thrown);
     }
@@ -182,7 +189,8 @@ public class ErrorLoggerTests : IDisposable
     [Fact]
     public void IsUserErrorMessageContainsDriveLetterPatternReturnsTrue()
     {
-        var result = ErrorLogger.IsUserError(new InvalidOperationException("can't assign a drive letter to this device"));
+        var result =
+            ErrorLogger.IsUserError(new InvalidOperationException("can't assign a drive letter to this device"));
         Assert.True(result);
     }
 
@@ -233,7 +241,8 @@ public class ErrorLoggerTests : IDisposable
     [Fact]
     public void IsUserErrorGenericPasswordMessageReturnsFalse()
     {
-        var result = ErrorLogger.IsUserError(new InvalidOperationException("unexpected password mismatch in internal state"));
+        var result =
+            ErrorLogger.IsUserError(new InvalidOperationException("unexpected password mismatch in internal state"));
 
         Assert.False(result);
     }
@@ -329,7 +338,7 @@ public class ErrorLoggerTests : IDisposable
     {
         var result = _errorLogger.GetEnvironmentDetails();
         Assert.NotNull(result);
-        Assert.Contains("SimpleZipDrive", result);
+        Assert.Contains("SimpleZipDrive", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -337,11 +346,11 @@ public class ErrorLoggerTests : IDisposable
     {
         var result = _errorLogger.GetEnvironmentDetails();
         Assert.NotNull(result);
-        Assert.Contains("Environment Details", result);
-        Assert.Contains("OS Version", result);
-        Assert.Contains("Architecture", result);
-        Assert.Contains("Processor Count", result);
-        Assert.Contains("Temp Path", result);
+        Assert.Contains("Environment Details", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("OS Version", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Architecture", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Processor Count", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Temp Path", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -350,9 +359,9 @@ public class ErrorLoggerTests : IDisposable
         var ex = new InvalidOperationException("test operation failed");
         var result = ErrorLogger.GetExceptionDetails(ex);
         Assert.NotNull(result);
-        Assert.Contains("InvalidOperationException", result);
-        Assert.Contains("test operation failed", result);
-        Assert.Contains("Exception Details", result);
+        Assert.Contains("InvalidOperationException", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("test operation failed", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Exception Details", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -362,19 +371,20 @@ public class ErrorLoggerTests : IDisposable
         var ex = new IOException("outer io error", inner);
         var result = ErrorLogger.GetExceptionDetails(ex);
         Assert.NotNull(result);
-        Assert.Contains("ArgumentException", result);
-        Assert.Contains("inner arg error", result);
-        Assert.Contains("Inner Exception", result);
+        Assert.Contains("ArgumentException", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("inner arg error", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Inner Exception", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public async Task GetExceptionDetails_IncludesStackTraceAsync()
     {
-        var ex = await Record.ExceptionAsync(static () => Task.Run(static () => throw new InvalidOperationException("stack trace test")));
+        var ex = await Record.ExceptionAsync(static () =>
+            Task.Run(static () => throw new InvalidOperationException("stack trace test")));
         var result = ErrorLogger.GetExceptionDetails(ex);
         Assert.NotNull(result);
-        Assert.Contains("stack trace test", result);
-        Assert.Contains("StackTrace", result);
+        Assert.Contains("stack trace test", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("StackTrace", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -383,9 +393,9 @@ public class ErrorLoggerTests : IDisposable
         var ex = new IOException("file error");
         var result = ErrorLogger.GetErrorDetails(ex, "test context");
         Assert.NotNull(result);
-        Assert.Contains("test context", result);
-        Assert.Contains("file error", result);
-        Assert.Contains("Error Details", result);
+        Assert.Contains("test context", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("file error", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Error Details", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -401,10 +411,10 @@ public class ErrorLoggerTests : IDisposable
             _errorLogger.WriteToCriticalLog(ex, "critical context");
 
             var output = capture.ToString();
-            Assert.Contains("FATAL", output);
-            Assert.Contains("critical context", output);
-            Assert.Contains("critical failure", output);
-            Assert.Contains("IOException", output);
+            Assert.Contains("FATAL", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("critical context", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("critical failure", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("IOException", output, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -436,12 +446,5 @@ public class ErrorLoggerTests : IDisposable
         var fireAndForget = ErrorLogger.FireAndForgetAsync;
 
         Assert.NotNull(fireAndForget);
-    }
-
-    public void Dispose()
-    {
-        _errorLogger.Dispose();
-        CleanupLogFile();
-        GC.SuppressFinalize(this);
     }
 }

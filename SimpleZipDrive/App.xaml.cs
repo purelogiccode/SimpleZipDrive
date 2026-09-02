@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using SimpleZipDrive.Core.Logging;
 
@@ -6,16 +8,15 @@ namespace SimpleZipDrive;
 
 public partial class App
 {
-    internal static string[] StartupArgs { get; private set; } = [];
-
-    /// <summary>
-    /// Global cancellation token source for graceful shutdown of background tasks.
-    /// </summary>
-    internal static CancellationTokenSource ShutdownCts { get; } = new();
-
     private static TextWriter? _originalConsoleOut;
     private static TextWriter? _originalConsoleError;
     private static LogTextWriter? _logTextWriter;
+    internal static string[] StartupArgs { get; private set; } = [];
+
+    /// <summary>
+    ///     Global cancellation token source for graceful shutdown of background tasks.
+    /// </summary>
+    internal static CancellationTokenSource ShutdownCts { get; } = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -27,8 +28,8 @@ public partial class App
         DiagnosticLogger.Log($"  Version: {Assembly.GetExecutingAssembly().GetName().Version}");
         DiagnosticLogger.Log($"  Arguments: [{string.Join(", ", e.Args)}]");
         DiagnosticLogger.Log($"  Base directory: {AppContext.BaseDirectory}");
-        DiagnosticLogger.Log($"  OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
-        DiagnosticLogger.Log($"  Framework: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
+        DiagnosticLogger.Log($"  OS: {RuntimeInformation.OSDescription}");
+        DiagnosticLogger.Log($"  Framework: {RuntimeInformation.FrameworkDescription}");
         DiagnosticLogger.Log($"  Working directory: {Environment.CurrentDirectory}");
 
         try
@@ -56,9 +57,11 @@ public partial class App
             loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\archive.zip\" M");
             loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\archive.7z\" N");
             loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\archive.rar\" O");
-            loggingService.Log(@"MountPoint can be a drive letter (e.g., M) or a path to an existing empty folder (e.g., C:\mount\zip)");
+            loggingService.Log(
+                @"MountPoint can be a drive letter (e.g., M) or a path to an existing empty folder (e.g., C:\mount\zip)");
             loggingService.Log("");
-            loggingService.Log("Usage 2 (Drag-and-Drop): Drag a .zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, or .cb7 file onto the SimpleZipDrive.exe icon.");
+            loggingService.Log(
+                "Usage 2 (Drag-and-Drop): Drag a .zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, or .cb7 file onto the SimpleZipDrive.exe icon.");
             loggingService.Log(@"It will attempt to mount on M:\, then N:\, O:\, P:\, Q:\ automatically.");
             loggingService.Log("");
 
@@ -77,7 +80,8 @@ public partial class App
                     }
                     catch (Exception ex)
                     {
-                        ErrorLoggerStatic.ReportSilentException(ex, "App.OnStartup: Update check failed during startup", true);
+                        ErrorLoggerStatic.ReportSilentException(ex, "App.OnStartup: Update check failed during startup",
+                            true);
                     }
                 });
             }
@@ -214,10 +218,7 @@ public partial class App
             // Dispose MainWindow to unsubscribe events before services are disposed
             try
             {
-                if (Current.MainWindow is IDisposable disposableMainWindow)
-                {
-                    disposableMainWindow.Dispose();
-                }
+                if (Current.MainWindow is IDisposable disposableMainWindow) disposableMainWindow.Dispose();
             }
             catch (Exception ex)
             {
@@ -256,7 +257,7 @@ public partial class App
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to flush loggers: {ex.Message}");
+            Debug.WriteLine($"Failed to flush loggers: {ex.Message}");
         }
 
         // Dispose the singleton ErrorLogger (HttpClient connection pool)
@@ -270,7 +271,7 @@ public partial class App
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to dispose ErrorLogger: {ex.Message}");
+            Debug.WriteLine($"Failed to dispose ErrorLogger: {ex.Message}");
         }
 
         base.OnExit(e);

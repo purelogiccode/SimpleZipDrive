@@ -9,9 +9,25 @@ namespace SimpleZipDrive.Tests.WinFsp;
 [SuppressMessage("ReSharper", "NullableWarningSuppressionIsUsed")]
 public class WinFspEdgeCaseTests : IDisposable
 {
+    private const int StatusSuccess = 0;
     private readonly List<IDisposable> _disposables = [];
 
-    private const int StatusSuccess = 0;
+    public void Dispose()
+    {
+        foreach (var d in _disposables)
+        {
+            try
+            {
+                d.Dispose();
+            }
+            catch
+            {
+                /* best effort */
+            }
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     private WinFspZipFs CreateZipFs(Stream? stream = null, long maxMemory = ZipFileSystemCore.DefaultMaxMemorySize)
     {
@@ -68,7 +84,8 @@ public class WinFspEdgeCaseTests : IDisposable
     {
         var zipFs = CreateZipFs();
 
-        var result = zipFs.OpenOrCreateFile(@"\data\info.txt", out var fileNode, out var fileDesc, out var fileInfo, out _);
+        var result = zipFs.OpenOrCreateFile(@"\data\info.txt", out var fileNode, out var fileDesc, out var fileInfo,
+            out _);
 
         Assert.Equal(StatusSuccess, result);
         Assert.True(fileInfo.FileSize > 0);
@@ -139,14 +156,12 @@ public class WinFspEdgeCaseTests : IDisposable
         object context = null!;
         var names = new List<string>();
         while (zipFs.ReadDirectoryEntry(fileNode, null!, "*.txt", "", ref context, out var fileName, out _))
-        {
             names.Add(fileName);
-        }
 
         // Should only contain "readme.txt" (and ".", ".." which are always included)
-        Assert.Contains("readme.txt", names);
-        Assert.DoesNotContain("data", names);
-        Assert.DoesNotContain("empty", names);
+        Assert.Contains("readme.txt", names, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("data", names, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("empty", names, StringComparer.OrdinalIgnoreCase);
     }
 
     // ─── ReadDirectoryEntry: subdirectory listing ───
@@ -161,13 +176,11 @@ public class WinFspEdgeCaseTests : IDisposable
         object context = null!;
         var names = new List<string>();
         while (zipFs.ReadDirectoryEntry(fileNode, null!, "*", "", ref context, out var fileName, out _))
-        {
             names.Add(fileName);
-        }
 
-        Assert.Contains(".", names);
-        Assert.Contains("..", names);
-        Assert.Contains("info.txt", names);
+        Assert.Contains(".", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("..", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("info.txt", names, StringComparer.OrdinalIgnoreCase);
         Assert.Equal(3, names.Count);
     }
 
@@ -196,7 +209,7 @@ public class WinFspEdgeCaseTests : IDisposable
         var result = zipFs.GetSecurityByName("\\readme.txt", out var fileAttributes, ref secDesc);
 
         Assert.Equal(StatusSuccess, result);
-        Assert.True((fileAttributes & (uint)FileAttributes.Archive) != 0);
+        Assert.NotEqual(0u, fileAttributes & (uint)FileAttributes.Archive);
     }
 
     // ─── OpenOrCreateFile: stored entry with FileStream source ───
@@ -331,10 +344,7 @@ public class WinFspEdgeCaseTests : IDisposable
         foreach (var b in data)
         {
             crc ^= b;
-            for (var j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
-            }
+            for (var j = 0; j < 8; j++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
         }
 
         return ~crc;
@@ -378,22 +388,5 @@ public class WinFspEdgeCaseTests : IDisposable
         {
             System.Runtime.InteropServices.Marshal.Copy(source, destination, startIndex, length);
         }
-    }
-
-    public void Dispose()
-    {
-        foreach (var d in _disposables)
-        {
-            try
-            {
-                d.Dispose();
-            }
-            catch
-            {
-                /* best effort */
-            }
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

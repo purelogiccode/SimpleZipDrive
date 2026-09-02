@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
-using SimpleZipDrive_WinFsp.Services;
+using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Core.Models;
-using SimpleZipDrive.Core.Services;
+using SimpleZipDrive_WinFsp.Services;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 
@@ -11,6 +11,11 @@ public class WinFspMountServiceTests : IDisposable
 {
     private readonly WinFspFakeLoggingService _loggingService = new();
     private readonly WinFspFakeSettingsService _settingsService = new();
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
 
     [Fact]
     public void Constructor_NullLoggingService_ThrowsArgumentNullException()
@@ -106,11 +111,6 @@ public class WinFspMountServiceTests : IDisposable
         Assert.Equal(string.Empty, result);
     }
 
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
-    }
-
     private class WinFspFakeLoggingService : ILoggingService
     {
         public ObservableCollection<LogEntry> LogEntries { get; } = [];
@@ -147,10 +147,7 @@ public class WinFspMountServiceTests : IDisposable
 
         public void UpdateRamLimit(int maxMemoryPerFileMb)
         {
-            if (maxMemoryPerFileMb > 0)
-            {
-                Settings.MaxMemoryPerFileMb = maxMemoryPerFileMb;
-            }
+            if (maxMemoryPerFileMb > 0) Settings.MaxMemoryPerFileMb = maxMemoryPerFileMb;
         }
     }
 }

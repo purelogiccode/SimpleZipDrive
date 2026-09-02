@@ -25,6 +25,13 @@ public class ZipFsTests : IDisposable
         _zipFs = new ZipFs(_stream, "M:\\", static (_, _) => { }, static () => null, "zip");
     }
 
+    public void Dispose()
+    {
+        _zipFs.Dispose();
+        _stream.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     private static MemoryStream CreateZipStream()
     {
         var ms = new MemoryStream();
@@ -135,9 +142,9 @@ public class ZipFsTests : IDisposable
         var result = _zipFs.FindFiles("\\", out var files, info);
 
         Assert.Equal(DokanResult.Success, result);
-        Assert.Contains(files, static f => f.FileName == "readme.txt");
-        Assert.Contains(files, static f => f.FileName == "data");
-        Assert.Contains(files, static f => f.FileName == "empty");
+        Assert.Contains(files, static f => string.Equals(f.FileName, "readme.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, static f => string.Equals(f.FileName, "data", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, static f => string.Equals(f.FileName, "empty", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -148,7 +155,7 @@ public class ZipFsTests : IDisposable
 
         Assert.Equal(DokanResult.Success, result);
         Assert.Single(files);
-        Assert.Contains(files, static f => f.FileName == "info.txt");
+        Assert.Contains(files, static f => string.Equals(f.FileName, "info.txt", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -166,7 +173,7 @@ public class ZipFsTests : IDisposable
 
         Assert.Equal(DokanResult.Success, result);
         Assert.NotNull(info.Context);
-        Assert.IsAssignableFrom<Stream>(info.Context);
+        Assert.IsType<Stream>(info.Context, exactMatch: false);
 
         _zipFs.CloseFile("\\readme.txt", info);
     }
@@ -201,7 +208,7 @@ public class ZipFsTests : IDisposable
         var result = _zipFs.FindFilesWithPattern("\\", "*.txt", out var files, info);
 
         Assert.Equal(DokanResult.Success, result);
-        Assert.All(files, static f => Assert.EndsWith(".txt", f.FileName));
+        Assert.All(files, static f => Assert.EndsWith(".txt", f.FileName, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -589,9 +596,9 @@ public class ZipFsTests : IDisposable
         var result = _zipFs.FindFilesWithPattern("\\", "*", out var files, info);
 
         Assert.Equal(DokanResult.Success, result);
-        Assert.Contains(files, static f => f.FileName == "readme.txt");
-        Assert.Contains(files, static f => f.FileName == "data");
-        Assert.Contains(files, static f => f.FileName == "empty");
+        Assert.Contains(files, static f => string.Equals(f.FileName, "readme.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, static f => string.Equals(f.FileName, "data", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, static f => string.Equals(f.FileName, "empty", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -601,9 +608,9 @@ public class ZipFsTests : IDisposable
         var result = _zipFs.FindFilesWithPattern("\\", "*.*", out var files, info);
 
         Assert.Equal(DokanResult.Success, result);
-        Assert.Contains(files, static f => f.FileName == "readme.txt");
-        Assert.Contains(files, static f => f.FileName == "data");
-        Assert.Contains(files, static f => f.FileName == "empty");
+        Assert.Contains(files, static f => string.Equals(f.FileName, "readme.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, static f => string.Equals(f.FileName, "data", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, static f => string.Equals(f.FileName, "empty", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -672,7 +679,8 @@ public class ZipFsTests : IDisposable
     public void ConstructorUnsupportedArchiveTypeThrowsNotSupported()
     {
         using var ms = new MemoryStream();
-        Assert.Throws<NotSupportedException>(() => new ZipFs(ms, "M:\\", static (_, _) => { }, static () => null, "iso"));
+        Assert.Throws<NotSupportedException>(() =>
+            new ZipFs(ms, "M:\\", static (_, _) => { }, static () => null, "iso"));
     }
 
     [Fact]
@@ -816,7 +824,7 @@ public class ZipFsTests : IDisposable
         var result = zipFs.FindFiles("\\explicit-dir", out var files, info);
 
         Assert.Equal(DokanResult.Success, result);
-        Assert.Contains(files, static f => f.FileName == "nested.txt");
+        Assert.Contains(files, static f => string.Equals(f.FileName, "nested.txt", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -829,7 +837,7 @@ public class ZipFsTests : IDisposable
         var result = zipFs.FindFiles("\\implicit-dir", out var files, info);
 
         Assert.Equal(DokanResult.Success, result);
-        Assert.Contains(files, static f => f.FileName == "hidden.txt");
+        Assert.Contains(files, static f => string.Equals(f.FileName, "hidden.txt", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -1009,16 +1017,6 @@ public class ZipFsTests : IDisposable
         Assert.True(result);
     }
 
-    /// <summary>
-    /// Test exception type with "DataError" in the name to simulate SharpCompress.DataErrorException.
-    /// </summary>
-    private class TestDataErrorException : Exception
-    {
-        public TestDataErrorException(string message) : base(message)
-        {
-        }
-    }
-
     // ─── NormalizePath tests ───
 
     [Fact]
@@ -1090,7 +1088,8 @@ public class ZipFsTests : IDisposable
     [Fact]
     public void IsPasswordRequiredExceptionMessageContainsPasswordReturnsTrue()
     {
-        var result = ZipFsHelpers.IsPasswordRequiredException(new InvalidOperationException("archive requires a password"));
+        var result =
+            ZipFsHelpers.IsPasswordRequiredException(new InvalidOperationException("archive requires a password"));
 
         Assert.True(result);
     }
@@ -1259,13 +1258,6 @@ public class ZipFsTests : IDisposable
         Assert.Equal(DokanResult.NotReady, result);
     }
 
-    public void Dispose()
-    {
-        _zipFs.Dispose();
-        _stream.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
     // ─── Stored (uncompressed) entry tests ───
 
     private static MemoryStream CreateStoredZipStream()
@@ -1356,10 +1348,7 @@ public class ZipFsTests : IDisposable
         foreach (var b in data)
         {
             crc ^= b;
-            for (var j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
-            }
+            for (var j = 0; j < 8; j++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
         }
 
         return ~crc;
@@ -1383,7 +1372,7 @@ public class ZipFsTests : IDisposable
 
         Assert.Equal(DokanResult.Success, result);
         Assert.NotNull(info.Context);
-        Assert.IsAssignableFrom<Stream>(info.Context);
+        Assert.IsType<Stream>(info.Context, exactMatch: false);
         Assert.IsNotType<FileStream>(info.Context); // Not disk cache
         Assert.IsNotType<MemoryStream>(info.Context); // Not RAM cache
 
@@ -1600,10 +1589,7 @@ public class ZipFsTests : IDisposable
     private static byte[] CreatePatternData(int length, int seed)
     {
         var data = new byte[length];
-        for (var i = 0; i < length; i++)
-        {
-            data[i] = (byte)((i + seed) % 256);
-        }
+        for (var i = 0; i < length; i++) data[i] = (byte)((i + seed) % 256);
 
         return data;
     }
@@ -1695,7 +1681,8 @@ public class ZipFsTests : IDisposable
                 zipFs = new ZipFs(fs, "M:\\", static (_, _) => { }, static () => null, "zip", 1);
                 var zf = zipFs;
 
-                var chunks = new[] { (Offset: 0, Length: 4096), (Offset: 100000, Length: 8192), (Offset: 500000, Length: 4096) };
+                var chunks = new[]
+                    { (Offset: 0, Length: 4096), (Offset: 100000, Length: 8192), (Offset: 500000, Length: 4096) };
                 var errors = new ConcurrentBag<Exception>();
 
                 var info = new FakeDokanFileInfo();
@@ -1860,7 +1847,7 @@ public class ZipFsTests : IDisposable
 
         Assert.Equal(DokanResult.Success, result);
         Assert.NotEmpty(files);
-        Assert.Contains(files, static f => f.FileName == "readme.txt");
+        Assert.Contains(files, static f => string.Equals(f.FileName, "readme.txt", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -2179,5 +2166,23 @@ public class ZipFsTests : IDisposable
         var result = ZipFsHelpers.IsNameMatch("", "*");
 
         Assert.True(result);
+    }
+
+    /// <summary>
+    ///     Test exception type with "DataError" in the name to simulate SharpCompress.DataErrorException.
+    /// </summary>
+    private class TestDataErrorException : Exception
+    {
+        public TestDataErrorException(string message) : base(message)
+        {
+        }
+
+        public TestDataErrorException()
+        {
+        }
+
+        public TestDataErrorException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
     }
 }

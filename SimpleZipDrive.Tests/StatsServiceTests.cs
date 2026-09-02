@@ -180,8 +180,9 @@ public class StatsServiceTests
         // "ReSharperTestRunner" under ReSharper/Rider). Assert the contract instead
         // of a runner-specific literal.
         var expectedApplicationId = Assembly.GetEntryAssembly()?.GetName().Name ?? "SimpleZipDrive";
-        Assert.Contains($"\"applicationId\":\"{expectedApplicationId}\"", handler.LastContentBody);
-        Assert.Contains("version", handler.LastContentBody);
+        Assert.Contains($"\"applicationId\":\"{expectedApplicationId}\"", handler.LastContentBody,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("version", handler.LastContentBody, StringComparison.OrdinalIgnoreCase);
 
         service.Dispose();
     }
@@ -211,10 +212,7 @@ public class StatsServiceTests
             LastAuthHeader = request.Headers.Authorization;
             LastContent = request.Content;
 
-            if (request.Content != null)
-            {
-                LastContentBody = await request.Content.ReadAsStringAsync(cancellationToken);
-            }
+            if (request.Content != null) LastContentBody = await request.Content.ReadAsStringAsync(cancellationToken);
 
             if (Delay > TimeSpan.Zero)
             {
@@ -230,10 +228,7 @@ public class StatsServiceTests
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (ThrowException)
-            {
-                throw new HttpRequestException("Simulated network failure");
-            }
+            if (ThrowException) throw new HttpRequestException("Simulated network failure");
 
             return new HttpResponseMessage
             {

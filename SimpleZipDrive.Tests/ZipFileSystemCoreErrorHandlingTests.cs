@@ -8,6 +8,23 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
 {
     private readonly List<IDisposable> _disposables = [];
 
+    public void Dispose()
+    {
+        foreach (var d in _disposables)
+        {
+            try
+            {
+                d.Dispose();
+            }
+            catch
+            {
+                /* best effort */
+            }
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
     private ZipFileSystemCore CreateCore(Stream? stream = null, string archiveType = "zip",
         long maxMemory = ZipFileSystemCore.DefaultMaxMemorySize, string? volumeLabel = null)
     {
@@ -122,12 +139,12 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
 
         // Sequential reads via ReadStream (which calls ReadAt for StoredEntryStream)
         var buffer1 = new byte[5];
-        var read1 = core.ReadStream(stream, 0, buffer1, 0, 5);
+        var read1 = ZipFileSystemCore.ReadStream(stream, 0, buffer1, 0, 5);
         Assert.Equal(5, read1);
         Assert.Equal("Hello"u8.ToArray(), buffer1);
 
         var buffer2 = new byte[6];
-        var read2 = core.ReadStream(stream, 5, buffer2, 0, 6);
+        var read2 = ZipFileSystemCore.ReadStream(stream, 5, buffer2, 0, 6);
         Assert.Equal(6, read2);
         Assert.Equal(" World"u8.ToArray(), buffer2);
 
@@ -149,12 +166,12 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
 
         // Random access: read from near end first, then beginning
         var buffer1 = new byte[5];
-        var read1 = core.ReadStream(stream, 13, buffer1, 0, 5);
+        var read1 = ZipFileSystemCore.ReadStream(stream, 13, buffer1, 0, 5);
         Assert.Equal(5, read1);
         Assert.Equal("tored"u8.ToArray(), buffer1);
 
         var buffer2 = new byte[5];
-        var read2 = core.ReadStream(stream, 0, buffer2, 0, 5);
+        var read2 = ZipFileSystemCore.ReadStream(stream, 0, buffer2, 0, 5);
         Assert.Equal(5, read2);
         Assert.Equal("Hello"u8.ToArray(), buffer2);
 
@@ -175,7 +192,7 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
         Assert.NotNull(stream);
 
         var buffer = new byte[10];
-        var bytesRead = core.ReadStream(stream, 9999, buffer, 0, 10);
+        var bytesRead = ZipFileSystemCore.ReadStream(stream, 9999, buffer, 0, 10);
         Assert.Equal(0, bytesRead);
 
         stream.Dispose();
@@ -193,7 +210,7 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
 
         // Try to read 10 bytes from offset 3 — should only return 2
         var buffer = new byte[10];
-        var bytesRead = core.ReadStream(ms, 3, buffer, 0, 10);
+        var bytesRead = ZipFileSystemCore.ReadStream(ms, 3, buffer, 0, 10);
 
         Assert.Equal(2, bytesRead);
         Assert.Equal(4, buffer[0]);
@@ -211,19 +228,19 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
         using var ms = new NonSeekableStream(data);
 
         var buffer1 = new byte[4];
-        var read1 = core.ReadStream(ms, 0, buffer1, 0, 4);
+        var read1 = ZipFileSystemCore.ReadStream(ms, 0, buffer1, 0, 4);
         Assert.Equal(4, read1);
         Assert.Equal(10, buffer1[0]);
         Assert.Equal(40, buffer1[3]);
 
         var buffer2 = new byte[4];
-        var read2 = core.ReadStream(ms, 4, buffer2, 0, 4);
+        var read2 = ZipFileSystemCore.ReadStream(ms, 4, buffer2, 0, 4);
         Assert.Equal(4, read2);
         Assert.Equal(50, buffer2[0]);
         Assert.Equal(80, buffer2[3]);
 
         var buffer3 = new byte[4];
-        var read3 = core.ReadStream(ms, 8, buffer3, 0, 4);
+        var read3 = ZipFileSystemCore.ReadStream(ms, 8, buffer3, 0, 4);
         Assert.Equal(2, read3);
         Assert.Equal(90, buffer3[0]);
         Assert.Equal(100, buffer3[1]);
@@ -242,7 +259,7 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
     {
         var core = CreateCore();
 
-        var result = core.TryResolvePath(input, out var normalized);
+        var result = ZipFileSystemCore.TryResolvePath(input, out var normalized);
 
         Assert.True(result);
         Assert.Equal(expected, normalized);
@@ -276,7 +293,8 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
         var core = CreateCore();
 
         var entries = core.ListDirectory("/");
-        var readme = entries.FirstOrDefault(static e => e.NormalizedPath == "/readme.txt");
+        var readme = entries.FirstOrDefault(static e =>
+            string.Equals(e.NormalizedPath, "/readme.txt", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(readme);
         Assert.False(readme.IsDir);
@@ -476,10 +494,7 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
         foreach (var b in data)
         {
             crc ^= b;
-            for (var j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
-            }
+            for (var j = 0; j < 8; j++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
         }
 
         return ~crc;
@@ -514,22 +529,5 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
                 // ignored
             }
         }
-    }
-
-    public void Dispose()
-    {
-        foreach (var d in _disposables)
-        {
-            try
-            {
-                d.Dispose();
-            }
-            catch
-            {
-                /* best effort */
-            }
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

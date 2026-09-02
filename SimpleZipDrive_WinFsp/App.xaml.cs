@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
+using Microsoft.Win32;
 using SimpleZipDrive.Core.Logging;
 using SimpleZipDrive_WinFsp.Services;
 
@@ -8,13 +10,12 @@ namespace SimpleZipDrive_WinFsp;
 
 public partial class App
 {
-    internal static string[] StartupArgs { get; private set; } = [];
-
-    internal static CancellationTokenSource ShutdownCts { get; } = new();
-
     private static TextWriter? _originalConsoleOut;
     private static TextWriter? _originalConsoleError;
     private static LogTextWriter? _logTextWriter;
+    internal static string[] StartupArgs { get; private set; } = [];
+
+    internal static CancellationTokenSource ShutdownCts { get; } = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -60,9 +61,11 @@ public partial class App
             loggingService.Log("Example: SimpleZipDrive_WinFsp.exe \"C:\\path\\to\\archive.zip\" M");
             loggingService.Log("Example: SimpleZipDrive_WinFsp.exe \"C:\\path\\to\\archive.7z\" N");
             loggingService.Log("Example: SimpleZipDrive_WinFsp.exe \"C:\\path\\to\\archive.rar\" O");
-            loggingService.Log(@"MountPoint can be a drive letter (e.g., M) or a path to an existing empty folder (e.g., C:\mount\zip)");
+            loggingService.Log(
+                @"MountPoint can be a drive letter (e.g., M) or a path to an existing empty folder (e.g., C:\mount\zip)");
             loggingService.Log("");
-            loggingService.Log("Usage 2 (Drag-and-Drop): Drag a .zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, or .cb7 file onto the SimpleZipDrive_WinFsp.exe icon.");
+            loggingService.Log(
+                "Usage 2 (Drag-and-Drop): Drag a .zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, or .cb7 file onto the SimpleZipDrive_WinFsp.exe icon.");
             loggingService.Log(@"It will attempt to mount on M:\, then N:\, O:\, P:\, Q:\ automatically.");
             loggingService.Log("");
 
@@ -81,7 +84,8 @@ public partial class App
                     }
                     catch (Exception ex)
                     {
-                        ErrorLoggerStatic.ReportSilentException(ex, "App.OnStartup: Update check failed during startup", true);
+                        ErrorLoggerStatic.ReportSilentException(ex, "App.OnStartup: Update check failed during startup",
+                            true);
                     }
                 });
             }
@@ -118,16 +122,13 @@ public partial class App
 
             string? binDir = null;
 
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\WinFsp")
-                            ?? Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WinFsp");
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\WinFsp")
+                            ?? Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WinFsp");
             var sxsDir = key?.GetValue("SxsDir") as string;
             if (!string.IsNullOrEmpty(sxsDir))
             {
                 var sxsBin = Path.Combine(sxsDir, "bin");
-                if (Directory.Exists(sxsBin))
-                {
-                    binDir = sxsBin;
-                }
+                if (Directory.Exists(sxsBin)) binDir = sxsBin;
             }
 
             if (binDir == null)
@@ -136,10 +137,7 @@ public partial class App
                 if (!string.IsNullOrEmpty(installDir))
                 {
                     var installBin = Path.Combine(installDir, "bin");
-                    if (Directory.Exists(installBin))
-                    {
-                        binDir = installBin;
-                    }
+                    if (Directory.Exists(installBin)) binDir = installBin;
                 }
             }
 
@@ -249,10 +247,7 @@ public partial class App
 
             try
             {
-                if (Current.MainWindow is IDisposable disposableMainWindow)
-                {
-                    disposableMainWindow.Dispose();
-                }
+                if (Current.MainWindow is IDisposable disposableMainWindow) disposableMainWindow.Dispose();
             }
             catch (Exception ex)
             {
@@ -286,7 +281,7 @@ public partial class App
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to flush loggers: {ex.Message}");
+            Debug.WriteLine($"Failed to flush loggers: {ex.Message}");
         }
 
         // Dispose the singleton ErrorLogger (HttpClient connection pool)
@@ -300,7 +295,7 @@ public partial class App
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to dispose ErrorLogger: {ex.Message}");
+            Debug.WriteLine($"Failed to dispose ErrorLogger: {ex.Message}");
         }
 
         base.OnExit(e);

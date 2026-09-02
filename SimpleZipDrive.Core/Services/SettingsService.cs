@@ -1,20 +1,20 @@
 namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
-/// Implementation of the settings service.
+///     Implementation of the settings service.
 /// </summary>
 public class SettingsService : ISettingsService
 {
-    /// <inheritdoc />
-    public AppSettings Settings { get; private set; }
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="SettingsService"/> class.
+    ///     Initializes a new instance of the <see cref="SettingsService" /> class.
     /// </summary>
     public SettingsService()
     {
         Settings = AppSettings.Load();
     }
+
+    /// <inheritdoc />
+    public AppSettings Settings { get; private set; }
 
     /// <inheritdoc />
     public void SaveSettings()

@@ -12,6 +12,23 @@ public class ZipFsDokanAdditionalTests : IDisposable
 {
     private readonly List<IDisposable> _disposables = [];
 
+    public void Dispose()
+    {
+        foreach (var d in _disposables)
+        {
+            try
+            {
+                d.Dispose();
+            }
+            catch
+            {
+                /* best effort */
+            }
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
     private ZipFs CreateZipFs(Stream? stream = null, long maxMemory = ZipFileSystemCore.DefaultMaxMemorySize)
     {
         var ms = stream ?? CreateZipStream();
@@ -159,7 +176,7 @@ public class ZipFsDokanAdditionalTests : IDisposable
 
         Assert.Equal(DokanResult.Success, result);
         Assert.NotNull(security);
-        Assert.IsAssignableFrom<DirectorySecurity>(security);
+        Assert.IsType<DirectorySecurity>(security, exactMatch: false);
     }
 
     // ─── GetFileSecurity: file returns FileSecurity ───
@@ -174,7 +191,7 @@ public class ZipFsDokanAdditionalTests : IDisposable
 
         Assert.Equal(DokanResult.Success, result);
         Assert.NotNull(security);
-        Assert.IsAssignableFrom<FileSecurity>(security);
+        Assert.IsType<FileSecurity>(security, exactMatch: false);
     }
 
     // ─── GetFileInformation: root returns directory ───
@@ -242,22 +259,5 @@ public class ZipFsDokanAdditionalTests : IDisposable
             info);
 
         Assert.Equal(DokanResult.PathNotFound, result);
-    }
-
-    public void Dispose()
-    {
-        foreach (var d in _disposables)
-        {
-            try
-            {
-                d.Dispose();
-            }
-            catch
-            {
-                /* best effort */
-            }
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

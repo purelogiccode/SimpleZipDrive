@@ -1,21 +1,22 @@
+using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Reflection;
 
 namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
-/// Implementation of the stats service.
+///     Implementation of the stats service.
 /// </summary>
 public class StatsService : IStatsService, IDisposable
 {
-    private readonly HttpClient _httpClient;
-
     private const string StatsApiUrl = "https://www.purelogiccode.com/ApplicationStats/stats";
     private const string StatsApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
+    private readonly HttpClient _httpClient;
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a new instance with a default HttpClient.
+    ///     Initializes a new instance with a default HttpClient.
     /// </summary>
     public StatsService()
     {
@@ -23,11 +24,23 @@ public class StatsService : IStatsService, IDisposable
     }
 
     /// <summary>
-    /// Initializes a new instance with the specified HttpClient (for testing).
+    ///     Initializes a new instance with the specified HttpClient (for testing).
     /// </summary>
     public StatsService(HttpClient httpClient)
     {
         _httpClient = httpClient;
+    }
+
+    /// <summary>
+    ///     Disposes the stats service resources.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        _httpClient.Dispose();
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -38,7 +51,7 @@ public class StatsService : IStatsService, IDisposable
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, StatsApiUrl);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", StatsApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", StatsApiKey);
             request.Content = JsonContent.Create(new
             {
                 applicationId = Assembly.GetEntryAssembly()?.GetName().Name ?? "SimpleZipDrive",
@@ -48,7 +61,8 @@ public class StatsService : IStatsService, IDisposable
             var response = await _httpClient.SendAsync(request, cancellationToken);
 
             // Handle HTTP 429 (Too Many Requests) gracefully - this is expected from rate limiting
-            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            if (response.StatusCode ==
+                HttpStatusCode.TooManyRequests)
             {
                 return; // Silently ignore rate limiting responses
             }
@@ -70,17 +84,5 @@ public class StatsService : IStatsService, IDisposable
             // Other stats reporting errors - report silently
             ErrorLoggerStatic.ReportSilentException(ex, "StatsService: Unexpected error reporting stats", true);
         }
-    }
-
-    /// <summary>
-    /// Disposes the stats service resources.
-    /// </summary>
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        _httpClient.Dispose();
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

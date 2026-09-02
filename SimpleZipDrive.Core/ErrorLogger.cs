@@ -10,45 +10,27 @@ using SimpleZipDrive.Core.Logging;
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-/// Centralized error logging and bug reporting service implementation.
-/// Sends all non-user errors to the remote bug report API with full environment and exception details.
+///     Centralized error logging and bug reporting service implementation.
+///     Sends all non-user errors to the remote bug report API with full environment and exception details.
 /// </summary>
 public class ErrorLogger : IDisposable
 {
     private const string ApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
     private const string BugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
 
-    /// <summary>Gets or sets the application name included in bug report payloads.</summary>
-    public static string ApplicationName { get; set; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "SimpleZipDrive";
-
-    private readonly HttpClient _httpClient;
+    private static volatile bool _suppressApiCalls;
 
     private readonly string _baseDirectory;
+
+    private readonly HttpClient _httpClient;
 
     // In-flight fire-and-forget bug report POSTs launched by ForwardLogEventToApi. Tracked so they
     // can be drained during shutdown before the HttpClient is disposed (otherwise a report queued
     // moments before exit would fault with ObjectDisposedException and be lost).
     private readonly ConcurrentDictionary<Task, byte> _pendingApiTasks = new();
 
-    private static volatile bool _suppressApiCalls;
-
     /// <summary>
-    /// When true, all API calls for bug reports are suppressed (no HTTP requests are made).
-    /// Use this in test environments to prevent sending test-generated errors to the bug report API.
-    /// </summary>
-    public static bool SuppressApiCalls
-    {
-        get => _suppressApiCalls;
-        set => _suppressApiCalls = value;
-    }
-
-    /// <summary>
-    /// Gets or sets the error log file path. Used for testing.
-    /// </summary>
-    internal string ErrorLogFilePath { get; set; }
-
-    /// <summary>
-    /// Creates a new instance of the ErrorLogger.
+    ///     Creates a new instance of the ErrorLogger.
     /// </summary>
     /// <param name="logFilePath">Optional custom log file path. If not provided, uses default location.</param>
     public ErrorLogger(string? logFilePath = null)
@@ -61,9 +43,37 @@ public class ErrorLogger : IDisposable
         ErrorLogFilePath = logFilePath ?? Path.Combine(_baseDirectory, "error.log");
     }
 
+    /// <summary>Gets or sets the application name included in bug report payloads.</summary>
+    public static string ApplicationName { get; set; } =
+        Assembly.GetEntryAssembly()?.GetName().Name ?? "SimpleZipDrive";
+
     /// <summary>
-    /// Initializes global exception handlers to catch all unhandled exceptions.
-    /// Must be called once at application startup.
+    ///     When true, all API calls for bug reports are suppressed (no HTTP requests are made).
+    ///     Use this in test environments to prevent sending test-generated errors to the bug report API.
+    /// </summary>
+    public static bool SuppressApiCalls
+    {
+        get => _suppressApiCalls;
+        set => _suppressApiCalls = value;
+    }
+
+    /// <summary>
+    ///     Gets or sets the error log file path. Used for testing.
+    /// </summary>
+    internal string ErrorLogFilePath { get; set; }
+
+    /// <summary>
+    ///     Disposes the HttpClient instance.
+    /// </summary>
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    ///     Initializes global exception handlers to catch all unhandled exceptions.
+    ///     Must be called once at application startup.
     /// </summary>
     public void InitializeGlobalExceptionHandlers()
     {
@@ -85,13 +95,9 @@ public class ErrorLogger : IDisposable
         {
             const string context = "Unhandled exception in AppDomain";
             if (args.ExceptionObject is Exception ex)
-            {
                 LogErrorSync(ex, context);
-            }
             else
-            {
                 LogErrorSync(null, $"{context} - Exception object: {args.ExceptionObject}");
-            }
         };
 
         // Catch TaskScheduler unobserved task exceptions
@@ -104,13 +110,13 @@ public class ErrorLogger : IDisposable
     }
 
     /// <summary>
-    /// Reports an exception that was silently caught. Use this for exceptions that were
-    /// previously being ignored with empty catch blocks.
+    ///     Reports an exception that was silently caught. Use this for exceptions that were
+    ///     previously being ignored with empty catch blocks.
     /// </summary>
     /// <param name="ex">The exception that was caught.</param>
     /// <param name="context">Description of where/why the exception occurred.</param>
     /// <param name="silent">Retained for backwards compatibility; no longer affects behavior.</param>
-    public void ReportSilentException(Exception ex, string context, bool silent = false)
+    public static void ReportSilentException(Exception ex, string context, bool silent = false)
     {
         _ = silent;
         DiagnosticLogger.Log(ex, $"[SILENT] {context}");
@@ -128,16 +134,17 @@ public class ErrorLogger : IDisposable
     }
 
     /// <summary>
-    /// Logs an error synchronously. This method blocks until the API call has finished
-    /// (or timed out after 30 seconds). Use this when the application is about to exit or crash,
-    /// where the fire-and-forget <see cref="Logging.BugReportSink"/> could be lost before the process exits.
+    ///     Logs an error synchronously. This method blocks until the API call has finished
+    ///     (or timed out after 30 seconds). Use this when the application is about to exit or crash,
+    ///     where the fire-and-forget <see cref="Logging.BugReportSink" /> could be lost before the process exits.
     /// </summary>
     /// <param name="ex">The exception to log.</param>
     /// <param name="contextMessage">Additional context about where the error occurred.</param>
     public void LogErrorSync(Exception? ex, string? contextMessage = null)
     {
         var originalWasNull = ex == null;
-        ex ??= new ArgumentNullException(nameof(ex), "ErrorLogger.LogErrorSync was called with a null exception object.");
+        ex ??= new ArgumentNullException(nameof(ex),
+            "ErrorLogger.LogErrorSync was called with a null exception object.");
         contextMessage ??= "No additional context provided.";
 
         DiagnosticLogger.LogSection("ERROR (SYNC)");
@@ -185,17 +192,19 @@ public class ErrorLogger : IDisposable
     }
 
     /// <summary>
-    /// Logs an error asynchronously by routing it through the single Serilog pipeline.
-    /// <see cref="Logging.BugReportSink"/> forwards warning-and-above events to the remote API.
+    ///     Logs an error asynchronously by routing it through the single Serilog pipeline.
+    ///     <see cref="Logging.BugReportSink" /> forwards warning-and-above events to the remote API.
     /// </summary>
     /// <param name="ex">The exception to log.</param>
     /// <param name="contextMessage">Additional context about where the error occurred.</param>
     /// <param name="cancellationToken">Unused; retained for backwards compatibility.</param>
-    public Task LogErrorAsync(Exception? ex, string? contextMessage = null, CancellationToken cancellationToken = default)
+    public static Task LogErrorAsync(Exception? ex, string? contextMessage = null,
+        CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
         var originalWasNull = ex == null;
-        ex ??= new ArgumentNullException(nameof(ex), "ErrorLogger.LogErrorAsync was called with a null exception object.");
+        ex ??= new ArgumentNullException(nameof(ex),
+            "ErrorLogger.LogErrorAsync was called with a null exception object.");
         contextMessage ??= "No additional context provided.";
 
         try
@@ -215,7 +224,7 @@ public class ErrorLogger : IDisposable
     }
 
     /// <summary>
-    /// Fire-and-forget a task without suppressing the compiler warning. Handles any unobserved exceptions.
+    ///     Fire-and-forget a task without suppressing the compiler warning. Handles any unobserved exceptions.
     /// </summary>
     internal static async void FireAndForgetAsync(Task task)
     {
@@ -279,15 +288,18 @@ public class ErrorLogger : IDisposable
         exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.GetType().Name}");
         exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.Message}");
         exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.Source ?? "Unknown"}");
-        exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.StackTrace ?? "No stack trace available"}");
+        exceptionDetails.AppendLine(CultureInfo.InvariantCulture,
+            $"StackTrace: {ex.StackTrace ?? "No stack trace available"}");
 
         if (ex.InnerException != null)
         {
             exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"\n{AppTheme.Section("Inner Exception")}");
             exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.InnerException.GetType().Name}");
             exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.InnerException.Message}");
-            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.InnerException.Source ?? "Unknown"}");
-            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.InnerException.StackTrace ?? "No stack trace available"}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture,
+                $"Source: {ex.InnerException.Source ?? "Unknown"}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture,
+                $"StackTrace: {ex.InnerException.StackTrace ?? "No stack trace available"}");
         }
 
         return exceptionDetails.ToString();
@@ -354,7 +366,8 @@ public class ErrorLogger : IDisposable
                 break;
             }
             // NullReferenceException from SharpCompress is a known library limitation, not an app bug
-            case NullReferenceException when (ex.Source?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true):
+            case NullReferenceException
+                when (ex.Source?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true):
                 return true;
             case NullReferenceException:
             {
@@ -384,8 +397,8 @@ public class ErrorLogger : IDisposable
         // Index/array exceptions originating from SharpCompress are corrupt-archive symptoms
         // (mirrors the existing NullReferenceException handling below).
         if (ex is IndexOutOfRangeException or ArrayTypeMismatchException &&
-            ((ex.Source?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true) ||
-             (ex.StackTrace?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true)))
+            (ex.Source?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true ||
+             ex.StackTrace?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true))
         {
             return true;
         }
@@ -396,82 +409,98 @@ public class ErrorLogger : IDisposable
 
         // SharpCompress archive format errors
         var isArchiveError =
-            messageLower.Contains("cannot find central directory") || // ZIP format error
-            messageLower.Contains("invalid archive") ||
-            messageLower.Contains("unknown format") ||
-            messageLower.Contains("not a valid") ||
-            messageLower.Contains("not a supported archive") ||
-            (messageLower.Contains("corrupt") &&
-             (messageLower.Contains("archive") ||
-              messageLower.Contains("file") ||
-              messageLower.Contains("zip") ||
-              messageLower.Contains("format") ||
-              messageLower.Contains("header"))) ||
-            (messageLower.Contains("header") && messageLower.Contains("invalid"));
+            messageLower.Contains("cannot find central directory",
+                StringComparison.OrdinalIgnoreCase) || // ZIP format error
+            messageLower.Contains("invalid archive", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("unknown format", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("not a valid", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("not a supported archive", StringComparison.OrdinalIgnoreCase) ||
+            (messageLower.Contains("corrupt", StringComparison.OrdinalIgnoreCase) &&
+             (messageLower.Contains("archive", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("file", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("zip", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("format", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("header", StringComparison.OrdinalIgnoreCase))) ||
+            (messageLower.Contains("header", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("invalid", StringComparison.OrdinalIgnoreCase));
 
         // Dokan drive-related errors
         var isDriveError =
-            messageLower.Contains("can't assign a drive letter") ||
-            (messageLower.Contains("drive letter") && messageLower.Contains("in use")) ||
-            (messageLower.Contains("mount point") && messageLower.Contains("invalid")) ||
-            (messageLower.Contains("mount point") && messageLower.Contains("already in use"));
+            messageLower.Contains("can't assign a drive letter", StringComparison.OrdinalIgnoreCase) ||
+            (messageLower.Contains("drive letter", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("in use", StringComparison.OrdinalIgnoreCase)) ||
+            (messageLower.Contains("mount point", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("invalid", StringComparison.OrdinalIgnoreCase)) ||
+            (messageLower.Contains("mount point", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("already in use", StringComparison.OrdinalIgnoreCase));
 
         // Archive data problems reported as plain log messages (no exception object attached):
         // truncated/corrupt archives, locked files, missing files.
         var isArchiveDataError =
-            messageLower.Contains("unknown rar header") ||
-            (messageLower.Contains("cannot seek to position") &&
-             messageLower.Contains("end of stream reached")) ||
-            messageLower.Contains("being used by another process") ||
-            messageLower.Contains("archive file not found");
+            messageLower.Contains("unknown rar header", StringComparison.OrdinalIgnoreCase) ||
+            (messageLower.Contains("cannot seek to position", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("end of stream reached", StringComparison.OrdinalIgnoreCase)) ||
+            messageLower.Contains("being used by another process", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("archive file not found", StringComparison.OrdinalIgnoreCase);
 
         // Password-related errors (user can retry with correct password)
         var isPasswordError =
-            messageLower.Contains("password required") ||
-            messageLower.Contains("wrong password") ||
-            messageLower.Contains("incorrect password") ||
-            messageLower.Contains("invalid password") ||
-            messageLower.Contains("missing password") ||
-            messageLower.Contains("no password") ||
-            messageLower.Contains("password is") ||
-            messageLower.Contains("password did not match") || // SharpCompress CryptographicException text
-            messageLower.Contains("requires a password") ||
-            messageLower.Contains("need a password") ||
-            (messageLower.Contains("encrypted") &&
-             (messageLower.Contains("file") ||
-              messageLower.Contains("archive") ||
-              messageLower.Contains("entry")));
+            messageLower.Contains("password required", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("wrong password", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("incorrect password", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("invalid password", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("missing password", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("no password", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("password is", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("password did not match",
+                StringComparison.OrdinalIgnoreCase) || // SharpCompress CryptographicException text
+            messageLower.Contains("requires a password", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("need a password", StringComparison.OrdinalIgnoreCase) ||
+            (messageLower.Contains("encrypted", StringComparison.OrdinalIgnoreCase) &&
+             (messageLower.Contains("file", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("archive", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("entry", StringComparison.OrdinalIgnoreCase)));
 
         // Cancellation-related messages
         var isCancellationError =
-            messageLower.Contains("canceled") ||
-            messageLower.Contains("cancelled");
+            messageLower.Contains("canceled", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("cancelled", StringComparison.OrdinalIgnoreCase);
 
         // Expected environment conditions: missing/outdated file-system drivers (Dokan, WinFsp)
         // and mount-point collisions are user/environment issues, not application bugs. They
         // already surface as clear dialogs, so forwarding them only floods the bug report API.
         var isEnvironmentError =
-            (messageLower.Contains("winfsp") && messageLower.Contains("not found")) ||
-            (messageLower.Contains("winfsp") && messageLower.Contains("version mismatch")) ||
-            messageLower.Contains("incorrect dll version") ||
-            (messageLower.Contains("winfsp") && messageLower.Contains("not running")) ||
-            (messageLower.Contains("winfsp") && messageLower.Contains("could not be loaded")) ||
-            (messageLower.Contains("winfsp") && messageLower.Contains("mount failed with status") &&
-             (messageLower.Contains("0xc0000035") || messageLower.Contains("0xc0000038") ||
-              messageLower.Contains("0xc000003a") || messageLower.Contains("0xc000000e") ||
-              messageLower.Contains("0xc0000022") || messageLower.Contains("0xc000009a"))) ||
-            (messageLower.Contains("winfsp") && messageLower.Contains("already in use")) ||
-            messageLower.Contains("dokan driver not found") ||
+            (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("not found", StringComparison.OrdinalIgnoreCase)) ||
+            (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("version mismatch", StringComparison.OrdinalIgnoreCase)) ||
+            messageLower.Contains("incorrect dll version", StringComparison.OrdinalIgnoreCase) ||
+            (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("not running", StringComparison.OrdinalIgnoreCase)) ||
+            (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("could not be loaded", StringComparison.OrdinalIgnoreCase)) ||
+            (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("mount failed with status", StringComparison.OrdinalIgnoreCase) &&
+             (messageLower.Contains("0xc0000035", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("0xc0000038", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("0xc000003a", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("0xc000000e", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("0xc0000022", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("0xc000009a", StringComparison.OrdinalIgnoreCase))) ||
+            (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("already in use", StringComparison.OrdinalIgnoreCase)) ||
+            messageLower.Contains("dokan driver not found", StringComparison.OrdinalIgnoreCase) ||
             // Produced at runtime from DokanNet's DokanException.Message ("Can't install the Dokan driver"),
             // e.g. "Dokan error: Can't install the Dokan driver" and "[Warning] ... - Can't install the Dokan driver".
-            messageLower.Contains("can't install the dokan driver");
+            messageLower.Contains("can't install the dokan driver", StringComparison.OrdinalIgnoreCase);
 
-        return isArchiveError || isArchiveDataError || isDriveError || isPasswordError || isCancellationError || isEnvironmentError;
+        return isArchiveError || isArchiveDataError || isDriveError || isPasswordError || isCancellationError ||
+               isEnvironmentError;
     }
 
     /// <summary>
-    /// Forwards a Serilog log event to the remote bug report API. Used by <see cref="Logging.BugReportSink"/>
-    /// to satisfy the "warning and above are reported" requirement. Fire-and-forget; never blocks the caller.
+    ///     Forwards a Serilog log event to the remote bug report API. Used by <see cref="Logging.BugReportSink" />
+    ///     to satisfy the "warning and above are reported" requirement. Fire-and-forget; never blocks the caller.
     /// </summary>
     /// <param name="level">The Serilog level name (e.g. Warning, Error, Fatal).</param>
     /// <param name="message">The rendered log message.</param>
@@ -488,13 +517,9 @@ public class ErrorLogger : IDisposable
             try
             {
                 if (ex != null)
-                {
                     await SendLogToApiAsync(ex, $"[{level}] {context}", cts.Token);
-                }
                 else
-                {
                     await SendMessageToApiAsync(level, message, context, cts.Token);
-                }
             }
             catch
             {
@@ -504,7 +529,7 @@ public class ErrorLogger : IDisposable
 
         // Track the task so shutdown can wait for it, and self-remove on completion.
         _pendingApiTasks.TryAdd(task, 0);
-        task.ContinueWith(
+        _ = task.ContinueWith(
             static (completed, state) => ((ConcurrentDictionary<Task, byte>)state!).TryRemove(completed, out _),
             _pendingApiTasks,
             CancellationToken.None,
@@ -513,9 +538,9 @@ public class ErrorLogger : IDisposable
     }
 
     /// <summary>
-    /// Blocks until all in-flight bug report POSTs launched by <see cref="ForwardLogEventToApi"/> have
-    /// completed, or the timeout elapses. Call during shutdown before <see cref="Dispose"/> so reports
-    /// queued moments before exit are not lost when the underlying <see cref="HttpClient"/> is disposed.
+    ///     Blocks until all in-flight bug report POSTs launched by <see cref="ForwardLogEventToApi" /> have
+    ///     completed, or the timeout elapses. Call during shutdown before <see cref="Dispose" /> so reports
+    ///     queued moments before exit are not lost when the underlying <see cref="HttpClient" /> is disposed.
     /// </summary>
     /// <param name="timeout">Maximum time to wait for the in-flight reports to finish.</param>
     public void WaitForPendingReports(TimeSpan timeout)
@@ -534,7 +559,8 @@ public class ErrorLogger : IDisposable
         }
     }
 
-    private async Task<bool> SendLogToApiAsync(Exception ex, string contextMessage, CancellationToken cancellationToken = default)
+    private async Task<bool> SendLogToApiAsync(Exception ex, string contextMessage,
+        CancellationToken cancellationToken = default)
     {
         if (SuppressApiCalls)
             return false;
@@ -552,7 +578,8 @@ public class ErrorLogger : IDisposable
             fullMessage.Append(exceptionDetails);
             var messageText = fullMessage.ToString();
 
-            return await PostBugReportAsync(messageText, contextMessage, ex.StackTrace ?? "No stack trace available", cancellationToken);
+            return await PostBugReportAsync(messageText, contextMessage, ex.StackTrace ?? "No stack trace available",
+                cancellationToken);
         }
         catch (Exception apiEx)
         {
@@ -561,7 +588,8 @@ public class ErrorLogger : IDisposable
         }
     }
 
-    private async Task SendMessageToApiAsync(string level, string message, string contextMessage, CancellationToken cancellationToken = default)
+    private async Task SendMessageToApiAsync(string level, string message, string contextMessage,
+        CancellationToken cancellationToken = default)
     {
         if (SuppressApiCalls) return;
 
@@ -573,7 +601,8 @@ public class ErrorLogger : IDisposable
             fullMessage.AppendLine(CultureInfo.InvariantCulture, $"=== Log Event ({level}) ===");
             fullMessage.AppendLine(message);
 
-            await PostBugReportAsync(fullMessage.ToString(), contextMessage, "No stack trace available (log event)", cancellationToken);
+            await PostBugReportAsync(fullMessage.ToString(), contextMessage, "No stack trace available (log event)",
+                cancellationToken);
         }
         catch (Exception apiEx)
         {
@@ -581,17 +610,15 @@ public class ErrorLogger : IDisposable
         }
     }
 
-    private async Task<bool> PostBugReportAsync(string messageText, string userInfo, string stackTrace, CancellationToken cancellationToken)
+    private async Task<bool> PostBugReportAsync(string messageText, string userInfo, string stackTrace,
+        CancellationToken cancellationToken)
     {
         var (version, osDescription, _) = GetBasicEnvironmentInfo();
 
         // Short environment summary for the environment field (API max 50 chars)
         var bitness = Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit";
         var envSummary = $"{osDescription} {bitness}";
-        if (envSummary.Length > 50)
-        {
-            envSummary = envSummary[..47] + "...";
-        }
+        if (envSummary.Length > 50) envSummary = envSummary[..47] + "...";
 
         var payload = new
         {
@@ -611,14 +638,12 @@ public class ErrorLogger : IDisposable
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
 
-        if (response.IsSuccessStatusCode)
-        {
-            return true;
-        }
+        if (response.IsSuccessStatusCode) return true;
 
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
         WriteToCriticalLog(
-            new HttpRequestException($"API request failed with status code {response.StatusCode}. Response: {responseContent}"),
+            new HttpRequestException(
+                $"API request failed with status code {response.StatusCode}. Response: {responseContent}"),
             "Error sending log to API.");
         return false;
     }
@@ -631,84 +656,5 @@ public class ErrorLogger : IDisposable
         Console.Error.WriteLine($"FATAL: Could not write to error log '{ErrorLogFilePath}'.");
         Console.Error.WriteLine($"Context: {contextMessage}");
         Console.Error.WriteLine($"Exception: {ex.GetType().Name} - {ex.Message}");
-    }
-
-    /// <summary>
-    /// Disposes the HttpClient instance.
-    /// </summary>
-    public void Dispose()
-    {
-        _httpClient.Dispose();
-        GC.SuppressFinalize(this);
-    }
-}
-
-/// <summary>
-/// Static wrapper for the ErrorLogger instance for backward compatibility.
-/// Provides global access to a singleton ErrorLogger instance.
-/// </summary>
-public static class ErrorLoggerStatic
-{
-    private static readonly Lazy<ErrorLogger> LazyInstance = new(static () => new ErrorLogger());
-
-    /// <summary>
-    /// Gets the singleton ErrorLogger instance.
-    /// </summary>
-    public static ErrorLogger Instance => LazyInstance.Value;
-
-    /// <summary>
-    /// Initializes global exception handlers to catch all unhandled exceptions.
-    /// Must be called once at application startup.
-    /// </summary>
-    public static void InitializeGlobalExceptionHandlers()
-    {
-        LazyInstance.Value.InitializeGlobalExceptionHandlers();
-    }
-
-    /// <summary>
-    /// Reports an exception that was silently caught. Use this for exceptions that were
-    /// previously being ignored with empty catch blocks.
-    /// </summary>
-    /// <param name="ex">The exception that was caught.</param>
-    /// <param name="context">Description of where/why the exception occurred.</param>
-    /// <param name="silent">If true, only logs to file without showing console output.</param>
-    public static void ReportSilentException(Exception ex, string context, bool silent = false)
-    {
-        LazyInstance.Value.ReportSilentException(ex, context, silent);
-    }
-
-    /// <summary>
-    /// Blocks until all in-flight bug report POSTs have completed, or the timeout elapses.
-    /// No-op when the singleton has never been created. Call during shutdown before disposing.
-    /// </summary>
-    /// <param name="timeout">Maximum time to wait for the in-flight reports to finish.</param>
-    public static void WaitForPendingReports(TimeSpan timeout)
-    {
-        if (LazyInstance.IsValueCreated)
-            LazyInstance.Value.WaitForPendingReports(timeout);
-    }
-
-    /// <summary>
-    /// Logs an error synchronously. This method blocks until logging is complete
-    /// and the API call has finished (or timed out after 30 seconds).
-    /// Use this when the application is about to exit or crash.
-    /// </summary>
-    /// <param name="ex">The exception to log.</param>
-    /// <param name="contextMessage">Additional context about where the error occurred.</param>
-    public static void LogErrorSync(Exception? ex, string? contextMessage = null)
-    {
-        LazyInstance.Value.LogErrorSync(ex, contextMessage);
-    }
-
-    /// <summary>
-    /// Logs an error asynchronously. This method returns immediately and logs in the background.
-    /// Use this for normal error handling where the application continues running.
-    /// </summary>
-    /// <param name="ex">The exception to log.</param>
-    /// <param name="contextMessage">Additional context about where the error occurred.</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation.</param>
-    public static Task LogErrorAsync(Exception? ex, string? contextMessage = null, CancellationToken cancellationToken = default)
-    {
-        return LazyInstance.Value.LogErrorAsync(ex, contextMessage, cancellationToken);
     }
 }

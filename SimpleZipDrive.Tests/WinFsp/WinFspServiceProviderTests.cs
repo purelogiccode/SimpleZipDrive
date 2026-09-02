@@ -58,7 +58,7 @@ public class WinFspServiceProviderTests : IDisposable
     public void Get_UnregisteredService_ThrowsInvalidOperationException()
     {
         var ex = Assert.Throws<InvalidOperationException>(static () => ServiceProvider.Get<WinFspFakeDisposable>());
-        Assert.Contains("WinFspFakeDisposable", ex.Message);
+        Assert.Contains("WinFspFakeDisposable", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

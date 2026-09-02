@@ -1,9 +1,9 @@
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-/// Central definition of the archive formats supported by SimpleZipDrive.
-/// Comic-book archive containers are mapped to their underlying format:
-/// <c>.cbz</c> (ZIP), <c>.cbr</c> (RAR) and <c>.cb7</c> (7-Zip).
+///     Central definition of the archive formats supported by SimpleZipDrive.
+///     Comic-book archive containers are mapped to their underlying format:
+///     <c>.cbz</c> (ZIP), <c>.cbr</c> (RAR) and <c>.cb7</c> (7-Zip).
 /// </summary>
 public static class ArchiveFormats
 {
@@ -19,19 +19,14 @@ public static class ArchiveFormats
     /// <summary>Archive type identifier for TAR files (including compressed variants).</summary>
     public const string Tar = "tar";
 
-    private static readonly string[] ContainerExtensions = [".zip", ".7z", ".rar", ".tar"];
-
-    private static readonly string[] TarCompressedSuffixes =
-        [".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz"];
-
     /// <summary>
-    /// Human-readable list of supported extensions, used in error messages and dialogs.
+    ///     Human-readable list of supported extensions, used in error messages and dialogs.
     /// </summary>
     public const string SupportedExtensionsDescription =
         ".zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, .cb7";
 
     /// <summary>
-    /// File-dialog filter covering all supported archive extensions.
+    ///     File-dialog filter covering all supported archive extensions.
     /// </summary>
     public const string DialogFilter =
         "Archive files (*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz;*.cbz;*.cbr;*.cb7)|*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz;*.cbz;*.cbr;*.cb7|" +
@@ -41,11 +36,16 @@ public static class ArchiveFormats
         "TAR files (*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz)|*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz|" +
         "All files (*.*)|*.*";
 
+    private static readonly string[] ContainerExtensions = [".zip", ".7z", ".rar", ".tar"];
+
+    private static readonly string[] TarCompressedSuffixes =
+        [".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz"];
+
     /// <summary>
-    /// Returns the archive type identifier for a file path (e.g. <c>"zip"</c>, <c>"7z"</c>, <c>"rar"</c>, <c>"tar"</c>).
-    /// Comic-book extensions are mapped to their container format so they can be opened by the
-    /// existing readers (a <c>.cbz</c> is a ZIP file, a <c>.cbr</c> is a RAR file, a <c>.cb7</c> is a 7-Zip file).
-    /// Unknown extensions are returned without the leading dot.
+    ///     Returns the archive type identifier for a file path (e.g. <c>"zip"</c>, <c>"7z"</c>, <c>"rar"</c>, <c>"tar"</c>).
+    ///     Comic-book extensions are mapped to their container format so they can be opened by the
+    ///     existing readers (a <c>.cbz</c> is a ZIP file, a <c>.cbr</c> is a RAR file, a <c>.cb7</c> is a 7-Zip file).
+    ///     Unknown extensions are returned without the leading dot.
     /// </summary>
     /// <param name="filePath">The archive file path.</param>
     /// <returns>The archive type identifier.</returns>
@@ -71,7 +71,7 @@ public static class ArchiveFormats
     }
 
     /// <summary>
-    /// Returns true when the file extension corresponds to a supported archive format.
+    ///     Returns true when the file extension corresponds to a supported archive format.
     /// </summary>
     /// <param name="filePath">The archive file path.</param>
     /// <returns>True when the archive type is supported; otherwise false.</returns>

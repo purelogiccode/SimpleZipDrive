@@ -4,18 +4,15 @@ using System.Threading.Channels;
 namespace SimpleZipDrive.Core.Logging;
 
 /// <summary>
-/// Redirects <see cref="Console"/> output to the <see cref="ILoggingService"/> using an async-friendly
-/// channel for high throughput. Shared by both application hosts so console output is captured consistently.
+///     Redirects <see cref="Console" /> output to the <see cref="ILoggingService" /> using an async-friendly
+///     channel for high throughput. Shared by both application hosts so console output is captured consistently.
 /// </summary>
 public sealed class LogTextWriter : TextWriter
 {
-    /// <inheritdoc />
-    public override Encoding Encoding => Encoding.UTF8;
-
     private readonly Channel<string> _channel;
     private readonly CancellationTokenSource _cts = new();
-    private readonly Task _processingTask;
     private readonly TextWriter? _fallbackWriter;
+    private readonly Task _processingTask;
 
     /// <summary>Creates a new writer that forwards console output to the logging service.</summary>
     /// <param name="fallbackWriter">Writer used when the logging service is unavailable (e.g. during shutdown).</param>
@@ -32,6 +29,9 @@ public sealed class LogTextWriter : TextWriter
 
         _processingTask = ProcessMessagesAsync(_cts.Token);
     }
+
+    /// <inheritdoc />
+    public override Encoding Encoding => Encoding.UTF8;
 
     /// <inheritdoc />
     public override void Write(char value)
@@ -102,10 +102,7 @@ public sealed class LogTextWriter : TextWriter
         }
         finally
         {
-            if (buffer.Length > 0)
-            {
-                FlushBufferToLog(buffer);
-            }
+            if (buffer.Length > 0) FlushBufferToLog(buffer);
         }
     }
 

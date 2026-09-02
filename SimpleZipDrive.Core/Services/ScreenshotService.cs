@@ -5,8 +5,8 @@ using System.Windows.Media.Imaging;
 namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
-/// Captures the active application window using WPF rendering and saves it as a PNG
-/// inside the "Screenshot" folder within the application folder.
+///     Captures the active application window using WPF rendering and saves it as a PNG
+///     inside the "Screenshot" folder within the application folder.
 /// </summary>
 public class ScreenshotService : IScreenshotService
 {
@@ -16,7 +16,7 @@ public class ScreenshotService : IScreenshotService
     private readonly ILoggingService _loggingService;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ScreenshotService"/> class.
+    ///     Initializes a new instance of the <see cref="ScreenshotService" /> class.
     /// </summary>
     /// <param name="loggingService">The logging service used to record screenshot activity.</param>
     public ScreenshotService(ILoggingService loggingService)
@@ -56,7 +56,8 @@ public class ScreenshotService : IScreenshotService
         }
         catch (Exception ex)
         {
-            ErrorLoggerStatic.ReportSilentException(ex, "ScreenshotService.CaptureCore: Failed to capture the active window");
+            ErrorLoggerStatic.ReportSilentException(ex,
+                "ScreenshotService.CaptureCore: Failed to capture the active window");
             _loggingService.LogError($"Screenshot capture failed: {ex.Message}");
             return new ScreenshotResult(false, null, ex.Message);
         }
@@ -102,7 +103,8 @@ public class ScreenshotService : IScreenshotService
         }
         catch (Exception ex)
         {
-            ErrorLoggerStatic.ReportSilentException(ex, "ScreenshotService.SaveScreenshot: Failed to save the screenshot");
+            ErrorLoggerStatic.ReportSilentException(ex,
+                "ScreenshotService.SaveScreenshot: Failed to save the screenshot");
             _loggingService.LogError($"Failed to save screenshot to '{ScreenshotDirectory}': {ex.Message}");
             return new ScreenshotResult(false, filePath, "write permission issues");
         }

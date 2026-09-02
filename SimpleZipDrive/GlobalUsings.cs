@@ -7,5 +7,6 @@ global using System.Threading.Tasks;
 global using SimpleZipDrive.Core;
 global using SimpleZipDrive.Core.Models;
 global using SimpleZipDrive.Core.Services;
+global using SimpleZipDrive.Core.Interfaces;
 global using SimpleZipDrive.Core.Views;
 global using SimpleZipDrive.Services;

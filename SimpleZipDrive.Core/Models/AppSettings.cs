@@ -3,19 +3,7 @@ using System.Text.Json;
 namespace SimpleZipDrive.Core.Models;
 
 /// <summary>
-/// Specifies how the archive virtual drive is mounted in the filesystem.
-/// </summary>
-public enum MountType
-{
-    /// <summary>Mount as a standard drive letter (e.g., <c>Z:\</c>).</summary>
-    DriveLetter,
-
-    /// <summary>Mount as a directory within an existing drive.</summary>
-    Folder
-}
-
-/// <summary>
-/// Persists user-configurable application settings to disk as JSON.
+///     Persists user-configurable application settings to disk as JSON.
 /// </summary>
 public class AppSettings
 {
@@ -30,8 +18,8 @@ public class AppSettings
     private long _maxMemoryPerFileMb = 512;
 
     /// <summary>
-    /// Gets or sets the maximum memory (in megabytes) used to cache a single archive entry in RAM.
-    /// Values are clamped between 1 MB and 90% of available system memory.
+    ///     Gets or sets the maximum memory (in megabytes) used to cache a single archive entry in RAM.
+    ///     Values are clamped between 1 MB and 90% of available system memory.
     /// </summary>
     public long MaxMemoryPerFileMb
     {
@@ -58,25 +46,25 @@ public class AppSettings
     public bool AutoOpenMountedDrive { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether to use a permissive volume security descriptor
-    /// so that both standard and elevated (Administrator) processes can access the mounted drive.
-    /// When enabled, folder-based mounting is used with a DACL granting Full Access to Everyone.
-    /// Drive letter mounts cannot bypass UAC isolation due to Windows OS limitations.
+    ///     Gets or sets a value indicating whether to use a permissive volume security descriptor
+    ///     so that both standard and elevated (Administrator) processes can access the mounted drive.
+    ///     When enabled, folder-based mounting is used with a DACL granting Full Access to Everyone.
+    ///     Drive letter mounts cannot bypass UAC isolation due to Windows OS limitations.
     /// </summary>
     public bool CrossIntegrityMount { get; set; }
 
     /// <summary>
-    /// Gets or sets the base folder path used for cross-integrity folder mounts.
-    /// When empty, defaults to <c>%LOCALAPPDATA%\SimpleZipDrive\Mounts</c>.
-    /// Each archive is mounted in a subfolder named after the archive file.
+    ///     Gets or sets the base folder path used for cross-integrity folder mounts.
+    ///     When empty, defaults to <c>%LOCALAPPDATA%\SimpleZipDrive\Mounts</c>.
+    ///     Each archive is mounted in a subfolder named after the archive file.
     /// </summary>
     public string CrossIntegrityMountFolder { get; set; } = string.Empty;
 
     /// <summary>
-    /// Loads settings from the persistent settings file, applying system-memory validation.
-    /// Returns default settings if the file is missing, corrupted, or inaccessible.
+    ///     Loads settings from the persistent settings file, applying system-memory validation.
+    ///     Returns default settings if the file is missing, corrupted, or inaccessible.
     /// </summary>
-    /// <returns>The loaded or default <see cref="AppSettings"/> instance.</returns>
+    /// <returns>The loaded or default <see cref="AppSettings" /> instance.</returns>
     public static AppSettings Load()
     {
         AppSettings? settings = null;
@@ -99,19 +87,22 @@ public class AppSettings
         catch (UnauthorizedAccessException ex)
         {
             // Permission issue - report it but use defaults
-            ErrorLoggerStatic.ReportSilentException(ex, "AppSettings.Load: Permission denied accessing settings file", true);
+            ErrorLoggerStatic.ReportSilentException(ex, "AppSettings.Load: Permission denied accessing settings file",
+                true);
         }
         catch (JsonException ex)
         {
             // Corrupted settings file - report it, delete it, and use defaults
-            ErrorLoggerStatic.ReportSilentException(ex, "AppSettings.Load: Failed to parse settings file (corrupted JSON)", true);
+            ErrorLoggerStatic.ReportSilentException(ex,
+                "AppSettings.Load: Failed to parse settings file (corrupted JSON)", true);
             try
             {
                 File.Delete(SettingsFilePath);
             }
             catch (Exception deleteEx)
             {
-                ErrorLoggerStatic.ReportSilentException(deleteEx, "AppSettings.Load: Failed to delete corrupted settings file", true);
+                ErrorLoggerStatic.ReportSilentException(deleteEx,
+                    "AppSettings.Load: Failed to delete corrupted settings file", true);
             }
         }
         catch (Exception ex)
@@ -129,19 +120,14 @@ public class AppSettings
         var maxAllowedMb = (long)(availableMemoryMb * 0.9);
 
         if (settings.MaxMemoryPerFileMb > maxAllowedMb)
-        {
             settings.MaxMemoryPerFileMb = maxAllowedMb;
-        }
-        else if (settings.MaxMemoryPerFileMb < 1)
-        {
-            settings.MaxMemoryPerFileMb = 1;
-        }
+        else if (settings.MaxMemoryPerFileMb < 1) settings.MaxMemoryPerFileMb = 1;
 
         return settings;
     }
 
     /// <summary>
-    /// Persists the current settings to disk. Errors are reported silently without throwing.
+    ///     Persists the current settings to disk. Errors are reported silently without throwing.
     /// </summary>
     public void Save()
     {

@@ -99,8 +99,8 @@ public class AppSettingsAdditionalTests
         if (File.Exists(settingsFile))
         {
             var json = File.ReadAllText(settingsFile);
-            Assert.Contains("MaxMemoryPerFileMb", json);
-            Assert.Contains("128", json);
+            Assert.Contains("MaxMemoryPerFileMb", json, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("128", json, StringComparison.OrdinalIgnoreCase);
 
             // Verify it can be deserialized
             var loaded = JsonSerializer.Deserialize<AppSettings>(json);

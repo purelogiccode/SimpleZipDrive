@@ -1,18 +1,35 @@
 using WinFspErrorLogger = SimpleZipDrive.Core.ErrorLogger;
-using WinFspErrorLoggerStatic = SimpleZipDrive.Core.ErrorLoggerStatic;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 
 [Collection("Logging")]
 public class WinFspErrorLoggerTests : IDisposable
 {
-    private readonly WinFspErrorLogger _logger;
     private readonly string _logFilePath;
+    private readonly WinFspErrorLogger _logger;
 
     public WinFspErrorLoggerTests()
     {
         _logFilePath = Path.Combine(Path.GetTempPath(), $"WinFsp_ErrorLoggerTest_{Guid.NewGuid():N}.log");
         _logger = new WinFspErrorLogger(_logFilePath);
+    }
+
+    public void Dispose()
+    {
+        _logger.Dispose();
+        if (File.Exists(_logFilePath))
+        {
+            try
+            {
+                File.Delete(_logFilePath);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     [Fact]
@@ -25,7 +42,8 @@ public class WinFspErrorLoggerTests : IDisposable
     [Fact]
     public void LogErrorSync_ValidException_DoesNotThrow()
     {
-        var ex = Record.Exception(() => _logger.LogErrorSync(new InvalidOperationException("Test error"), "Test context"));
+        var ex = Record.Exception(() =>
+            _logger.LogErrorSync(new InvalidOperationException("Test error"), "Test context"));
 
         Assert.Null(ex);
     }
@@ -42,7 +60,7 @@ public class WinFspErrorLoggerTests : IDisposable
     public async Task LogErrorAsync_ValidException_DoesNotThrow()
     {
         var ex = await Record.ExceptionAsync(() =>
-            _logger.LogErrorAsync(new InvalidOperationException("Async test error"), "Async test context"));
+            WinFspErrorLogger.LogErrorAsync(new InvalidOperationException("Async test error"), "Async test context"));
 
         Assert.Null(ex);
     }
@@ -51,7 +69,7 @@ public class WinFspErrorLoggerTests : IDisposable
     public async Task LogErrorAsync_NullException_CreatesArgumentNullException()
     {
         var ex = await Record.ExceptionAsync(() =>
-            _logger.LogErrorAsync(null, "null async exception test"));
+            WinFspErrorLogger.LogErrorAsync(null, "null async exception test"));
 
         Assert.Null(ex);
     }
@@ -60,7 +78,7 @@ public class WinFspErrorLoggerTests : IDisposable
     public void ReportSilentException_DoesNotThrow()
     {
         var ex = Record.Exception(() =>
-            _logger.ReportSilentException(new IOException("Silent test"), "Silent context", true));
+            WinFspErrorLogger.ReportSilentException(new IOException("Silent test"), "Silent context", true));
 
         Assert.Null(ex);
     }
@@ -163,7 +181,8 @@ public class WinFspErrorLoggerTests : IDisposable
     [Fact]
     public void IsUserError_DriveLetterInUseMessage_ReturnsTrue()
     {
-        var result = WinFspErrorLogger.IsUserError(new InvalidOperationException("drive letter is in use by another device"));
+        var result =
+            WinFspErrorLogger.IsUserError(new InvalidOperationException("drive letter is in use by another device"));
 
         Assert.True(result);
     }
@@ -212,7 +231,7 @@ public class WinFspErrorLoggerTests : IDisposable
 
         Assert.NotNull(result);
         Assert.NotEmpty(result);
-        Assert.Contains("=== Environment Details ===", result);
+        Assert.Contains("=== Environment Details ===", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -225,64 +244,5 @@ public class WinFspErrorLoggerTests : IDisposable
 
         var ex = Record.Exception(logger.Dispose);
         Assert.Null(ex);
-    }
-
-    public void Dispose()
-    {
-        _logger.Dispose();
-        if (File.Exists(_logFilePath))
-        {
-            try
-            {
-                File.Delete(_logFilePath);
-            }
-            catch
-            {
-                // ignored
-            }
-        }
-
-        GC.SuppressFinalize(this);
-    }
-}
-
-[Collection("Logging")]
-public class WinFspErrorLoggerStaticTests
-{
-    [Fact]
-    public void Instance_IsSingleton()
-    {
-        var instance1 = WinFspErrorLoggerStatic.Instance;
-        var instance2 = WinFspErrorLoggerStatic.Instance;
-
-        Assert.Same(instance1, instance2);
-    }
-
-    [Fact]
-    public void ReportSilentException_DelegatesToInstance()
-    {
-        var ex = Record.Exception(static () =>
-            WinFspErrorLoggerStatic.ReportSilentException(new IOException("Static test"), "Static context", true));
-
-        Assert.Null(ex);
-    }
-
-    [Fact]
-    public void LogErrorSync_DelegatesToInstance()
-    {
-        var ex = Record.Exception(static () =>
-            WinFspErrorLoggerStatic.LogErrorSync(new InvalidOperationException("Static sync"), "Static sync context"));
-
-        Assert.Null(ex);
-    }
-
-    [Fact]
-    public void LogErrorAsync_DelegatesToInstance()
-    {
-        var task = WinFspErrorLoggerStatic.LogErrorAsync(
-            new InvalidOperationException("Static async"), "Static async context");
-
-        Assert.NotNull(task);
-        Assert.True(task is not null);
     }
 }

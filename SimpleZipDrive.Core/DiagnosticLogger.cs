@@ -4,9 +4,10 @@ using SimpleZipDrive.Core.Logging;
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-/// Convenience facade for writing structured diagnostic trace to the single global Serilog pipeline
-/// owned by <see cref="AppLogger"/>. Diagnostic lines are emitted at <see cref="Serilog.Events.LogEventLevel.Debug"/>
-/// and carry their own timestamp and thread id so the per-session trace remains readable.
+///     Convenience facade for writing structured diagnostic trace to the single global Serilog pipeline
+///     owned by <see cref="AppLogger" />. Diagnostic lines are emitted at
+///     <see cref="Serilog.Events.LogEventLevel.Debug" />
+///     and carry their own timestamp and thread id so the per-session trace remains readable.
 /// </summary>
 public static class DiagnosticLogger
 {
@@ -16,11 +17,11 @@ public static class DiagnosticLogger
     /// <summary>Gets a value indicating whether the underlying pipeline file sink was configured.</summary>
     public static bool Initialized { get; internal set; }
 
-    /// <summary>Gets the file path of the current diagnostic log, or <see langword="null"/> if not initialized.</summary>
+    /// <summary>Gets the file path of the current diagnostic log, or <see langword="null" /> if not initialized.</summary>
     public static string? LogFilePath { get; internal set; }
 
     /// <summary>
-    /// Deletes all pre-existing log files (debug_*.log and error.log) from the log directory.
+    ///     Deletes all pre-existing log files (debug_*.log and error.log) from the log directory.
     /// </summary>
     /// <param name="logDir">Directory to clean. Defaults to the app's Logs folder.</param>
     public static void CleanupOldLogs(string? logDir = null)
@@ -65,7 +66,7 @@ public static class DiagnosticLogger
     }
 
     /// <summary>
-    /// Enables diagnostic logging and ensures the shared <see cref="AppLogger"/> pipeline is initialized.
+    ///     Enables diagnostic logging and ensures the shared <see cref="AppLogger" /> pipeline is initialized.
     /// </summary>
     /// <param name="logDir">Directory for the log file. Defaults to the app's Logs folder.</param>
     /// <param name="enabled">Whether diagnostic logging is enabled.</param>
@@ -85,7 +86,7 @@ public static class DiagnosticLogger
     }
 
     /// <summary>
-    /// Flushes and closes the underlying pipeline. Call during application shutdown.
+    ///     Flushes and closes the underlying pipeline. Call during application shutdown.
     /// </summary>
     public static void Close()
     {
@@ -93,7 +94,7 @@ public static class DiagnosticLogger
     }
 
     /// <summary>
-    /// Writes a message to the diagnostic log.
+    ///     Writes a message to the diagnostic log.
     /// </summary>
     /// <param name="message">The message to log.</param>
     public static void Log(string message)
@@ -115,7 +116,7 @@ public static class DiagnosticLogger
     }
 
     /// <summary>
-    /// Logs an exception with context.
+    ///     Logs an exception with context.
     /// </summary>
     /// <param name="ex">The exception to log.</param>
     /// <param name="context">Contextual description of the exception.</param>
@@ -123,11 +124,14 @@ public static class DiagnosticLogger
     {
         Log($"{context}: {ex.GetType().Name}: {ex.Message}");
         if (!string.IsNullOrEmpty(ex.StackTrace))
-            Log($"  Stack: {ex.StackTrace.Replace(Environment.NewLine, Environment.NewLine + "          ")}");
+        {
+            Log(
+                $"  Stack: {ex.StackTrace.Replace(Environment.NewLine, Environment.NewLine + "          ", StringComparison.OrdinalIgnoreCase)}");
+        }
     }
 
     /// <summary>
-    /// Logs the result of an operation with an integer status code.
+    ///     Logs the result of an operation with an integer status code.
     /// </summary>
     /// <param name="operation">The operation name.</param>
     /// <param name="path">The path involved.</param>
@@ -141,7 +145,7 @@ public static class DiagnosticLogger
     }
 
     /// <summary>
-    /// Logs the result of an operation with a boolean result.
+    ///     Logs the result of an operation with a boolean result.
     /// </summary>
     /// <param name="operation">The operation name.</param>
     /// <param name="path">The path involved.</param>
@@ -155,7 +159,7 @@ public static class DiagnosticLogger
     }
 
     /// <summary>
-    /// Logs a section header.
+    ///     Logs a section header.
     /// </summary>
     /// <param name="title">The section title.</param>
     public static void LogSection(string title)
@@ -166,7 +170,7 @@ public static class DiagnosticLogger
     }
 
     /// <summary>
-    /// Logs a header line.
+    ///     Logs a header line.
     /// </summary>
     /// <param name="text">The header text.</param>
     public static void LogHeader(string text)

@@ -14,15 +14,12 @@ public class StoredEntryStreamReadAheadTests
         {
             // Create data larger than read-ahead buffer (4MB) to trigger read-ahead allocation
             var data = new byte[1024 * 1024]; // 1MB — smaller than read-ahead but tests the path
-            for (var i = 0; i < data.Length; i++)
-            {
-                data[i] = (byte)(i % 256);
-            }
+            for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 256);
 
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 0, data.Length, lockObj);
 
             // Sequential reads: first read sets _lastReadEnd
@@ -65,15 +62,12 @@ public class StoredEntryStreamReadAheadTests
         try
         {
             var data = new byte[4096];
-            for (var i = 0; i < data.Length; i++)
-            {
-                data[i] = (byte)(i % 256);
-            }
+            for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 256);
 
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 100, 200, lockObj);
 
             // Random access: jump to middle
@@ -119,15 +113,12 @@ public class StoredEntryStreamReadAheadTests
         try
         {
             var data = new byte[100];
-            for (var i = 0; i < 100; i++)
-            {
-                data[i] = (byte)i;
-            }
+            for (var i = 0; i < 100; i++) data[i] = (byte)i;
 
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 0, 100, lockObj);
 
             // Read exactly at the boundary
@@ -156,7 +147,7 @@ public class StoredEntryStreamReadAheadTests
     public void ReadAt_ZeroCount_ReturnsZero()
     {
         using var source = new MemoryStream(new byte[100]);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 100, lockObj);
 
         var buffer = new byte[10];
@@ -171,7 +162,7 @@ public class StoredEntryStreamReadAheadTests
     {
         var data = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 10, lockObj);
 
         // MemoryStream source — no FileStream, so no read-ahead buffer
@@ -208,7 +199,7 @@ public class StoredEntryStreamReadAheadTests
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 0, data.Length, lockObj);
 
             // The constructor should have allocated a read-ahead buffer since dataLength > 4MB
@@ -254,7 +245,7 @@ public class StoredEntryStreamReadAheadTests
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 2, 6, lockObj);
 
             var buffer = new byte[20];
@@ -287,13 +278,10 @@ public class StoredEntryStreamReadAheadTests
     public void ReadSpan_LargeBuffer_ReadsCorrectly()
     {
         var data = new byte[10000];
-        for (var i = 0; i < data.Length; i++)
-        {
-            data[i] = (byte)(i % 256);
-        }
+        for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 256);
 
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 10000, lockObj);
 
         var buffer = new byte[5000];
@@ -310,7 +298,7 @@ public class StoredEntryStreamReadAheadTests
     public void Seek_InvalidOrigin_ThrowsArgumentOutOfRange()
     {
         using var source = new MemoryStream(new byte[100]);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 100, lockObj);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => stream.Seek(0, (SeekOrigin)99));

@@ -58,7 +58,7 @@ public class ServiceProviderTests : IDisposable
     public void Get_UnregisteredService_ThrowsInvalidOperationException()
     {
         var ex = Assert.Throws<InvalidOperationException>(static () => ServiceProvider.Get<FakeDisposable>());
-        Assert.Contains("FakeDisposable", ex.Message);
+        Assert.Contains("FakeDisposable", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

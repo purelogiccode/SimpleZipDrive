@@ -8,6 +8,23 @@ public class ZipFileSystemCoreAdditionalTests : IDisposable
 {
     private readonly List<IDisposable> _disposables = [];
 
+    public void Dispose()
+    {
+        foreach (var d in _disposables)
+        {
+            try
+            {
+                d.Dispose();
+            }
+            catch
+            {
+                /* best effort */
+            }
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
     private ZipFileSystemCore CreateCore(Stream? stream = null, string archiveType = "zip",
         long maxMemory = ZipFileSystemCore.DefaultMaxMemorySize, string? volumeLabel = null)
     {
@@ -279,7 +296,7 @@ public class ZipFileSystemCoreAdditionalTests : IDisposable
         Assert.IsType<StoredEntryStream>(stream);
 
         var buffer = new byte[5];
-        var bytesRead = storedCore.ReadStream(stream, 0, buffer, 0, 5);
+        var bytesRead = ZipFileSystemCore.ReadStream(stream, 0, buffer, 0, 5);
 
         Assert.Equal(5, bytesRead);
         Assert.Equal("Hello"u8.ToArray(), buffer);
@@ -405,10 +422,7 @@ public class ZipFileSystemCoreAdditionalTests : IDisposable
         foreach (var b in data)
         {
             crc ^= b;
-            for (var j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
-            }
+            for (var j = 0; j < 8; j++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
         }
 
         return ~crc;
@@ -454,22 +468,5 @@ public class ZipFileSystemCoreAdditionalTests : IDisposable
                 // ignored
             }
         }
-    }
-
-    public void Dispose()
-    {
-        foreach (var d in _disposables)
-        {
-            try
-            {
-                d.Dispose();
-            }
-            catch
-            {
-                /* best effort */
-            }
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

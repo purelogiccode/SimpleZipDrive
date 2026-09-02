@@ -1,12 +1,30 @@
 using System.IO.Compression;
 using System.Text;
 using SimpleZipDrive.Core;
+using SimpleZipDrive.Core.Models;
 
 namespace SimpleZipDrive.Tests;
 
 public class ZipFileSystemCoreTests : IDisposable
 {
     private readonly List<IDisposable> _disposables = [];
+
+    public void Dispose()
+    {
+        foreach (var d in _disposables)
+        {
+            try
+            {
+                d.Dispose();
+            }
+            catch
+            {
+                /* best effort */
+            }
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     private ZipFileSystemCore CreateCore(Stream? stream = null, string archiveType = "zip",
         long maxMemory = ZipFileSystemCore.DefaultMaxMemorySize, string? volumeLabel = null)
@@ -156,10 +174,7 @@ public class ZipFileSystemCoreTests : IDisposable
         var core = CreateCore();
 
         var dirEntry = core.ArchiveEntries.Values.FirstOrDefault(static e => ZipFsHelpers.IsDirectory(e));
-        if (dirEntry != null)
-        {
-            Assert.False(core.IsStoredEntry(dirEntry));
-        }
+        if (dirEntry != null) Assert.False(core.IsStoredEntry(dirEntry));
     }
 
     // ─── IsFailedEntry / AddFailedEntry tests ───
@@ -282,7 +297,7 @@ public class ZipFileSystemCoreTests : IDisposable
     {
         var core = CreateCore();
 
-        var result = core.TryResolvePath(@"\data\info.txt", out var normalized);
+        var result = ZipFileSystemCore.TryResolvePath(@"\data\info.txt", out var normalized);
 
         Assert.True(result);
         Assert.Equal("/data/info.txt", normalized);
@@ -293,7 +308,7 @@ public class ZipFileSystemCoreTests : IDisposable
     {
         var core = CreateCore();
 
-        var result = core.TryResolvePath("/data/../readme.txt", out var normalized);
+        var result = ZipFileSystemCore.TryResolvePath("/data/../readme.txt", out var normalized);
 
         Assert.True(result);
         Assert.Equal("/readme.txt", normalized);
@@ -309,9 +324,9 @@ public class ZipFileSystemCoreTests : IDisposable
         var entries = core.ListDirectory("/");
 
         Assert.NotEmpty(entries);
-        var names = entries.Select(static e => e.NormalizedPath).ToList();
-        Assert.Contains("/readme.txt", names);
-        Assert.Contains("/data", names);
+        var names = entries.ConvertAll(static e => e.NormalizedPath);
+        Assert.Contains("/readme.txt", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("/data", names, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -353,12 +368,16 @@ public class ZipFileSystemCoreTests : IDisposable
         var core = CreateCore(ms);
 
         var aEntries = core.ListDirectory("/a");
-        Assert.Contains(aEntries, static e => e.NormalizedPath == "/a/top.txt");
-        Assert.Contains(aEntries, static e => e.NormalizedPath == "/a/b");
+        Assert.Contains(aEntries,
+            static e => string.Equals(e.NormalizedPath, "/a/top.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(aEntries,
+            static e => string.Equals(e.NormalizedPath, "/a/b", StringComparison.OrdinalIgnoreCase));
 
         var bEntries = core.ListDirectory("/a/b");
-        Assert.Contains(bEntries, static e => e.NormalizedPath == "/a/b/other.txt");
-        Assert.Contains(bEntries, static e => e.NormalizedPath == "/a/b/c");
+        Assert.Contains(bEntries,
+            static e => string.Equals(e.NormalizedPath, "/a/b/other.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(bEntries,
+            static e => string.Equals(e.NormalizedPath, "/a/b/c", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -383,7 +402,7 @@ public class ZipFileSystemCoreTests : IDisposable
         using var ms = new MemoryStream(data);
 
         var buffer = new byte[3];
-        var bytesRead = core.ReadStream(ms, 2, buffer, 0, 3);
+        var bytesRead = ZipFileSystemCore.ReadStream(ms, 2, buffer, 0, 3);
 
         Assert.Equal(3, bytesRead);
         Assert.Equal(30, buffer[0]);
@@ -400,7 +419,7 @@ public class ZipFileSystemCoreTests : IDisposable
         using var ms = new MemoryStream(data);
 
         var buffer = new byte[3];
-        var bytesRead = core.ReadStream(ms, 100, buffer, 0, 3);
+        var bytesRead = ZipFileSystemCore.ReadStream(ms, 100, buffer, 0, 3);
 
         Assert.Equal(0, bytesRead);
     }
@@ -414,7 +433,7 @@ public class ZipFileSystemCoreTests : IDisposable
         using var ms = new NonSeekableStream(data);
 
         var buffer = new byte[3];
-        var bytesRead = core.ReadStream(ms, 0, buffer, 0, 3);
+        var bytesRead = ZipFileSystemCore.ReadStream(ms, 0, buffer, 0, 3);
 
         Assert.Equal(3, bytesRead);
         Assert.Equal(10, buffer[0]);
@@ -432,10 +451,10 @@ public class ZipFileSystemCoreTests : IDisposable
 
         var buffer = new byte[3];
         // First read at offset 0 advances position to 3
-        core.ReadStream(ms, 0, buffer, 0, 3);
+        ZipFileSystemCore.ReadStream(ms, 0, buffer, 0, 3);
 
         // Trying to read at offset 0 again (non-sequential) should throw
-        Assert.Throws<InvalidOperationException>(() => core.ReadStream(ms, 0, buffer, 0, 3));
+        Assert.Throws<InvalidOperationException>(() => ZipFileSystemCore.ReadStream(ms, 0, buffer, 0, 3));
     }
 
     // ─── ValidatePathLength tests ───
@@ -482,8 +501,8 @@ public class ZipFileSystemCoreTests : IDisposable
         var filePath = core.CreateSecureTempFile();
 
         Assert.True(File.Exists(filePath));
-        Assert.StartsWith(core.TempDirectoryPath, filePath);
-        Assert.EndsWith(".tmp", filePath);
+        Assert.StartsWith(core.TempDirectoryPath, filePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(".tmp", filePath, StringComparison.OrdinalIgnoreCase);
 
         File.Delete(filePath);
     }
@@ -496,7 +515,7 @@ public class ZipFileSystemCoreTests : IDisposable
         var path1 = core.CreateSecureTempFile();
         var path2 = core.CreateSecureTempFile();
 
-        Assert.NotEqual(path1, path2);
+        Assert.NotEqual(path1, path2, StringComparer.OrdinalIgnoreCase);
 
         File.Delete(path1);
         File.Delete(path2);
@@ -620,22 +639,5 @@ public class ZipFileSystemCoreTests : IDisposable
         }
 
         public override bool CanSeek => false;
-    }
-
-    public void Dispose()
-    {
-        foreach (var d in _disposables)
-        {
-            try
-            {
-                d.Dispose();
-            }
-            catch
-            {
-                /* best effort */
-            }
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

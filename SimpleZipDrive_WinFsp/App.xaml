@@ -4,79 +4,79 @@
              StartupUri="MainWindow.xaml"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
-        
+
         <!-- ============================================ -->
         <!-- MODERN DARK THEME - COLOR PALETTE -->
         <!-- ============================================ -->
-        
+
         <!-- Primary Background Colors -->
         <Color x:Key="BgPrimaryColor">#FF1E1E1E</Color>
         <Color x:Key="BgSecondaryColor">#FF252526</Color>
         <Color x:Key="BgTertiaryColor">#FF2D2D30</Color>
         <Color x:Key="BgQuaternaryColor">#FF3E3E42</Color>
-        
+
         <!-- Accent Colors (Modern Blue/Cyan) -->
         <Color x:Key="AccentPrimaryColor">#FF007ACC</Color>
         <Color x:Key="AccentSecondaryColor">#FF0097FB</Color>
         <Color x:Key="AccentHoverColor">#FF1C97EA</Color>
         <Color x:Key="AccentPressedColor">#FF005A9E</Color>
-        
+
         <!-- Text Colors -->
         <Color x:Key="TextPrimaryColor">#FFF0F0F0</Color>
         <Color x:Key="TextSecondaryColor">#FFCCCCCC</Color>
         <Color x:Key="TextMutedColor">#FF858585</Color>
         <Color x:Key="TextDisabledColor">#FF656565</Color>
-        
+
         <!-- Border Colors -->
         <Color x:Key="BorderPrimaryColor">#FF3E3E42</Color>
         <Color x:Key="BorderSecondaryColor">#FF555555</Color>
         <Color x:Key="BorderAccentColor">#FF007ACC</Color>
-        
+
         <!-- Status Colors -->
         <Color x:Key="SuccessColor">#FF4EC9B0</Color>
         <Color x:Key="WarningColor">#FFCE9178</Color>
         <Color x:Key="ErrorColor">#FFF48771</Color>
         <Color x:Key="InfoColor">#FF9CDCFE</Color>
-        
+
         <!-- ============================================ -->
         <!-- BRUSH DEFINITIONS -->
         <!-- ============================================ -->
-        
+
         <!-- Background Brushes -->
         <SolidColorBrush x:Key="BgPrimaryBrush" Color="{StaticResource BgPrimaryColor}" />
         <SolidColorBrush x:Key="BgSecondaryBrush" Color="{StaticResource BgSecondaryColor}" />
         <SolidColorBrush x:Key="BgTertiaryBrush" Color="{StaticResource BgTertiaryColor}" />
         <SolidColorBrush x:Key="BgQuaternaryBrush" Color="{StaticResource BgQuaternaryColor}" />
-        
+
         <!-- Accent Brushes -->
         <SolidColorBrush x:Key="AccentPrimaryBrush" Color="{StaticResource AccentPrimaryColor}" />
         <SolidColorBrush x:Key="AccentSecondaryBrush" Color="{StaticResource AccentSecondaryColor}" />
         <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
         <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}" />
-        
+
         <!-- Text Brushes -->
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
         <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
         <SolidColorBrush x:Key="TextDisabledBrush" Color="{StaticResource TextDisabledColor}" />
-        
+
         <!-- Border Brushes -->
         <SolidColorBrush x:Key="BorderPrimaryBrush" Color="{StaticResource BorderPrimaryColor}" />
         <SolidColorBrush x:Key="BorderSecondaryBrush" Color="{StaticResource BorderSecondaryColor}" />
         <SolidColorBrush x:Key="BorderAccentBrush" Color="{StaticResource BorderAccentColor}" />
-        
+
         <!-- Status Brushes -->
         <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
         <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
         <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
         <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}" />
-        
+
         <!-- ============================================ -->
         <!-- FONTS -->
         <!-- ============================================ -->
         <FontFamily x:Key="PrimaryFontFamily">Segoe UI, Microsoft Sans Serif</FontFamily>
         <FontFamily x:Key="MonospaceFontFamily">Consolas, Courier New</FontFamily>
-        
+
         <!-- ============================================ -->
         <!-- WINDOW STYLE -->
         <!-- ============================================ -->
@@ -88,11 +88,11 @@
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Setter Property="UseLayoutRounding" Value="True" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- MENU STYLES -->
         <!-- ============================================ -->
-        
+
         <!-- Menu Separator Style (defined first to be referenced by other styles) -->
         <Style TargetType="Separator" x:Key="MenuSeparatorStyle">
             <Setter Property="Background" Value="{StaticResource BorderPrimaryBrush}" />
@@ -108,7 +108,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- Base MenuItem Style -->
         <Style TargetType="MenuItem" x:Key="BaseMenuItemStyle">
             <Setter Property="Background" Value="Transparent" />
@@ -195,10 +195,12 @@
                                 <Setter TargetName="HeaderHost" Property="Margin" Value="4,3" />
                             </Trigger>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                                <Setter TargetName="Border" Property="Background"
+                                        Value="{StaticResource AccentHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                                <Setter TargetName="Border" Property="Background"
+                                        Value="{StaticResource AccentHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}" />
@@ -209,7 +211,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- Submenu Item Container Style (inherits from base, but with submenu background colors) -->
         <Style TargetType="MenuItem" x:Key="SubmenuItemContainerStyle" BasedOn="{StaticResource BaseMenuItemStyle}">
             <Setter Property="Background" Value="{StaticResource BgSecondaryBrush}" />
@@ -222,7 +224,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
+
         <!-- Menu Style -->
         <Style TargetType="Menu">
             <Setter Property="Background" Value="{StaticResource AccentPrimaryBrush}" />
@@ -236,10 +238,10 @@
                 <Style TargetType="Separator" BasedOn="{StaticResource MenuSeparatorStyle}" />
             </Style.Resources>
         </Style>
-        
+
         <!-- Implicit MenuItem Style -->
         <Style TargetType="MenuItem" BasedOn="{StaticResource BaseMenuItemStyle}" />
-        
+
         <!-- ContextMenu Style -->
         <Style TargetType="ContextMenu">
             <Setter Property="Background" Value="{StaticResource BgSecondaryBrush}" />
@@ -270,7 +272,7 @@
                 <Style TargetType="Separator" BasedOn="{StaticResource MenuSeparatorStyle}" />
             </Style.Resources>
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- BUTTON STYLES -->
         <!-- ============================================ -->
@@ -301,16 +303,22 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgQuaternaryBrush}" />
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BorderSecondaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource BgQuaternaryBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush"
+                                        Value="{StaticResource BorderSecondaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentPrimaryBrush}" />
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentSecondaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentPrimaryBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush"
+                                        Value="{StaticResource AccentSecondaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgSecondaryBrush}" />
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BgTertiaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource BgSecondaryBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush"
+                                        Value="{StaticResource BgTertiaryBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -318,7 +326,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- Primary/Accent Button Style -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Background" Value="{StaticResource AccentPrimaryBrush}" />
@@ -340,15 +348,20 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentHoverBrush}" />
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentSecondaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentHoverBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush"
+                                        Value="{StaticResource AccentSecondaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentPressedBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentPressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgQuaternaryBrush}" />
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BgTertiaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource BgQuaternaryBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush"
+                                        Value="{StaticResource BgTertiaryBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -356,7 +369,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- TEXTBOX STYLES -->
         <!-- ============================================ -->
@@ -387,11 +400,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentPrimaryBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush"
+                                        Value="{StaticResource AccentPrimaryBrush}" />
                                 <Setter TargetName="border" Property="BorderThickness" Value="1.5" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgTertiaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource BgTertiaryBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -399,14 +414,14 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- Monospace TextBox (for logs/code) -->
         <Style x:Key="MonospaceTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Background" Value="{StaticResource BgPrimaryBrush}" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- PASSWORDBOX STYLES -->
         <!-- ============================================ -->
@@ -436,11 +451,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentPrimaryBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush"
+                                        Value="{StaticResource AccentPrimaryBrush}" />
                                 <Setter TargetName="border" Property="BorderThickness" Value="1.5" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgTertiaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource BgTertiaryBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -448,11 +465,11 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- COMBOBOX STYLES -->
         <!-- ============================================ -->
-        
+
         <!-- ComboBox ToggleButton Template -->
         <ControlTemplate x:Key="ComboBoxToggleButtonTemplate" TargetType="ToggleButton">
             <Border x:Name="border"
@@ -472,7 +489,7 @@
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
-        
+
         <!-- ComboBox Style -->
         <Style TargetType="ComboBox">
             <Setter Property="Background" Value="{StaticResource BgSecondaryBrush}" />
@@ -537,10 +554,12 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="toggleButton" Property="BorderBrush" Value="{StaticResource AccentPrimaryBrush}" />
+                                <Setter TargetName="toggleButton" Property="BorderBrush"
+                                        Value="{StaticResource AccentPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="toggleButton" Property="BorderBrush" Value="{StaticResource BorderSecondaryBrush}" />
+                                <Setter TargetName="toggleButton" Property="BorderBrush"
+                                        Value="{StaticResource BorderSecondaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Background" Value="{StaticResource BgTertiaryBrush}" />
@@ -555,7 +574,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- ComboBoxItem Style -->
         <Style TargetType="ComboBoxItem">
             <Setter Property="Background" Value="Transparent" />
@@ -573,10 +592,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgQuaternaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource BgQuaternaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentPrimaryBrush}" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}" />
@@ -586,7 +607,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- LABEL STYLES -->
         <!-- ============================================ -->
@@ -597,7 +618,7 @@
             <Setter Property="Padding" Value="0,2" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- TEXTBLOCK STYLES -->
         <!-- ============================================ -->
@@ -606,13 +627,13 @@
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontSize" Value="13" />
         </Style>
-        
+
         <Style x:Key="MutedTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontSize" Value="12" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- GROUPBOX STYLES -->
         <!-- ============================================ -->
@@ -654,7 +675,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- SCROLLBAR STYLES -->
         <!-- ============================================ -->
@@ -687,7 +708,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- STATUSBAR STYLES -->
         <!-- ============================================ -->
@@ -698,12 +719,12 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Padding" Value="10,4" />
         </Style>
-        
+
         <Style TargetType="StatusBarItem">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- SEPARATOR STYLES -->
         <!-- ============================================ -->
@@ -711,7 +732,7 @@
             <Setter Property="Background" Value="{StaticResource BorderPrimaryBrush}" />
             <Setter Property="Margin" Value="8,2" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- HYPERLINK STYLES -->
         <!-- ============================================ -->
@@ -724,7 +745,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- TOOLTIP STYLES -->
         <!-- ============================================ -->
@@ -737,7 +758,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="8,6" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- CONTEXT MENU STYLES -->
         <!-- ============================================ -->
@@ -759,68 +780,68 @@
                 </MenuItem.Icon>
             </MenuItem>
         </ContextMenu>
-        
+
         <!-- ============================================ -->
         <!-- ADDITIONAL TEXTBLOCK STYLES -->
         <!-- ============================================ -->
-        
+
         <Style x:Key="TitleTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontSize" Value="24" />
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
-        
+
         <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontSize" Value="16" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        
+
         <Style x:Key="SubHeaderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        
+
         <Style x:Key="AccentTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource AccentSecondaryBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        
+
         <Style x:Key="BodyTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="LineHeight" Value="20" />
         </Style>
-        
+
         <Style x:Key="HintTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource MutedTextBlockStyle}">
             <Setter Property="FontStyle" Value="Italic" />
         </Style>
-        
+
         <Style x:Key="MutedItalicTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource PrimaryFontFamily}" />
             <Setter Property="FontStyle" Value="Italic" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- ADDITIONAL LABEL STYLES -->
         <!-- ============================================ -->
-        
+
         <Style x:Key="SemiBoldLabelStyle" TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        
+
         <!-- ============================================ -->
         <!-- LOG TEXTBOX STYLE -->
         <!-- ============================================ -->
-        
+
         <Style x:Key="LogTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource MonospaceTextBoxStyle}">
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
@@ -831,6 +852,6 @@
             <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
-        
+
     </Application.Resources>
 </Application>

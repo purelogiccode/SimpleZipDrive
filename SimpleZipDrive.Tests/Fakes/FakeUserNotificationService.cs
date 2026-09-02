@@ -1,4 +1,4 @@
-using SimpleZipDrive.Core.Services;
+using SimpleZipDrive.Core.Interfaces;
 
 namespace SimpleZipDrive.Tests.Fakes;
 

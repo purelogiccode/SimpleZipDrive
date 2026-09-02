@@ -5,18 +5,52 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using DokanNet;
 using DokanNet.Logging;
+using FileAccess = System.IO.FileAccess;
 
 namespace SimpleZipDrive.Services;
 
 /// <summary>
-/// Implementation of the mount service.
+///     Implementation of the mount service.
 /// </summary>
 public class MountService : IDisposable, IMountService
 {
+    private static bool _dokanArchitectureMismatch;
     private readonly ILoggingService _loggingService;
     private readonly ISettingsService _settingsService;
-    private CancellationTokenSource? _mountCancellation;
     private ZipFs? _currentZipFs;
+    private CancellationTokenSource? _mountCancellation;
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="MountService" /> class.
+    /// </summary>
+    /// <param name="loggingService">The logging service.</param>
+    /// <param name="settingsService">The settings service.</param>
+    public MountService(ILoggingService loggingService, ISettingsService settingsService)
+    {
+        _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        try
+        {
+            _mountCancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        // Give the driver time to finish pending callbacks before disposing resources
+        Thread.Sleep(500);
+
+        _mountCancellation?.Dispose();
+        _currentZipFs?.Dispose();
+        _currentZipFs = null;
+        CurrentArchivePath = null;
+        GC.SuppressFinalize(this);
+    }
 
     /// <inheritdoc />
     public event EventHandler<MountStatusChangedEventArgs>? MountStatusChanged;
@@ -30,25 +64,11 @@ public class MountService : IDisposable, IMountService
     /// <inheritdoc />
     public string? CurrentArchivePath { get; private set; }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MountService"/> class.
-    /// </summary>
-    /// <param name="loggingService">The logging service.</param>
-    /// <param name="settingsService">The settings service.</param>
-    public MountService(ILoggingService loggingService, ISettingsService settingsService)
-    {
-        _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
-        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-    }
-
     /// <inheritdoc />
     [RequiresAssemblyFiles]
     public Task MountAsync(string archivePath, string? mountPoint = null)
     {
-        if (IsMounted)
-        {
-            throw new InvalidOperationException("A drive is already mounted. Please unmount it first.");
-        }
+        if (IsMounted) throw new InvalidOperationException("A drive is already mounted. Please unmount it first.");
 
         if (!File.Exists(archivePath))
         {
@@ -90,20 +110,15 @@ public class MountService : IDisposable, IMountService
             // Auto-select drive letter
             return MountWithAutoDriveLetterAsync(archivePath, archiveType, logger);
         }
-        else
-        {
-            // Use specified mount point
-            return MountWithSpecifiedPointAsync(archivePath, mountPoint, archiveType, logger);
-        }
+
+        // Use specified mount point
+        return MountWithSpecifiedPointAsync(archivePath, mountPoint, archiveType, logger);
     }
 
     /// <inheritdoc />
     public async Task UnmountAsync()
     {
-        if (!IsMounted)
-        {
-            return;
-        }
+        if (!IsMounted) return;
 
         try
         {
@@ -151,27 +166,6 @@ public class MountService : IDisposable, IMountService
         return ArchiveFormats.GetArchiveType(filePath);
     }
 
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        try
-        {
-            _mountCancellation?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-
-        // Give the driver time to finish pending callbacks before disposing resources
-        Thread.Sleep(500);
-
-        _mountCancellation?.Dispose();
-        _currentZipFs?.Dispose();
-        _currentZipFs = null;
-        CurrentArchivePath = null;
-        GC.SuppressFinalize(this);
-    }
-
     [DllImport("dokan2.dll", ExactSpelling = true)]
     private static extern uint DokanVersion();
 
@@ -182,7 +176,8 @@ public class MountService : IDisposable, IMountService
             case DllNotFoundException or EntryPointNotFoundException:
                 return true;
             case BadImageFormatException or TypeInitializationException:
-                _dokanArchitectureMismatch = ex is not TypeInitializationException || ex.InnerException is BadImageFormatException;
+                _dokanArchitectureMismatch = ex is not TypeInitializationException ||
+                                             ex.InnerException is BadImageFormatException;
                 return _dokanArchitectureMismatch;
             default:
                 return false;
@@ -190,10 +185,10 @@ public class MountService : IDisposable, IMountService
     }
 
     /// <summary>
-    /// Opens the archive file for reading. Uses <see cref="FileShare.ReadWrite"/> so mounting
-    /// succeeds even when another process currently holds the archive open (e.g. antivirus,
-    /// download managers, torrent clients), with a short retry loop for transient sharing
-    /// violations.
+    ///     Opens the archive file for reading. Uses <see cref="FileShare.ReadWrite" /> so mounting
+    ///     succeeds even when another process currently holds the archive open (e.g. antivirus,
+    ///     download managers, torrent clients), with a short retry loop for transient sharing
+    ///     violations.
     /// </summary>
     private static FileStream OpenArchiveFileStream(string archivePath)
     {
@@ -203,7 +198,7 @@ public class MountService : IDisposable, IMountService
         {
             try
             {
-                return new FileStream(archivePath, FileMode.Open, System.IO.FileAccess.Read, FileShare.ReadWrite);
+                return new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             }
             catch (IOException) when (attempt < maxAttempts)
             {
@@ -211,8 +206,6 @@ public class MountService : IDisposable, IMountService
             }
         }
     }
-
-    private static bool _dokanArchitectureMismatch;
 
     private static bool IsDokanInstalled()
     {
@@ -246,9 +239,9 @@ public class MountService : IDisposable, IMountService
         if (_dokanArchitectureMismatch)
         {
             title = "Dokan Driver Incompatible";
-            message = $"The Dokan file system driver (dokan2.dll) was found but could not be loaded " +
+            message = "The Dokan file system driver (dokan2.dll) was found but could not be loaded " +
                       $"into this process ({RuntimeInformation.ProcessArchitecture}). This usually means the installed " +
-                      $"Dokan driver does not support this system architecture (e.g. an x64 driver on an ARM64 device).\n\n" +
+                      "Dokan driver does not support this system architecture (e.g. an x64 driver on an ARM64 device).\n\n" +
                       "Please install the latest Dokan release and verify it supports your architecture.\n\n" +
                       "Would you like to open the Dokan download page?";
         }
@@ -342,12 +335,10 @@ public class MountService : IDisposable, IMountService
         _loggingService.Log("Error: Failed to auto-mount on any preferred drive letters.");
     }
 
-    private async Task MountWithSpecifiedPointAsync(string archivePath, string mountPoint, string archiveType, ILogger logger)
+    private async Task MountWithSpecifiedPointAsync(string archivePath, string mountPoint, string archiveType,
+        ILogger logger)
     {
-        if (mountPoint.Length == 1 && char.IsLetter(mountPoint[0]))
-        {
-            mountPoint = mountPoint.ToUpperInvariant() + @":\";
-        }
+        if (mountPoint.Length == 1 && char.IsLetter(mountPoint[0])) mountPoint = mountPoint.ToUpperInvariant() + @":\";
 
         Dokan dokan;
         try
@@ -369,14 +360,13 @@ public class MountService : IDisposable, IMountService
             _loggingService.Log("");
 
             if (!await AttemptMountLifecycleAsync(archivePath, mountPoint, dokan, archiveType))
-            {
                 _loggingService.Log($"Error: Failed to mount on '{mountPoint}'.");
-            }
             // Event is already fired inside AttemptMountLifecycleAsync when mount succeeds
         }
     }
 
-    private async Task<bool> AttemptMountLifecycleAsync(string archivePath, string mountPoint, Dokan dokan, string archiveType)
+    private async Task<bool> AttemptMountLifecycleAsync(string archivePath, string mountPoint, Dokan dokan,
+        string archiveType)
     {
         _mountCancellation?.Dispose();
         _mountCancellation = new CancellationTokenSource();
@@ -384,21 +374,24 @@ public class MountService : IDisposable, IMountService
         try
         {
             var fileInfo = new FileInfo(archivePath);
-            _loggingService.Log($"Processing {archiveType.ToUpperInvariant()} file: '{archivePath}', Size: {fileInfo.Length / 1024.0 / 1024.0:F2} MB");
+            _loggingService.Log(
+                $"Processing {archiveType.ToUpperInvariant()} file: '{archivePath}', Size: {fileInfo.Length / 1024.0 / 1024.0:F2} MB");
             _loggingService.Log("");
 
             // Log the effective RAM cache setting (validation happens in AppSettings)
             var effectiveMaxMemoryBytes = _settingsService.Settings.MaxMemoryPerFileBytes;
             var effectiveMaxMemoryMb = effectiveMaxMemoryBytes / 1024.0 / 1024.0;
             var availableMemoryMb = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024.0 / 1024.0;
-            _loggingService.Log($"RAM cache limit: {effectiveMaxMemoryMb:F0} MB (Available system memory: {availableMemoryMb:F0} MB)");
+            _loggingService.Log(
+                $"RAM cache limit: {effectiveMaxMemoryMb:F0} MB (Available system memory: {availableMemoryMb:F0} MB)");
             _loggingService.Log("");
 
             Stream fileStream = OpenArchiveFileStream(archivePath);
 
             try
             {
-                var volumeLabel = ZipFsHelpers.SanitizeVolumeLabel(ZipFsHelpers.GetArchiveFileNameWithoutExtension(archivePath));
+                var volumeLabel =
+                    ZipFsHelpers.SanitizeVolumeLabel(ZipFsHelpers.GetArchiveFileNameWithoutExtension(archivePath));
                 _currentZipFs = new ZipFs(
                     fileStream,
                     mountPoint,
@@ -434,10 +427,13 @@ public class MountService : IDisposable, IMountService
                         dokanInstance = builder.Build(_currentZipFs);
                         break;
                     }
-                    catch (DokanException ex) when (attempt < maxRetries && !ex.Message.Contains("Can't install", StringComparison.OrdinalIgnoreCase))
+                    catch (DokanException ex) when (attempt < maxRetries &&
+                                                    !ex.Message.Contains("Can't install",
+                                                        StringComparison.OrdinalIgnoreCase))
                     {
                         var delay = retryDelayMs * (attempt + 1);
-                        _loggingService.Log($"Dokan driver error, retrying in {delay / 1000}s... (attempt {attempt + 1}/{maxRetries})");
+                        _loggingService.Log(
+                            $"Dokan driver error, retrying in {delay / 1000}s... (attempt {attempt + 1}/{maxRetries})");
                         await Task.Delay(delay);
                     }
                 }
@@ -484,7 +480,9 @@ public class MountService : IDisposable, IMountService
         catch (DokanException ex)
         {
             _loggingService.LogError($"Dokan error: {ex.Message}");
-            ErrorLoggerStatic.ReportSilentException(ex, $"MountService.AttemptMountLifecycleAsync: DokanException mounting '{archivePath}' to '{mountPoint}'", true);
+            ErrorLoggerStatic.ReportSilentException(ex,
+                $"MountService.AttemptMountLifecycleAsync: DokanException mounting '{archivePath}' to '{mountPoint}'",
+                true);
             ShowDokanDriverErrorDialog(ex.Message);
             CurrentArchivePath = null;
             return false;
@@ -493,14 +491,17 @@ public class MountService : IDisposable, IMountService
                                    ex.Message.Contains("mount", StringComparison.OrdinalIgnoreCase))
         {
             _loggingService.LogError($"Mount error: {ex.Message}");
-            ErrorLoggerStatic.ReportSilentException(ex, $"MountService.AttemptMountLifecycleAsync: Drive/mount error for '{archivePath}' to '{mountPoint}'", true);
+            ErrorLoggerStatic.ReportSilentException(ex,
+                $"MountService.AttemptMountLifecycleAsync: Drive/mount error for '{archivePath}' to '{mountPoint}'",
+                true);
             CurrentArchivePath = null;
             return false;
         }
         catch (Exception ex)
         {
             _loggingService.LogError($"Mount error: {ex.Message}");
-            ErrorLoggerStatic.LogErrorSync(ex, $"MountService.AttemptMountLifecycleAsync: Error mounting archive '{archivePath}' to '{mountPoint}'");
+            ErrorLoggerStatic.LogErrorSync(ex,
+                $"MountService.AttemptMountLifecycleAsync: Error mounting archive '{archivePath}' to '{mountPoint}'");
             CurrentArchivePath = null;
             return false;
         }
@@ -517,8 +518,8 @@ public class MountService : IDisposable, IMountService
     }
 
     /// <summary>
-    /// Prompts the user for a password using a WPF dialog.
-    /// This method is thread-safe and will marshal to the UI thread if necessary.
+    ///     Prompts the user for a password using a WPF dialog.
+    ///     This method is thread-safe and will marshal to the UI thread if necessary.
     /// </summary>
     /// <param name="archivePath">The path to the archive file.</param>
     /// <param name="archiveType">The type of archive (zip, 7z, rar).</param>
@@ -539,56 +540,5 @@ public class MountService : IDisposable, IMountService
             passwordWindow.ClearPassword();
             return password;
         });
-    }
-}
-
-/// <summary>
-/// ILogger wrapper that guarantees the DokanNet prefix is applied to all log messages.
-/// Writes directly to Console.Out, which is redirected to LogTextWriter.
-/// </summary>
-internal sealed class DokanPrefixedLogger : ILogger, IDisposable
-{
-    private readonly string _prefix;
-
-    public bool DebugEnabled => true;
-
-    public DokanPrefixedLogger(string prefix)
-    {
-        _prefix = prefix;
-    }
-
-    public void Debug(string message, params object[] args)
-    {
-        Log("DEBUG", message, args);
-    }
-
-    public void Info(string message, params object[] args)
-    {
-        Log("INFO", message, args);
-    }
-
-    public void Warn(string message, params object[] args)
-    {
-        Log("WARN", message, args);
-    }
-
-    public void Error(string message, params object[] args)
-    {
-        Log("ERROR", message, args);
-    }
-
-    public void Fatal(string message, params object[] args)
-    {
-        Log("FATAL", message, args);
-    }
-
-    private void Log(string level, string message, params object[] args)
-    {
-        var formatted = args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, message, args) : message;
-        Console.WriteLine($"{_prefix}[{level}] {formatted}");
-    }
-
-    public void Dispose()
-    {
     }
 }

@@ -11,7 +11,7 @@ public class ZipFsStreamsAdditionalTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         var buffer = new byte[10];
@@ -32,7 +32,7 @@ public class ZipFsStreamsAdditionalTests
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, 5, lockObj);
 
         stream.Seek(2, SeekOrigin.Begin);
@@ -52,7 +52,7 @@ public class ZipFsStreamsAdditionalTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Dispose();
@@ -68,7 +68,7 @@ public class ZipFsStreamsAdditionalTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Dispose();
@@ -84,7 +84,7 @@ public class ZipFsStreamsAdditionalTests
     {
         var data = new byte[] { 1, 2, 3 };
         using var source = new MemoryStream(data);
-        var lockObj = new object();
+        var lockObj = new Lock();
         var stream = new StoredEntryStream(source, 0, 3, lockObj);
 
         stream.Dispose();
@@ -107,7 +107,7 @@ public class ZipFsStreamsAdditionalTests
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 2, 5, lockObj);
 
             Assert.Equal(5, stream.Length);
@@ -147,7 +147,7 @@ public class ZipFsStreamsAdditionalTests
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 3, 5, lockObj);
 
             var buffer = new byte[3];
@@ -183,7 +183,7 @@ public class ZipFsStreamsAdditionalTests
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 1, 4, lockObj);
 
             var buffer = new byte[4];
@@ -290,7 +290,7 @@ public class ZipFsStreamsAdditionalTests
             File.WriteAllBytes(tempPath, data);
 
             using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var lockObj = new object();
+            var lockObj = new Lock();
             using var stream = new StoredEntryStream(fs, 0, 10, lockObj);
 
             var buffer1 = new byte[3];

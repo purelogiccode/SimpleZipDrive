@@ -1,27 +1,24 @@
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using SimpleZipDrive_WinFsp.Views;
 
 namespace SimpleZipDrive_WinFsp;
 
 public partial class MainWindow : IDisposable
 {
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern int TerminateProcess(nint hProcess, uint uExitCode);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern nint GetCurrentProcess();
+    private static volatile bool _shutdownCompleted;
+    private readonly ILoggingService _loggingService;
 
     private readonly IMountService _mountService;
-    private readonly ILoggingService _loggingService;
     private readonly IScreenshotService _screenshotService;
     private int _isShuttingDown;
-    private static volatile bool _shutdownCompleted;
 
     public MainWindow()
     {
@@ -42,9 +39,34 @@ public partial class MainWindow : IDisposable
         Loaded += MainWindow_LoadedAsync;
     }
 
+    public void Dispose()
+    {
+        try
+        {
+            if (_loggingService.LogEntries is INotifyCollectionChanged notifyCollection)
+                notifyCollection.CollectionChanged -= OnLogEntriesChanged;
+
+            _mountService.MountStatusChanged -= OnMountStatusChanged;
+
+            (_mountService as IDisposable)?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            ErrorLoggerStatic.ReportSilentException(ex, "MainWindow.Dispose: Error during disposal", true);
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern int TerminateProcess(nint hProcess, uint uExitCode);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern nint GetCurrentProcess();
+
     private void OnMountStatusChanged(object? sender, MountStatusChangedEventArgs e)
     {
-        Dispatcher.BeginInvoke(new Action(UpdateMountStatus), DispatcherPriority.Background);
+        _ = Dispatcher.BeginInvoke(new Action(UpdateMountStatus), DispatcherPriority.Background);
     }
 
     private void WireUpContextMenuHandlers()
@@ -70,7 +92,7 @@ public partial class MainWindow : IDisposable
 
     private void OnLogEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        Dispatcher.BeginInvoke(new Action(() =>
+        _ = Dispatcher.BeginInvoke(new Action(() =>
         {
             switch (e.Action)
             {
@@ -108,10 +130,7 @@ public partial class MainWindow : IDisposable
         try
         {
             var args = App.StartupArgs;
-            if (args.Length > 0)
-            {
-                await ProcessCommandLineArgsAsync(args);
-            }
+            if (args.Length > 0) await ProcessCommandLineArgsAsync(args);
         }
         catch (Exception ex)
         {
@@ -155,8 +174,10 @@ public partial class MainWindow : IDisposable
         {
             _loggingService.LogError($"{AppTheme.Section("INVALID FILE TYPE")}");
             _loggingService.LogError($"Error: The file '{Path.GetFileName(zipFilePath)}' is not a supported archive.");
-            _loggingService.LogError($"Detected extension: '{Path.GetExtension(zipFilePath)}' (expected: {ArchiveFormats.SupportedExtensionsDescription})");
-            _loggingService.LogError("Simple Zip Drive can only mount ZIP, 7Z, RAR, TAR (including compressed variants), and comic-book archives (.cbz, .cbr, .cb7).");
+            _loggingService.LogError(
+                $"Detected extension: '{Path.GetExtension(zipFilePath)}' (expected: {ArchiveFormats.SupportedExtensionsDescription})");
+            _loggingService.LogError(
+                "Simple Zip Drive can only mount ZIP, 7Z, RAR, TAR (including compressed variants), and comic-book archives (.cbz, .cbr, .cb7).");
             return;
         }
 
@@ -185,10 +206,7 @@ public partial class MainWindow : IDisposable
         try
         {
             var configPath = AppSettings.SettingsDirectory;
-            if (!Directory.Exists(configPath))
-            {
-                Directory.CreateDirectory(configPath);
-            }
+            if (!Directory.Exists(configPath)) Directory.CreateDirectory(configPath);
 
             Process.Start("explorer.exe", configPath);
         }
@@ -270,7 +288,7 @@ public partial class MainWindow : IDisposable
                 return;
             }
 
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            var openFileDialog = new OpenFileDialog
             {
                 Title = "Select Archive File",
                 Filter = ArchiveFormats.DialogFilter,
@@ -313,7 +331,7 @@ public partial class MainWindow : IDisposable
                 return;
             }
 
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            var openFileDialog = new OpenFileDialog
             {
                 Title = "Select Archive File",
                 Filter = ArchiveFormats.DialogFilter,
@@ -348,7 +366,7 @@ public partial class MainWindow : IDisposable
                 return;
             }
 
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            var openFileDialog = new OpenFileDialog
             {
                 Title = "Select Archive File",
                 Filter = ArchiveFormats.DialogFilter,
@@ -356,10 +374,7 @@ public partial class MainWindow : IDisposable
                 CheckPathExists = true
             };
 
-            if (openFileDialog.ShowDialog() == true)
-            {
-                await MountAsFolderAsync(openFileDialog.FileName);
-            }
+            if (openFileDialog.ShowDialog() == true) await MountAsFolderAsync(openFileDialog.FileName);
         }
         catch (Exception ex)
         {
@@ -372,7 +387,7 @@ public partial class MainWindow : IDisposable
 
     private Task MountAsFolderAsync(string archivePath)
     {
-        var folderDialog = new Microsoft.Win32.OpenFolderDialog
+        var folderDialog = new OpenFolderDialog
         {
             Title = "Select Mount Folder"
         };
@@ -391,10 +406,7 @@ public partial class MainWindow : IDisposable
     {
         try
         {
-            if (!_mountService.IsMounted)
-            {
-                return;
-            }
+            if (!_mountService.IsMounted) return;
 
             try
             {
@@ -449,7 +461,7 @@ public partial class MainWindow : IDisposable
         StatusText.Text = "Log cleared.";
     }
 
-    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
         if (Interlocked.Exchange(ref _isShuttingDown, 1) != 0)
             return;
@@ -465,13 +477,9 @@ public partial class MainWindow : IDisposable
             // Update UI directly since we're on the UI thread context
             IsEnabled = false;
             if (_mountService.IsMounted)
-            {
                 StatusText.Text = "Unmounting drive and shutting down...";
-            }
             else
-            {
                 StatusText.Text = "Shutting down...";
-            }
 
             if (_mountService.IsMounted)
             {
@@ -497,7 +505,7 @@ public partial class MainWindow : IDisposable
             App.ShutdownCts.Cancel();
 
             Closing -= MainWindow_Closing;
-            Application.Current.Exit += static (_, _) => { _shutdownCompleted = true; };
+            Application.Current.Exit += static (_, _) => _shutdownCompleted = true;
             Application.Current.Shutdown();
 
             _ = Task.Run(static async () =>
@@ -545,7 +553,8 @@ public partial class MainWindow : IDisposable
     {
         if (_mountService.IsMounted)
         {
-            MountStatusText.Text = $"Mounted: {_mountService.CurrentMountPoint} | Archive: {_mountService.CurrentArchivePath}";
+            MountStatusText.Text =
+                $"Mounted: {_mountService.CurrentMountPoint} | Archive: {_mountService.CurrentArchivePath}";
             StatusText.Text = "Drive mounted - Click Unmount to unmount";
             UnmountButton.IsEnabled = true;
             MountButton.IsEnabled = false;
@@ -569,27 +578,6 @@ public partial class MainWindow : IDisposable
             UnmountButton.IsEnabled = false;
             MountButton.IsEnabled = true;
         }
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            if (_loggingService.LogEntries is INotifyCollectionChanged notifyCollection)
-            {
-                notifyCollection.CollectionChanged -= OnLogEntriesChanged;
-            }
-
-            _mountService.MountStatusChanged -= OnMountStatusChanged;
-
-            (_mountService as IDisposable)?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            ErrorLoggerStatic.ReportSilentException(ex, "MainWindow.Dispose: Error during disposal", true);
-        }
-
-        GC.SuppressFinalize(this);
     }
 
     private static bool IsSupportedArchiveExtension(string filePath)

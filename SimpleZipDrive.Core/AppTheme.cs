@@ -1,7 +1,7 @@
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-/// Provides formatting constants and helper methods for consistent console and log output styling.
+///     Provides formatting constants and helper methods for consistent console and log output styling.
 /// </summary>
 public static class AppTheme
 {
@@ -26,7 +26,7 @@ public static class AppTheme
 
 
     /// <summary>
-    /// Formats a section title with <c>--- </c> delimiters.
+    ///     Formats a section title with <c>--- </c> delimiters.
     /// </summary>
     /// <param name="title">The section title text.</param>
     /// <returns>A formatted string such as <c>"--- My Section ---"</c>.</returns>

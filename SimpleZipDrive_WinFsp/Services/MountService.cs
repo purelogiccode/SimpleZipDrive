@@ -14,10 +14,6 @@ namespace SimpleZipDrive_WinFsp.Services;
 
 public class MountService : IDisposable, IMountService
 {
-    // WinFsp 2.1 is the latest stable release (2.2+ are beta versions).
-    // winfsp.net 2.1.25156 is built against it and accepts native WinFsp >= 2.1.
-    private static readonly Version RequiredWinFspVersion = new(2, 1);
-
     // NTSTATUS codes relevant to WinFsp mount operations
     private const int StatusObjectNameNotFound = unchecked((int)0xC0000034);
     private const int StatusAccessDenied = unchecked((int)0xC0000022);
@@ -25,13 +21,48 @@ public class MountService : IDisposable, IMountService
     private const int StatusDeviceAlreadyExists = unchecked((int)0xC0000038);
     private const int StatusObjectPathNotFound = unchecked((int)0xC000003A);
     private const int StatusNoSuchDevice = unchecked((int)0xC000000E);
+
     private const int StatusObjectNameCollision = unchecked((int)0xC0000035);
+
+    // WinFsp 2.1 is the latest stable release (2.2+ are beta versions).
+    // winfsp.net 2.1.25156 is built against it and accepts native WinFsp >= 2.1.
+    private static readonly Version RequiredWinFspVersion = new(2, 1);
+
+    private static string? _winFspBinDir;
 
     private readonly ILoggingService _loggingService;
     private readonly ISettingsService _settingsService;
-    private CancellationTokenSource? _mountCancellation;
-    private ZipFs? _currentZipFs;
     private FileSystemHost? _currentHost;
+    private ZipFs? _currentZipFs;
+    private CancellationTokenSource? _mountCancellation;
+
+    public MountService(ILoggingService loggingService, ISettingsService settingsService)
+    {
+        _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _mountCancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        // Give the driver time to finish pending callbacks before disposing resources
+        Thread.Sleep(500);
+
+        _mountCancellation?.Dispose();
+        var host = Interlocked.Exchange(ref _currentHost, null);
+        host?.Dispose();
+        _currentZipFs?.Dispose();
+        _currentZipFs = null;
+        CurrentArchivePath = null;
+        GC.SuppressFinalize(this);
+    }
 
     public event EventHandler<MountStatusChangedEventArgs>? MountStatusChanged;
 
@@ -41,19 +72,10 @@ public class MountService : IDisposable, IMountService
 
     public string? CurrentArchivePath { get; private set; }
 
-    public MountService(ILoggingService loggingService, ISettingsService settingsService)
-    {
-        _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
-        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-    }
-
     [RequiresAssemblyFiles]
     public Task MountAsync(string archivePath, string? mountPoint = null)
     {
-        if (IsMounted)
-        {
-            throw new InvalidOperationException("A drive is already mounted. Please unmount it first.");
-        }
+        if (IsMounted) throw new InvalidOperationException("A drive is already mounted. Please unmount it first.");
 
         if (!File.Exists(archivePath))
         {
@@ -86,38 +108,32 @@ public class MountService : IDisposable, IMountService
         if (!crossIntegrity && IsRunningAsAdministrator())
         {
             crossIntegrity = true;
-            _loggingService.Log("Running as Administrator: Cross-integrity mount enforced so standard processes can access the drive.");
+            _loggingService.Log(
+                "Running as Administrator: Cross-integrity mount enforced so standard processes can access the drive.");
         }
 
         if (string.IsNullOrEmpty(mountPoint))
         {
-            if (crossIntegrity)
-            {
-                return MountWithCrossIntegrityFolderAsync(archivePath, archiveType);
-            }
+            if (crossIntegrity) return MountWithCrossIntegrityFolderAsync(archivePath, archiveType);
 
             return MountWithAutoDriveLetterAsync(archivePath, archiveType);
         }
-        else
-        {
-            if (crossIntegrity && IsDriveLetterMountPoint(mountPoint))
-            {
-                _loggingService.Log("Cross-integrity mode: Drive letter mounts are not supported. Redirecting to folder mount.");
-                var folderPath = GetCrossIntegrityMountPath(archivePath);
-                return MountWithSpecifiedPointAsync(archivePath, folderPath, archiveType);
-            }
 
-            return MountWithSpecifiedPointAsync(archivePath, mountPoint, archiveType);
+        if (crossIntegrity && IsDriveLetterMountPoint(mountPoint))
+        {
+            _loggingService.Log(
+                "Cross-integrity mode: Drive letter mounts are not supported. Redirecting to folder mount.");
+            var folderPath = GetCrossIntegrityMountPath(archivePath);
+            return MountWithSpecifiedPointAsync(archivePath, folderPath, archiveType);
         }
+
+        return MountWithSpecifiedPointAsync(archivePath, mountPoint, archiveType);
     }
 
     public async Task UnmountAsync()
     {
         DiagnosticLogger.LogSection($"UNMOUNT REQUESTED: {CurrentMountPoint}");
-        if (!IsMounted)
-        {
-            return;
-        }
+        if (!IsMounted) return;
 
         try
         {
@@ -167,28 +183,6 @@ public class MountService : IDisposable, IMountService
     public string GetArchiveType(string filePath)
     {
         return ArchiveFormats.GetArchiveType(filePath);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            _mountCancellation?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-
-        // Give the driver time to finish pending callbacks before disposing resources
-        Thread.Sleep(500);
-
-        _mountCancellation?.Dispose();
-        var host = Interlocked.Exchange(ref _currentHost, null);
-        host?.Dispose();
-        _currentZipFs?.Dispose();
-        _currentZipFs = null;
-        CurrentArchivePath = null;
-        GC.SuppressFinalize(this);
     }
 
     private static bool IsWinFspInstalled()
@@ -276,10 +270,7 @@ public class MountService : IDisposable, IMountService
             }
 
             // For folder mounts, verify we can create/access the directory
-            if (!Directory.Exists(mountPoint))
-            {
-                Directory.CreateDirectory(mountPoint);
-            }
+            if (!Directory.Exists(mountPoint)) Directory.CreateDirectory(mountPoint);
 
             // Test write access by creating and deleting a temp file
             var testFile = Path.Combine(mountPoint, $".sfz_test_{Guid.NewGuid():N}");
@@ -298,18 +289,23 @@ public class MountService : IDisposable, IMountService
     {
         return statusCode switch
         {
-            StatusObjectNameNotFound => "The WinFsp driver was not found or is not running. Please install or start the WinFsp service.",
-            StatusObjectPathNotFound => "The mount point path was not found. Please verify the path exists and is accessible.",
+            StatusObjectNameNotFound =>
+                "The WinFsp driver was not found or is not running. Please install or start the WinFsp service.",
+            StatusObjectPathNotFound =>
+                "The mount point path was not found. Please verify the path exists and is accessible.",
             StatusAccessDenied => "Access denied. Please run as administrator or check permissions.",
-            StatusInsufficientResources => "Insufficient system resources. Please close other applications and try again.",
-            StatusDeviceAlreadyExists => "A device already exists at this mount point. Please choose a different location.",
-            StatusObjectNameCollision => "The mount point is already in use by another drive or process. Please choose a different drive letter or folder.",
-            StatusNoSuchDevice => "The WinFsp device is not available. Please verify the WinFsp driver is installed and running.",
-            _ => $"Mount failed with status 0x{unchecked((uint)statusCode):X8}. This may be caused by an outdated WinFsp driver."
+            StatusInsufficientResources =>
+                "Insufficient system resources. Please close other applications and try again.",
+            StatusDeviceAlreadyExists =>
+                "A device already exists at this mount point. Please choose a different location.",
+            StatusObjectNameCollision =>
+                "The mount point is already in use by another drive or process. Please choose a different drive letter or folder.",
+            StatusNoSuchDevice =>
+                "The WinFsp device is not available. Please verify the WinFsp driver is installed and running.",
+            _ =>
+                $"Mount failed with status 0x{unchecked((uint)statusCode):X8}. This may be caused by an outdated WinFsp driver."
         };
     }
-
-    private static string? _winFspBinDir;
 
     private static bool EnsureWinFspOnPath()
     {
@@ -328,7 +324,8 @@ public class MountService : IDisposable, IMountService
             var currentPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
             if (!currentPath.Contains(binDir, StringComparison.OrdinalIgnoreCase))
             {
-                Environment.SetEnvironmentVariable("PATH", binDir + ";" + currentPath, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable("PATH", binDir + ";" + currentPath,
+                    EnvironmentVariableTarget.Process);
             }
 
             _winFspBinDir = binDir;
@@ -425,10 +422,7 @@ public class MountService : IDisposable, IMountService
     private static string GetDeepestMessage(Exception ex)
     {
         var current = ex;
-        while (current.InnerException != null)
-        {
-            current = current.InnerException;
-        }
+        while (current.InnerException != null) current = current.InnerException;
 
         return current.Message;
     }
@@ -477,7 +471,7 @@ public class MountService : IDisposable, IMountService
 
     private static void ShowWinFspVersionMismatchFailedDialog(Version installed, Version required)
     {
-        var message = $"Mount failed due to WinFsp version mismatch.\n\n" +
+        var message = "Mount failed due to WinFsp version mismatch.\n\n" +
                       $"Installed version: {installed.Major}.{installed.Minor}\n" +
                       $"Required version: {required.Major}.{required.Minor} or later\n\n" +
                       "The installed WinFsp driver is too old. " +
@@ -499,7 +493,7 @@ public class MountService : IDisposable, IMountService
 
     private static void ShowWinFspMountFailedUpdateDialog(string errorDetail)
     {
-        var message = $"Mount failed.\n\n" +
+        var message = "Mount failed.\n\n" +
                       $"Error: {errorDetail}\n\n" +
                       "This may be caused by an outdated WinFsp driver. " +
                       "Please update WinFsp to the latest version and try again.\n\n" +
@@ -554,7 +548,8 @@ public class MountService : IDisposable, IMountService
         return null;
     }
 
-    [RequiresAssemblyFiles("Calls SimpleZipDrive_WinFsp.Services.MountService.AttemptMountLifecycleAsync(String, String, String)")]
+    [RequiresAssemblyFiles(
+        "Calls SimpleZipDrive_WinFsp.Services.MountService.AttemptMountLifecycleAsync(String, String, String)")]
     private async Task MountWithAutoDriveLetterAsync(string archivePath, string archiveType)
     {
         DiagnosticLogger.Log("  Auto-mount: trying drive letters...");
@@ -575,39 +570,31 @@ public class MountService : IDisposable, IMountService
 
             _loggingService.Log($"Attempting to mount on '{currentMountPoint}'...");
 
-            if (await AttemptMountLifecycleAsync(archivePath, currentMountPoint, archiveType))
-            {
-                return;
-            }
+            if (await AttemptMountLifecycleAsync(archivePath, currentMountPoint, archiveType)) return;
         }
 
         _loggingService.Log("Error: Failed to auto-mount on any preferred drive letters.");
     }
 
-    [RequiresAssemblyFiles("Calls SimpleZipDrive_WinFsp.Services.MountService.AttemptMountLifecycleAsync(String, String, String)")]
+    [RequiresAssemblyFiles(
+        "Calls SimpleZipDrive_WinFsp.Services.MountService.AttemptMountLifecycleAsync(String, String, String)")]
     private async Task MountWithCrossIntegrityFolderAsync(string archivePath, string archiveType)
     {
         var mountPoint = GetCrossIntegrityMountPath(archivePath);
         _loggingService.Log($"Cross-integrity mode: mounting to folder '{mountPoint}'.");
 
         if (!await AttemptMountLifecycleAsync(archivePath, mountPoint, archiveType))
-        {
             _loggingService.Log($"Error: Failed to cross-integrity mount on '{mountPoint}'.");
-        }
     }
 
-    [RequiresAssemblyFiles("Calls SimpleZipDrive_WinFsp.Services.MountService.AttemptMountLifecycleAsync(String, String, String)")]
+    [RequiresAssemblyFiles(
+        "Calls SimpleZipDrive_WinFsp.Services.MountService.AttemptMountLifecycleAsync(String, String, String)")]
     private async Task MountWithSpecifiedPointAsync(string archivePath, string mountPoint, string archiveType)
     {
-        if (mountPoint.Length == 1 && char.IsLetter(mountPoint[0]))
-        {
-            mountPoint = mountPoint.ToUpperInvariant() + ":";
-        }
+        if (mountPoint.Length == 1 && char.IsLetter(mountPoint[0])) mountPoint = mountPoint.ToUpperInvariant() + ":";
 
         if (!await AttemptMountLifecycleAsync(archivePath, mountPoint, archiveType))
-        {
             _loggingService.Log($"Error: Failed to mount on '{mountPoint}'.");
-        }
     }
 
     private async Task<bool> AttemptMountLifecycleAsync(string archivePath, string mountPoint, string archiveType)
@@ -623,21 +610,24 @@ public class MountService : IDisposable, IMountService
         {
             _loggingService.LogError("WinFsp driver service is not running. Please start the WinFsp.Launcher service.");
             DiagnosticLogger.Log("WinFsp driver service check failed - service not running.");
-            ShowWinFspDriverErrorDialog("The WinFsp driver service is not running. Please start the WinFsp.Launcher service and try again.");
+            ShowWinFspDriverErrorDialog(
+                "The WinFsp driver service is not running. Please start the WinFsp.Launcher service and try again.");
             return false;
         }
 
         // Pre-validate that the native WinFsp DLL can be loaded by the .NET runtime
         if (!TryLoadWinFspNativeDll())
         {
-            _loggingService.LogError("WinFsp native DLL could not be loaded. The DLL may be missing, inaccessible, or the wrong architecture.");
+            _loggingService.LogError(
+                "WinFsp native DLL could not be loaded. The DLL may be missing, inaccessible, or the wrong architecture.");
             DiagnosticLogger.Log("WinFsp native DLL pre-load check failed.");
-            ShowWinFspDriverErrorDialog("The WinFsp native DLL could not be loaded even though WinFsp appears to be installed.\n\n" +
-                                        "This can happen if:\n" +
-                                        "- The WinFsp installation is corrupted\n" +
-                                        "- The DLL architecture doesn't match this application (32-bit vs 64-bit)\n" +
-                                        "- The DLL is locked or inaccessible\n\n" +
-                                        "Please reinstall WinFsp and try again.");
+            ShowWinFspDriverErrorDialog(
+                "The WinFsp native DLL could not be loaded even though WinFsp appears to be installed.\n\n" +
+                "This can happen if:\n" +
+                "- The WinFsp installation is corrupted\n" +
+                "- The DLL architecture doesn't match this application (32-bit vs 64-bit)\n" +
+                "- The DLL is locked or inaccessible\n\n" +
+                "Please reinstall WinFsp and try again.");
             return false;
         }
 
@@ -646,16 +636,15 @@ public class MountService : IDisposable, IMountService
         {
             _loggingService.LogError($"Mount point '{mountPoint}' is not accessible or cannot be created.");
             DiagnosticLogger.Log($"Mount point verification failed for '{mountPoint}'.");
-            ShowWinFspDriverErrorDialog($"The mount point '{mountPoint}' is not accessible. Please choose a different location or check permissions.");
+            ShowWinFspDriverErrorDialog(
+                $"The mount point '{mountPoint}' is not accessible. Please choose a different location or check permissions.");
             return false;
         }
 
         try
         {
             if (!isDriveLetter) // Only create directory if it's a directory mount point
-            {
                 Directory.CreateDirectory(mountPoint);
-            }
         }
         catch (Exception ex)
         {
@@ -671,23 +660,27 @@ public class MountService : IDisposable, IMountService
         try
         {
             var fileInfo = new FileInfo(archivePath);
-            _loggingService.Log($"Processing {archiveType.ToUpperInvariant()} file: '{archivePath}', Size: {fileInfo.Length / 1024.0 / 1024.0:F2} MB");
+            _loggingService.Log(
+                $"Processing {archiveType.ToUpperInvariant()} file: '{archivePath}', Size: {fileInfo.Length / 1024.0 / 1024.0:F2} MB");
             _loggingService.Log("");
 
             var effectiveMaxMemoryBytes = _settingsService.Settings.MaxMemoryPerFileBytes;
             var effectiveMaxMemoryMb = effectiveMaxMemoryBytes / 1024.0 / 1024.0;
             var availableMemoryMb = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024.0 / 1024.0;
-            _loggingService.Log($"RAM cache limit: {effectiveMaxMemoryMb:F0} MB (Available system memory: {availableMemoryMb:F0} MB)");
+            _loggingService.Log(
+                $"RAM cache limit: {effectiveMaxMemoryMb:F0} MB (Available system memory: {availableMemoryMb:F0} MB)");
             _loggingService.Log("");
 
-            var crossIntegrity = (_settingsService.Settings.CrossIntegrityMount || IsRunningAsAdministrator()) && !isDriveLetter;
+            var crossIntegrity = (_settingsService.Settings.CrossIntegrityMount || IsRunningAsAdministrator()) &&
+                                 !isDriveLetter;
 
             Stream fileStream = OpenArchiveFileStream(archivePath);
 
             try
             {
                 DiagnosticLogger.Log("  Creating ZipFs instance...");
-                var volumeLabel = ZipFsHelpers.SanitizeVolumeLabel(ZipFsHelpers.GetArchiveFileNameWithoutExtension(archivePath));
+                var volumeLabel =
+                    ZipFsHelpers.SanitizeVolumeLabel(ZipFsHelpers.GetArchiveFileNameWithoutExtension(archivePath));
                 _currentZipFs = new ZipFs(
                     fileStream,
                     mountPoint,
@@ -708,12 +701,16 @@ public class MountService : IDisposable, IMountService
             var installedVersion = GetInstalledWinFspVersion();
             if (installedVersion != null)
             {
-                _loggingService.Log($"WinFsp Driver Version: {installedVersion.Major}.{installedVersion.Minor}.{installedVersion.Build}");
-                DiagnosticLogger.Log($"  Installed WinFsp version: {installedVersion}, Required: {RequiredWinFspVersion}");
+                _loggingService.Log(
+                    $"WinFsp Driver Version: {installedVersion.Major}.{installedVersion.Minor}.{installedVersion.Build}");
+                DiagnosticLogger.Log(
+                    $"  Installed WinFsp version: {installedVersion}, Required: {RequiredWinFspVersion}");
                 if (installedVersion < RequiredWinFspVersion)
                 {
-                    _loggingService.LogError($"WinFsp version mismatch: installed {installedVersion.Major}.{installedVersion.Minor}, required {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor}. Mount blocked.");
-                    DiagnosticLogger.Log($"  Blocked mount: installed WinFsp version {installedVersion} < Required {RequiredWinFspVersion}.");
+                    _loggingService.LogError(
+                        $"WinFsp version mismatch: installed {installedVersion.Major}.{installedVersion.Minor}, required {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor}. Mount blocked.");
+                    DiagnosticLogger.Log(
+                        $"  Blocked mount: installed WinFsp version {installedVersion} < Required {RequiredWinFspVersion}.");
                     ShowWinFspVersionMismatchFailedDialog(installedVersion, RequiredWinFspVersion);
                     _currentZipFs?.Dispose();
                     _currentZipFs = null;
@@ -730,7 +727,9 @@ public class MountService : IDisposable, IMountService
             {
                 host = new FileSystemHost(_currentZipFs);
             }
-            catch (TypeInitializationException ex) when (ex.InnerException is TypeLoadException typeLoadEx && typeLoadEx.Message.Contains("incorrect dll version"))
+            catch (TypeInitializationException ex) when (ex.InnerException is TypeLoadException typeLoadEx &&
+                                                         typeLoadEx.Message.Contains("incorrect dll version",
+                                                             StringComparison.OrdinalIgnoreCase))
             {
                 DiagnosticLogger.Log(ex, "WinFsp DLL version mismatch detected during FileSystemHost creation");
                 _loggingService.LogError($"WinFsp DLL version mismatch: {typeLoadEx.Message}");
@@ -807,7 +806,8 @@ public class MountService : IDisposable, IMountService
                     var installed = GetInstalledWinFspVersion();
                     if (installed != null)
                     {
-                        _loggingService.LogError($"Mount failed: WinFsp version mismatch. Installed: {installed.Major}.{installed.Minor}, Required: {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor}.");
+                        _loggingService.LogError(
+                            $"Mount failed: WinFsp version mismatch. Installed: {installed.Major}.{installed.Minor}, Required: {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor}.");
                         ShowWinFspVersionMismatchFailedDialog(installed, RequiredWinFspVersion);
                     }
                     else
@@ -815,13 +815,16 @@ public class MountService : IDisposable, IMountService
                         var guessedInstalled = ExtractVersionFromMismatchMessage(detail);
                         if (guessedInstalled != null)
                         {
-                            _loggingService.LogError($"Mount failed: WinFsp version mismatch. Installed: ~{guessedInstalled.Major}.{guessedInstalled.Minor}, Required: {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor}.");
+                            _loggingService.LogError(
+                                $"Mount failed: WinFsp version mismatch. Installed: ~{guessedInstalled.Major}.{guessedInstalled.Minor}, Required: {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor}.");
                             ShowWinFspVersionMismatchFailedDialog(guessedInstalled, RequiredWinFspVersion);
                         }
                         else
                         {
-                            _loggingService.LogError($"Mount failed: WinFsp version mismatch. Please update WinFsp to version {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor} or later.");
-                            ShowWinFspMountFailedUpdateDialog($"WinFsp version mismatch. Please update to version {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor} or later.");
+                            _loggingService.LogError(
+                                $"Mount failed: WinFsp version mismatch. Please update WinFsp to version {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor} or later.");
+                            ShowWinFspMountFailedUpdateDialog(
+                                $"WinFsp version mismatch. Please update to version {RequiredWinFspVersion.Major}.{RequiredWinFspVersion.Minor} or later.");
                         }
                     }
                 }
@@ -832,7 +835,9 @@ public class MountService : IDisposable, IMountService
 
                 if (!IsVersionMismatchError(ex))
                 {
-                    ErrorLoggerStatic.ReportSilentException(ex, $"MountService.AttemptMountLifecycleAsync: Error mounting '{archivePath}' to '{mountPoint}'", true);
+                    ErrorLoggerStatic.ReportSilentException(ex,
+                        $"MountService.AttemptMountLifecycleAsync: Error mounting '{archivePath}' to '{mountPoint}'",
+                        true);
                 }
 
                 return false;
@@ -892,7 +897,9 @@ public class MountService : IDisposable, IMountService
         {
             DiagnosticLogger.Log(ex, "Mount error (drive/mount)");
             _loggingService.LogError($"Mount error: {ex.Message}");
-            ErrorLoggerStatic.ReportSilentException(ex, $"MountService.AttemptMountLifecycleAsync: Drive/mount error for '{archivePath}' to '{mountPoint}'", true);
+            ErrorLoggerStatic.ReportSilentException(ex,
+                $"MountService.AttemptMountLifecycleAsync: Drive/mount error for '{archivePath}' to '{mountPoint}'",
+                true);
             CurrentArchivePath = null;
             return false;
         }
@@ -900,7 +907,8 @@ public class MountService : IDisposable, IMountService
         {
             DiagnosticLogger.Log(ex, "Mount error (general)");
             _loggingService.LogError($"Mount error: {ex.Message}");
-            ErrorLoggerStatic.LogErrorSync(ex, $"MountService.AttemptMountLifecycleAsync: Error mounting archive '{archivePath}' to '{mountPoint}'");
+            ErrorLoggerStatic.LogErrorSync(ex,
+                $"MountService.AttemptMountLifecycleAsync: Error mounting archive '{archivePath}' to '{mountPoint}'");
             CurrentArchivePath = null;
             return false;
         }
@@ -915,10 +923,10 @@ public class MountService : IDisposable, IMountService
     }
 
     /// <summary>
-    /// Opens the archive file for reading. Uses <see cref="FileShare.ReadWrite"/> so mounting
-    /// succeeds even when another process currently holds the archive open (e.g. antivirus,
-    /// download managers, torrent clients), with a short retry loop for transient sharing
-    /// violations.
+    ///     Opens the archive file for reading. Uses <see cref="FileShare.ReadWrite" /> so mounting
+    ///     succeeds even when another process currently holds the archive open (e.g. antivirus,
+    ///     download managers, torrent clients), with a short retry loop for transient sharing
+    ///     violations.
     /// </summary>
     private static FileStream OpenArchiveFileStream(string archivePath)
     {

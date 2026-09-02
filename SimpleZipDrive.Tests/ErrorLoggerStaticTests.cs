@@ -67,7 +67,8 @@ public class ErrorLoggerStaticTests
     [Fact]
     public async Task LogErrorAsyncDelegatesToInstanceWithNullExceptionAsync()
     {
-        var thrownEx = await Record.ExceptionAsync(static () => ErrorLoggerStatic.LogErrorAsync(null, "test async null"));
+        var thrownEx =
+            await Record.ExceptionAsync(static () => ErrorLoggerStatic.LogErrorAsync(null, "test async null"));
 
         Assert.Null(thrownEx);
     }

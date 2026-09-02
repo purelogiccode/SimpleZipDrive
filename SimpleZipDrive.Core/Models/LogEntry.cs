@@ -1,7 +1,7 @@
 namespace SimpleZipDrive.Core.Models;
 
 /// <summary>
-/// Represents a single log message displayed in the application's log panel.
+///     Represents a single log message displayed in the application's log panel.
 /// </summary>
 public class LogEntry
 {

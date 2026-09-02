@@ -6,15 +6,23 @@ using SimpleZipDrive.Core;
 namespace SimpleZipDrive.Tests;
 
 /// <summary>
-/// Tests for the shared per-entry memory cache: one decompressed buffer per entry,
-/// shared across concurrent opens, kept warm after the last handle closes, and
-/// evicted (LRU) only when the total memory cache limit would be exceeded.
+///     Tests for the shared per-entry memory cache: one decompressed buffer per entry,
+///     shared across concurrent opens, kept warm after the last handle closes, and
+///     evicted (LRU) only when the total memory cache limit would be exceeded.
 /// </summary>
 public class ZipFileSystemCoreMemoryCacheTests : IDisposable
 {
     private const int EntrySize = 100_000;
 
     private readonly List<IDisposable> _disposables = [];
+
+    public void Dispose()
+    {
+        foreach (var disposable in _disposables) disposable.Dispose();
+
+        _disposables.Clear();
+        GC.SuppressFinalize(this);
+    }
 
     private ZipFileSystemCore CreateCore(Stream? stream = null, long maxMemory = ZipFileSystemCore.DefaultMaxMemorySize)
     {
@@ -45,7 +53,7 @@ public class ZipFileSystemCoreMemoryCacheTests : IDisposable
         var entry = zip.CreateEntry(name);
         using var writer = new BinaryWriter(entry.Open());
         var data = new byte[size];
-        new Random(name.GetHashCode()).NextBytes(data);
+        new Random(name.GetHashCode(StringComparison.OrdinalIgnoreCase)).NextBytes(data);
         writer.Write(data);
     }
 
@@ -198,16 +206,5 @@ public class ZipFileSystemCoreMemoryCacheTests : IDisposable
         // Late opens during/after shutdown must fail gracefully, never throw.
         var ex = Record.Exception(() => core.OpenEntryStream(entry, "/small.bin"));
         Assert.Null(ex);
-    }
-
-    public void Dispose()
-    {
-        foreach (var disposable in _disposables)
-        {
-            disposable.Dispose();
-        }
-
-        _disposables.Clear();
-        GC.SuppressFinalize(this);
     }
 }

@@ -8,6 +8,7 @@ using SharpCompress.Common;
 using SharpCompress.Writers;
 using SharpCompress.Writers.SevenZip;
 using SimpleZipDrive.Core;
+using SimpleZipDrive.Core.Models;
 using FileInfo = Fsp.Interop.FileInfo;
 using WinFspZipFs = SimpleZipDrive_WinFsp.ZipFs;
 
@@ -16,18 +17,24 @@ namespace SimpleZipDrive.Tests.WinFsp;
 [SuppressMessage("ReSharper", "NullableWarningSuppressionIsUsed")]
 public class WinFspZipFsTests : IDisposable
 {
-    private readonly MemoryStream _stream;
-    private readonly WinFspZipFs _zipFs;
-
     private const int StatusSuccess = 0;
     private const int StatusAccessDenied = unchecked((int)0xC0000022);
     private const int StatusObjectNameNotFound = unchecked((int)0xC0000034);
     private const int StatusUnsuccessful = unchecked((int)0xC0000001);
+    private readonly MemoryStream _stream;
+    private readonly WinFspZipFs _zipFs;
 
     public WinFspZipFsTests()
     {
         _stream = CreateZipStream();
         _zipFs = new WinFspZipFs(_stream, "M:\\", static (_, _) => { }, static () => null, "zip");
+    }
+
+    public void Dispose()
+    {
+        _zipFs.Dispose();
+        _stream.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private static MemoryStream CreateZipStream()
@@ -78,7 +85,8 @@ public class WinFspZipFsTests : IDisposable
     public void Constructor_UnsupportedArchiveType_ThrowsNotSupportedException()
     {
         using var ms = new MemoryStream();
-        Assert.Throws<NotSupportedException>(() => new WinFspZipFs(ms, "M:\\", static (_, _) => { }, static () => null, "iso"));
+        Assert.Throws<NotSupportedException>(() =>
+            new WinFspZipFs(ms, "M:\\", static (_, _) => { }, static () => null, "iso"));
     }
 
     [Fact]
@@ -111,7 +119,8 @@ public class WinFspZipFsTests : IDisposable
     [Fact]
     public void OpenOrCreateFile_ExistingFile_ReturnsSuccess()
     {
-        var result = InvokeOpenOrCreateFile("\\readme.txt", out var fileNode, out var fileDesc, out var fileInfo, out _);
+        var result =
+            InvokeOpenOrCreateFile("\\readme.txt", out var fileNode, out var fileDesc, out var fileInfo, out _);
 
         Assert.Equal(StatusSuccess, result);
         Assert.NotNull(fileNode);
@@ -261,7 +270,8 @@ public class WinFspZipFsTests : IDisposable
     [Fact]
     public void IsPasswordRequiredException_MessageContainsPassword_ReturnsTrue()
     {
-        var result = ZipFsHelpers.IsPasswordRequiredException(new InvalidOperationException("archive requires a password"));
+        var result =
+            ZipFsHelpers.IsPasswordRequiredException(new InvalidOperationException("archive requires a password"));
 
         Assert.True(result);
     }
@@ -302,13 +312,6 @@ public class WinFspZipFsTests : IDisposable
         var result = ZipFsHelpers.IsDataErrorException(new TestDataErrorException("some message"));
 
         Assert.True(result);
-    }
-
-    private class TestDataErrorException : Exception
-    {
-        public TestDataErrorException(string message) : base(message)
-        {
-        }
     }
 
     // ─── IsPathLengthValid tests ───
@@ -516,7 +519,7 @@ public class WinFspZipFsTests : IDisposable
         IArchiveEntry? fileEntry = null;
         foreach (var kvp in entries)
         {
-            if (kvp.Key.Contains("readme.txt"))
+            if (kvp.Key.Contains("readme.txt", StringComparison.OrdinalIgnoreCase))
             {
                 fileEntry = kvp.Value;
                 break;
@@ -610,10 +613,7 @@ public class WinFspZipFsTests : IDisposable
         foreach (var b in data)
         {
             crc ^= b;
-            for (var j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
-            }
+            for (var j = 0; j < 8; j++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
         }
 
         return ~crc;
@@ -648,7 +648,8 @@ public class WinFspZipFsTests : IDisposable
         var entries = zipFs.Core.ArchiveEntries;
         Assert.NotNull(entries);
 
-        var storedKey = entries.Keys.FirstOrDefault(static k => k.Contains("stored.txt"));
+        var storedKey =
+            entries.Keys.FirstOrDefault(static k => k.Contains("stored.txt", StringComparison.OrdinalIgnoreCase));
         Assert.NotNull(storedKey);
 
         var result = zipFs.Core.IsStoredEntry(entries[storedKey]);
@@ -664,7 +665,8 @@ public class WinFspZipFsTests : IDisposable
         var entries = zipFs.Core.ArchiveEntries;
         Assert.NotNull(entries);
 
-        var readmeKey = entries.Keys.FirstOrDefault(static k => k.Contains("readme.txt"));
+        var readmeKey =
+            entries.Keys.FirstOrDefault(static k => k.Contains("readme.txt", StringComparison.OrdinalIgnoreCase));
         Assert.NotNull(readmeKey);
 
         var result = zipFs.Core.IsStoredEntry(entries[readmeKey]);
@@ -923,13 +925,11 @@ public class WinFspZipFsTests : IDisposable
         object context = null!;
         var names = new List<string>();
         while (_zipFs.ReadDirectoryEntry(fileNode, null!, "*", "", ref context, out var fileName, out _))
-        {
             names.Add(fileName);
-        }
 
-        Assert.Contains("readme.txt", names);
-        Assert.Contains("data", names);
-        Assert.Contains("empty", names);
+        Assert.Contains("readme.txt", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("data", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("empty", names, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -940,14 +940,12 @@ public class WinFspZipFsTests : IDisposable
         object context = null!;
         var names = new List<string>();
         while (_zipFs.ReadDirectoryEntry(fileNode, null!, "*", "", ref context, out var fileName, out _))
-        {
             names.Add(fileName);
-        }
 
         Assert.Equal(3, names.Count);
-        Assert.Contains(".", names);
-        Assert.Contains("..", names);
-        Assert.Contains("info.txt", names);
+        Assert.Contains(".", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("..", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("info.txt", names, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -958,13 +956,11 @@ public class WinFspZipFsTests : IDisposable
         object context = null!;
         var names = new List<string>();
         while (_zipFs.ReadDirectoryEntry(fileNode, null!, "*", "", ref context, out var fileName, out _))
-        {
             names.Add(fileName);
-        }
 
-        Assert.Contains("readme.txt", names);
-        Assert.Contains("data", names);
-        Assert.Contains("empty", names);
+        Assert.Contains("readme.txt", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("data", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("empty", names, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -975,14 +971,12 @@ public class WinFspZipFsTests : IDisposable
         object context = null!;
         var names = new List<string>();
         while (_zipFs.ReadDirectoryEntry(fileNode, null!, "*.xyz", "", ref context, out var fileName, out _))
-        {
             names.Add(fileName);
-        }
 
-        Assert.Contains(".", names);
-        Assert.Contains("..", names);
-        Assert.DoesNotContain("readme.txt", names);
-        Assert.DoesNotContain("data", names);
+        Assert.Contains(".", names, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("..", names, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("readme.txt", names, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("data", names, StringComparer.OrdinalIgnoreCase);
     }
 
     // ─── ResolveSpecialPaths tests ───
@@ -1122,10 +1116,18 @@ public class WinFspZipFsTests : IDisposable
         Assert.Equal(StatusSuccess, result);
     }
 
-    public void Dispose()
+    private class TestDataErrorException : Exception
     {
-        _zipFs.Dispose();
-        _stream.Dispose();
-        GC.SuppressFinalize(this);
+        public TestDataErrorException(string message) : base(message)
+        {
+        }
+
+        public TestDataErrorException()
+        {
+        }
+
+        public TestDataErrorException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
     }
 }

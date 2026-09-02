@@ -1,19 +1,20 @@
 using System.Runtime.InteropServices;
+using SharpSevenZip;
 
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-/// Fallback archive extractor using SharpSevenZip (native 7z.dll).
-/// Used when SharpCompress fails to extract an entry.
+///     Fallback archive extractor using SharpSevenZip (native 7z.dll).
+///     Used when SharpCompress fails to extract an entry.
 /// </summary>
 internal sealed class SevenZipFallback : IDisposable
 {
     private readonly string _archivePath;
+    private readonly Lock _lock = new();
     private readonly Func<string?> _passwordProvider;
-    private readonly object _lock = new();
-    private SharpSevenZip.SharpSevenZipExtractor? _extractor;
-    private Dictionary<string, int>? _entryIndexMap;
     private bool _disposed;
+    private Dictionary<string, int>? _entryIndexMap;
+    private SharpSevenZipExtractor? _extractor;
 
     public SevenZipFallback(string archivePath, Func<string?> passwordProvider)
     {
@@ -21,9 +22,22 @@ internal sealed class SevenZipFallback : IDisposable
         _passwordProvider = passwordProvider;
     }
 
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            lock (_lock)
+            {
+                _extractor?.Dispose();
+                _extractor = null;
+            }
+        }
+    }
+
     /// <summary>
-    /// Tries to extract an entry by its normalized path to the output stream.
-    /// Returns true if extraction succeeded, false otherwise.
+    ///     Tries to extract an entry by its normalized path to the output stream.
+    ///     Returns true if extraction succeeded, false otherwise.
     /// </summary>
     public bool TryExtractEntry(string normalizedPath, Stream outputStream)
     {
@@ -103,8 +117,8 @@ internal sealed class SevenZipFallback : IDisposable
 
                 var password = _passwordProvider();
                 _extractor = string.IsNullOrEmpty(password)
-                    ? new SharpSevenZip.SharpSevenZipExtractor(_archivePath)
-                    : new SharpSevenZip.SharpSevenZipExtractor(_archivePath, password);
+                    ? new SharpSevenZipExtractor(_archivePath)
+                    : new SharpSevenZipExtractor(_archivePath, password);
 
                 var entries = _extractor.ArchiveFileData;
                 _entryIndexMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -112,9 +126,7 @@ internal sealed class SevenZipFallback : IDisposable
                 foreach (var entry in entries)
                 {
                     if (!entry.IsDirectory && !string.IsNullOrEmpty(entry.FileName))
-                    {
                         _entryIndexMap[entry.FileName] = entry.Index;
-                    }
                 }
             }
             catch
@@ -136,7 +148,7 @@ internal sealed class SevenZipFallback : IDisposable
             if (!File.Exists(dllPath))
                 return false;
 
-            SharpSevenZip.SharpSevenZipBase.SetLibraryPath(dllPath);
+            SharpSevenZipBase.SetLibraryPath(dllPath);
             return true;
         }
         catch
@@ -146,7 +158,7 @@ internal sealed class SevenZipFallback : IDisposable
     }
 
     /// <summary>
-    /// Returns true if the 7z.dll is available in the application directory.
+    ///     Returns true if the 7z.dll is available in the application directory.
     /// </summary>
     public static bool IsAvailable()
     {
@@ -160,19 +172,6 @@ internal sealed class SevenZipFallback : IDisposable
         catch
         {
             return false;
-        }
-    }
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _disposed = true;
-            lock (_lock)
-            {
-                _extractor?.Dispose();
-                _extractor = null;
-            }
         }
     }
 }
