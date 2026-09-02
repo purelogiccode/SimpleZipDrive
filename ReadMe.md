@@ -16,6 +16,8 @@ Unlike traditional archive utilities that extract the entire archive to a tempor
 
 ![Screenshot](screenshot.png)
 
+> **📖 Documentation:** Full documentation lives in the [repository wiki](https://github.com/purelogiccode/SimpleZipDrive/wiki) and on the [documentation site](https://purelogiccode.github.io/SimpleZipDrive/) (source in [`docs/`](docs/)) - installation guides, usage, architecture, troubleshooting, and more.
+
 ---
 
 ## 🚀 Key Features

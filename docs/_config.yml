@@ -1,0 +1,29 @@
+title: SimpleZipDrive
+description: Mount ZIP, 7Z, RAR and TAR archives as virtual Windows drives
+theme: just-the-docs
+url: https://purelogiccode.github.io
+baseurl: /SimpleZipDrive
+
+color_scheme: light
+search_enabled: true
+search_tokenizer_separator: /[\s/]+/
+
+heading_anchors: true
+back_to_top: true
+back_to_top_text: "Back to top"
+
+mermaid: true
+
+aux_links:
+  "SimpleZipDrive on GitHub":
+    - "https://github.com/purelogiccode/SimpleZipDrive"
+aux_links_new_tab: true
+
+footer_content: "SimpleZipDrive is open source under the <a href=\"https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt\">GPL v3 license</a>."
+
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/purelogiccode/SimpleZipDrive"
+gh_edit_branch: master
+gh_edit_source: docs
+gh_edit_view_mode: tree
