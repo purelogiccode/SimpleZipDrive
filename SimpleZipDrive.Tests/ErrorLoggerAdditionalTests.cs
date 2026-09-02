@@ -323,14 +323,14 @@ public class ErrorLoggerAdditionalTests
     // ─── IsUserError: HttpRequestException without canceled inner ───
 
     [Fact]
-    public void IsUserError_HttpRequestExceptionWithoutCanceledInner_ReturnsTrue()
+    public void IsUserError_HttpRequestExceptionWithoutCanceledInner_ReturnsFalse()
     {
-        // Network failures (offline, DNS failures, refused connections) are environmental
-        // conditions, not application bugs - e.g. the update check on machines without
-        // internet access must not flood the bug report API.
+        // Only canceled HTTP requests are treated as user errors; other network failures may be
+        // real application errors and must stay reportable. The update check handles its own
+        // network noise quietly before this filter is ever consulted.
         var ex = new HttpRequestException("request failed", new InvalidOperationException("server error"));
         var result = ErrorLogger.IsUserError(ex);
-        Assert.True(result);
+        Assert.False(result);
     }
 
     // ─── IsUserError: expected environment conditions (WinFsp / Dokan) are not bugs ───
@@ -375,11 +375,20 @@ public class ErrorLoggerAdditionalTests
     }
 
     [Fact]
-    public void IsUserError_CryptographicException_ReturnsTrue()
+    public void IsUserError_CryptographicExceptionFromSharpCompress_ReturnsTrue()
     {
-        // In this application CryptographicException comes from archive decryption failures
-        var result = ErrorLogger.IsUserError(new CryptographicException("The password did not match."));
-        Assert.True(result);
+        // CryptographicException thrown inside SharpCompress means wrong password / encrypted data
+        var ex = new CryptographicException("The password did not match.") { Source = "SharpCompress" };
+        Assert.True(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_CryptographicExceptionFromOtherSource_ReturnsFalse()
+    {
+        // A CryptographicException unrelated to archive decryption may be a real application bug
+        // (e.g. protected-data misuse) and must stay reportable.
+        var ex = new CryptographicException("Key not valid for use in specified state.");
+        Assert.False(ErrorLogger.IsUserError(ex));
     }
 
     [Fact]

@@ -245,10 +245,10 @@ public static class ZipFsHelpers
     internal static bool IsPasswordRequiredException(Exception ex)
     {
         var message = ex.Message.ToLowerInvariant();
+        // Deliberately no ("rar" AND "header") clause: SharpCompress reports corrupt archives as
+        // "Unknown Rar Header", which must be classified as corruption, not a password prompt.
         return message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("encrypted", StringComparison.OrdinalIgnoreCase) ||
-               (message.Contains("rar", StringComparison.OrdinalIgnoreCase) &&
-                message.Contains("header", StringComparison.OrdinalIgnoreCase));
+               message.Contains("encrypted", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static bool IsDataErrorException(Exception ex)

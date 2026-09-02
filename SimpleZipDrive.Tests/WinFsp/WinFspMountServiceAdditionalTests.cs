@@ -270,8 +270,11 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [InlineData("M:", true)]
     [InlineData("Z:", true)]
     [InlineData("m:", true)]
-    [InlineData("C:\\", true)]
-    [InlineData("M", false)]
+    [InlineData("M", true)] // bare letter is normalized to "M:" by MountWithSpecifiedPointAsync
+    // Full paths (including drive roots) are folder mounts, not drive letters - otherwise the
+    // mount-point directory is never created and cross-integrity folder mounts fail (0xC0000034)
+    [InlineData("C:\\", false)]
+    [InlineData(@"C:\Users\Test\Mounts\Archive", false)]
     [InlineData("", false)]
     [InlineData("1:", false)]
     [InlineData("path/to/dir", false)]

@@ -674,7 +674,7 @@ public class MountService : IDisposable, IMountService
             var crossIntegrity = (_settingsService.Settings.CrossIntegrityMount || IsRunningAsAdministrator()) &&
                                  !isDriveLetter;
 
-            Stream fileStream = OpenArchiveFileStream(archivePath);
+            Stream fileStream = await OpenArchiveFileStreamAsync(archivePath);
 
             try
             {
@@ -916,10 +916,18 @@ public class MountService : IDisposable, IMountService
 
     private static bool IsDriveLetterMountPoint(string mountPoint)
     {
-        if (mountPoint.Length < 2) return false;
-        if (!char.IsLetter(mountPoint[0])) return false;
+        // Only a bare "M" or "M:" is a drive letter. A full path such as
+        // "C:\Users\...\Mounts\Archive" also has ':' at index 1 and must NOT be
+        // classified as a drive letter, otherwise the mount-point directory is
+        // never created and cross-integrity folder mounts fail with 0xC0000034.
+        if (string.IsNullOrEmpty(mountPoint)) return false;
 
-        return mountPoint[1] == ':';
+        return mountPoint.Length switch
+        {
+            1 => char.IsLetter(mountPoint[0]),
+            2 => char.IsLetter(mountPoint[0]) && mountPoint[1] == ':',
+            _ => false
+        };
     }
 
     /// <summary>
@@ -928,7 +936,7 @@ public class MountService : IDisposable, IMountService
     ///     download managers, torrent clients), with a short retry loop for transient sharing
     ///     violations.
     /// </summary>
-    private static FileStream OpenArchiveFileStream(string archivePath)
+    private static async Task<FileStream> OpenArchiveFileStreamAsync(string archivePath)
     {
         const int maxAttempts = 3;
 
@@ -940,7 +948,9 @@ public class MountService : IDisposable, IMountService
             }
             catch (IOException) when (attempt < maxAttempts)
             {
-                Thread.Sleep(500 * attempt);
+                // Backoff before retrying a transiently locked file; awaited so the UI thread
+                // stays responsive while waiting.
+                await Task.Delay(500 * attempt);
             }
         }
     }

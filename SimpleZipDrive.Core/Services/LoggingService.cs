@@ -95,7 +95,7 @@ public class LoggingService : ILoggingService
         if (LogEntries.Count > 0)
         {
             var lastEntry = LogEntries[^1];
-            if (string.Equals(lastEntry.Message, entry.Message, StringComparison.OrdinalIgnoreCase) &&
+            if (string.Equals(lastEntry.Message, entry.Message, StringComparison.Ordinal) &&
                 (entry.Timestamp - lastEntry.Timestamp).TotalMilliseconds < 100)
             {
                 return;

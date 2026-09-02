@@ -5,8 +5,8 @@
         <UseWPF>true</UseWPF>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>2.8.0</AssemblyVersion>
-        <FileVersion>2.8.0</FileVersion>
+        <AssemblyVersion>2.9.0</AssemblyVersion>
+        <FileVersion>2.9.0</FileVersion>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <DebugType>embedded</DebugType>
@@ -15,12 +15,26 @@
         <IsPackable>false</IsPackable>
         <Company>PureLogicCode.com</Company>
         <NeutralLanguage>en</NeutralLanguage>
-        <!-- Single-file publish settings -->
+        <!-- Single-file publish settings. The native 7z.dll / 7z_arm64.dll fallback libraries
+             must stay as real files beside the executable: SevenZipFallback probes
+             AppContext.BaseDirectory for them, so they must not be bundled into the exe. -->
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>true</SelfContained>
-        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-        <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     </PropertyGroup>
+
+    <Target Name="KeepWinFspInteropOutOfBundle" BeforeTargets="_ComputeFilesToBundle">
+        <!-- winfsp-msil's static initializer (Fsp.Interop.Api.CheckVersion) calls
+             FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location), and
+             Assembly.Location is an empty string for assemblies bundled inside a single-file
+             executable (Path.GetFullPath("") throws, killing every mount with
+             "The path is empty. (Parameter 'path')"). Shipping winfsp-msil.dll as a real file
+             beside the exe keeps the interop version check functional. -->
+        <ItemGroup>
+            <ResolvedFileToPublish Update="@(ResolvedFileToPublish)"
+                                   Condition="'%(ResolvedFileToPublish.Filename)%(ResolvedFileToPublish.Extension)' == 'winfsp-msil.dll'"
+                                   ExcludeFromSingleFile="true" />
+        </ItemGroup>
+    </Target>
     <ItemGroup>
         <InternalsVisibleTo Include="SimpleZipDrive.Tests" />
     </ItemGroup>

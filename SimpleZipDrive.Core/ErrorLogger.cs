@@ -383,11 +383,17 @@ public class ErrorLogger : IDisposable
         {
             // File-related exceptions are typically user errors (file not found, access denied, etc.)
             case FileNotFoundException or DirectoryNotFoundException or UnauthorizedAccessException or IOException:
-            // Network failures (offline, DNS failures, refused connections) are environmental,
-            // not application bugs - e.g. the update check on machines without internet access.
-            case HttpRequestException:
-            // Archive decryption failures are user errors (wrong password, encrypted data).
-            case CryptographicException:
+            // A canceled HTTP request (e.g. shutdown racing the update check) is expected and not a
+            // bug. Other HttpRequestExceptions may be real application errors and stay reportable -
+            // the update check handles its own network noise quietly before reaching this point.
+            case HttpRequestException
+                when ex.InnerException is OperationCanceledException or TaskCanceledException:
+            // Archive decryption failures (wrong password, encrypted data) originate from
+            // SharpCompress. A CryptographicException from any other source may be a real
+            // application bug (e.g. protected-data misuse) and must stay reportable.
+            case CryptographicException
+                when ex.Source?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true ||
+                     ex.StackTrace?.Contains("SharpCompress", StringComparison.OrdinalIgnoreCase) == true:
             // Binary/architecture mismatches (e.g. x64 native DLL loaded in an ARM64 process)
             // are environment problems, not application bugs.
             case BadImageFormatException:

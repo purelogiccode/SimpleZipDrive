@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -6,8 +6,8 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <Company>PureLogicCode.com</Company>
-    <AssemblyVersion>2.8.0</AssemblyVersion>
-    <FileVersion>2.8.0</FileVersion>
+    <AssemblyVersion>2.9.0</AssemblyVersion>
+    <FileVersion>2.9.0</FileVersion>
     <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 

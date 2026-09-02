@@ -190,7 +190,7 @@ public class MountService : IDisposable, IMountService
     ///     download managers, torrent clients), with a short retry loop for transient sharing
     ///     violations.
     /// </summary>
-    private static FileStream OpenArchiveFileStream(string archivePath)
+    private static async Task<FileStream> OpenArchiveFileStreamAsync(string archivePath)
     {
         const int maxAttempts = 3;
 
@@ -202,7 +202,9 @@ public class MountService : IDisposable, IMountService
             }
             catch (IOException) when (attempt < maxAttempts)
             {
-                Thread.Sleep(500 * attempt);
+                // Backoff before retrying a transiently locked file; awaited so the UI thread
+                // stays responsive while waiting.
+                await Task.Delay(500 * attempt);
             }
         }
     }
@@ -386,7 +388,7 @@ public class MountService : IDisposable, IMountService
                 $"RAM cache limit: {effectiveMaxMemoryMb:F0} MB (Available system memory: {availableMemoryMb:F0} MB)");
             _loggingService.Log("");
 
-            Stream fileStream = OpenArchiveFileStream(archivePath);
+            Stream fileStream = await OpenArchiveFileStreamAsync(archivePath);
 
             try
             {

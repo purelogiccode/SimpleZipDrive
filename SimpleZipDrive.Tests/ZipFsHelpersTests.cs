@@ -332,6 +332,8 @@ public class ZipFsHelpersTests
     [InlineData("ENCRYPTED archive", true)]
     [InlineData("rar header encrypted", true)]
     [InlineData("RAR HEADER IS ENCRYPTED", true)]
+    // Corrupt-archive symptom must NOT be classified as a password problem (issue #10 review)
+    [InlineData("Unknown Rar Header: 0", false)]
     [InlineData("some other error", false)]
     [InlineData("file corrupted", false)]
     public void IsPasswordRequiredException_VariousMessages_ReturnsExpected(string message, bool expected)
