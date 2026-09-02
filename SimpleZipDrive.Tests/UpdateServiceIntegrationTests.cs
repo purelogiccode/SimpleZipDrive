@@ -250,7 +250,7 @@ public class UpdateServiceIntegrationTests
 
         // Assert
         Assert.False(_fakeNotificationService.ShowUpdateAvailableCalled);
-        Assert.Equal(1, handler.RequestedUrls.Count);
+        Assert.Single(handler.RequestedUrls);
     }
 
     [Fact]
