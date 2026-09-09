@@ -1121,13 +1121,5 @@ public class WinFspZipFsTests : IDisposable
         public TestDataErrorException(string message) : base(message)
         {
         }
-
-        public TestDataErrorException()
-        {
-        }
-
-        public TestDataErrorException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
     }
 }

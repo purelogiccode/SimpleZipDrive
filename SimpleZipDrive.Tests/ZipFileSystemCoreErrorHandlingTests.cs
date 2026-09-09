@@ -203,7 +203,7 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
     [Fact]
     public void ReadStream_SeekableStream_PartialReadAtBoundary()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var data = new byte[] { 1, 2, 3, 4, 5 };
         using var ms = new MemoryStream(data);
@@ -222,7 +222,7 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
     [Fact]
     public void ReadStream_NonSeekableStream_MultipleSequentialReads()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var data = new byte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
         using var ms = new NonSeekableStream(data);
@@ -257,7 +257,7 @@ public class ZipFileSystemCoreErrorHandlingTests : IDisposable
     [InlineData(@"\data\info.txt", "/data/info.txt")]
     public void TryResolvePath_VariousInputs_ResolvesCorrectly(string input, string expected)
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var result = ZipFileSystemCore.TryResolvePath(input, out var normalized);
 

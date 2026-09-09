@@ -15,6 +15,17 @@ namespace SimpleZipDrive.Services;
 public class MountService : IDisposable, IMountService
 {
     private static bool _dokanArchitectureMismatch;
+
+    /// <summary>
+    ///     Minimum dokan2.dll library version required by DokanNet 2.3.0, which is the first
+    ///     native release exporting <c>DokanRegisterWaitForFileSystemClosed</c>. Older Dokan
+    ///     installations (2.2.x and earlier) still pass the <see cref="IsDokanInstalled" />
+    ///     probe, but crash the process inside DokanNet with an uncatchable
+    ///     <see cref="EntryPointNotFoundException" /> as soon as a file system instance is
+    ///     created, so mounting must be refused up front.
+    /// </summary>
+    private const uint MinimumDokanLibraryVersion = 230;
+
     private readonly ILoggingService _loggingService;
     private readonly ISettingsService _settingsService;
     private ZipFs? _currentZipFs;
@@ -99,6 +110,15 @@ public class MountService : IDisposable, IMountService
         {
             _loggingService.LogError("Dokan driver not found. Unable to mount archive.");
             ShowDokanNotInstalledDialog();
+            return Task.CompletedTask;
+        }
+
+        if (!IsDokanLibraryVersionSupported(out var dokanLibraryVersion))
+        {
+            _loggingService.LogError(
+                $"Dokan driver is outdated (found version {FormatDokanVersion(dokanLibraryVersion)}, " +
+                $"minimum required is {FormatDokanVersion(MinimumDokanLibraryVersion)}). Unable to mount archive.");
+            ShowDokanOutdatedDialog(dokanLibraryVersion);
             return Task.CompletedTask;
         }
 
@@ -230,6 +250,58 @@ public class MountService : IDisposable, IMountService
             // actionable guidance instead of an unhandled BadImageFormatException.
             _dokanArchitectureMismatch = true;
             return false;
+        }
+    }
+
+    private static bool IsDokanLibraryVersionSupported(out uint version)
+    {
+        version = 0;
+        try
+        {
+            version = DokanVersion();
+            return version >= MinimumDokanLibraryVersion;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        catch (BadImageFormatException)
+        {
+            _dokanArchitectureMismatch = true;
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     Formats a Dokan version number (e.g. 230) as a dotted version string ("2.3.0").
+    /// </summary>
+    private static string FormatDokanVersion(uint version)
+    {
+        return $"{version / 100}.{version % 100 / 10}.{version % 10}";
+    }
+
+    private static void ShowDokanOutdatedDialog(uint foundVersion)
+    {
+        var message = "The installed Dokan file system driver (dokan2.dll) is too old for this application.\n\n" +
+                      $"Installed version: {FormatDokanVersion(foundVersion)}\n" +
+                      $"Required version : {FormatDokanVersion(MinimumDokanLibraryVersion)} or newer\n\n" +
+                      "Please update to the latest Dokan release and try again.\n\n" +
+                      "Would you like to open the Dokan download page?";
+
+        var result = MessageBox.Show(message, "Dokan Driver Outdated",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/dokan-dev/dokany/releases",
+                UseShellExecute = true
+            });
         }
     }
 

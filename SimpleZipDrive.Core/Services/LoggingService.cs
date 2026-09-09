@@ -73,12 +73,12 @@ public class LoggingService : ILoggingService
         if (dispatcher?.CheckAccess() == false)
         {
             _ = dispatcher.BeginInvoke(() =>
-                    {
-                        lock (_lock)
-                        {
-                            AddEntryCore(entry);
-                        }
-                    }, DispatcherPriority.Normal);
+            {
+                lock (_lock)
+                {
+                    AddEntryCore(entry);
+                }
+            }, DispatcherPriority.Normal);
         }
         else
         {

@@ -295,7 +295,7 @@ public class ZipFileSystemCoreTests : IDisposable
     [Fact]
     public void TryResolvePath_NormalPath_ReturnsNormalized()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var result = ZipFileSystemCore.TryResolvePath(@"\data\info.txt", out var normalized);
 
@@ -306,7 +306,7 @@ public class ZipFileSystemCoreTests : IDisposable
     [Fact]
     public void TryResolvePath_SpecialPaths_Resolves()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var result = ZipFileSystemCore.TryResolvePath("/data/../readme.txt", out var normalized);
 
@@ -396,7 +396,7 @@ public class ZipFileSystemCoreTests : IDisposable
     [Fact]
     public void ReadStream_SeekableStream_ReadsAtOffset()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var ms = new MemoryStream(data);
@@ -413,7 +413,7 @@ public class ZipFileSystemCoreTests : IDisposable
     [Fact]
     public void ReadStream_SeekableStream_BeyondLength_ReturnsZero()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var data = new byte[] { 10, 20, 30 };
         using var ms = new MemoryStream(data);
@@ -427,7 +427,7 @@ public class ZipFileSystemCoreTests : IDisposable
     [Fact]
     public void ReadStream_NonSeekableStream_SequentialRead()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var ms = new NonSeekableStream(data);
@@ -444,7 +444,7 @@ public class ZipFileSystemCoreTests : IDisposable
     [Fact]
     public void ReadStream_NonSeekableStream_NonSequentialOffset_Throws()
     {
-        var core = CreateCore();
+        _ = CreateCore();
 
         var data = new byte[] { 10, 20, 30, 40, 50 };
         using var ms = new NonSeekableStream(data);
