@@ -20,6 +20,7 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 | *"WinFsp driver service is not running. Please start the WinFsp.Launcher service."* | `WinFsp.Launcher` service stopped | `sc start WinFsp.Launcher` (admin) or restart via `services.msc` |
 | *"WinFsp version mismatch: installed x.y, required 2.1. Mount blocked."* | WinFsp older than 2.1, or interop/driver mismatch | Upgrade WinFsp to ≥ 2.1 stable. 2.2.x betas are fine |
 | *"WinFsp native DLL could not be loaded"* | Native driver DLL unreadable | Reinstall WinFsp; check that no AV quarantined `winfsp-x64.dll` |
+| *"Missing Application File"* — `winfsp-msil.dll` not found beside the exe | The interop library was removed (typically by antivirus) or the package was extracted incompletely | Restore `winfsp-msil.dll` next to the executable: re-download the complete package, extract **all** files into the same folder, and add an AV exclusion for the file if it keeps disappearing |
 
 ## Mount-point problems
 

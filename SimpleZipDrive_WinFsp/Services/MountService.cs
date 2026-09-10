@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -101,6 +102,15 @@ public class MountService : IDisposable, IMountService
             return Task.CompletedTask;
         }
 
+        if (!IsWinFspInteropAssemblyAvailable())
+        {
+            _loggingService.LogError(
+                "The WinFsp interop library (winfsp-msil.dll) is missing beside the executable. Unable to mount archive.");
+            DiagnosticLogger.Log("WinFsp interop pre-check failed: winfsp-msil.dll could not be loaded.");
+            ShowWinFspInteropMissingDialog();
+            return Task.CompletedTask;
+        }
+
         CurrentArchivePath = archivePath;
 
         var crossIntegrity = _settingsService.Settings.CrossIntegrityMount;
@@ -193,6 +203,27 @@ public class MountService : IDisposable, IMountService
         // Verify the native DLL can actually be loaded. This guards against stale PATH entries
         // and corrupted installations that would otherwise report WinFsp as installed.
         return TryLoadWinFspNativeDll();
+    }
+
+    private static bool IsWinFspInteropAssemblyAvailable()
+    {
+        try
+        {
+            Assembly.Load("winfsp-msil");
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (FileLoadException)
+        {
+            return false;
+        }
+        catch (BadImageFormatException)
+        {
+            return false;
+        }
     }
 
     private static bool IsWinFspDriverRunning()
@@ -444,6 +475,19 @@ public class MountService : IDisposable, IMountService
                 UseShellExecute = true
             });
         }
+    }
+
+    private static void ShowWinFspInteropMissingDialog()
+    {
+        const string message = "The required WinFsp interop library (winfsp-msil.dll) was not found beside the " +
+                               "executable.\n\n" +
+                               "This file ships with SimpleZipDrive and is usually removed by antivirus software or " +
+                               "an incomplete extraction of the downloaded archive.\n\n" +
+                               "Please re-download the complete SimpleZipDrive package, extract all files into the " +
+                               "same folder, and if needed add an exclusion for winfsp-msil.dll in your antivirus.";
+
+        MessageBox.Show(message, "Missing Application File",
+            MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     private static void ShowWinFspDriverErrorDialog(string errorMessage)

@@ -6,8 +6,8 @@
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <Company>PureLogicCode.com</Company>
-        <AssemblyVersion>2.9.0</AssemblyVersion>
-        <FileVersion>2.9.0</FileVersion>
+        <AssemblyVersion>2.9.1</AssemblyVersion>
+        <FileVersion>2.9.1</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
     </PropertyGroup>
 
@@ -20,7 +20,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
         <PackageReference Include="Roslynator.Analyzers" Version="5.0.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

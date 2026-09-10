@@ -341,6 +341,8 @@ public class ErrorLoggerAdditionalTests
     [InlineData("WinFsp mount error: incorrect dll version (need 2.2, have 2.1)")]
     [InlineData("WinFsp driver service is not running. Please start the WinFsp.Launcher service.")]
     [InlineData("WinFsp native DLL could not be loaded. The DLL may be missing.")]
+    [InlineData(
+        @"Error: Failed to mount 'D:\Games\game.rar'. Could not load file or assembly 'winfsp-msil, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b099876d8fa9b1f3'.")]
     [InlineData("WinFsp mount failed with status 0xC0000035: Mount failed with status 0xC0000035.")]
     [InlineData("The WinFsp driver was not found or is not running. Please install or start the WinFsp service.")]
     [InlineData("Dokan driver not found. Unable to mount archive.")]

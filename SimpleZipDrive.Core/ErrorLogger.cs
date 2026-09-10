@@ -485,6 +485,10 @@ public class ErrorLogger : IDisposable
              messageLower.Contains("not running", StringComparison.OrdinalIgnoreCase)) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("could not be loaded", StringComparison.OrdinalIgnoreCase)) ||
+            // Assembly-load failure of the WinFsp interop (winfsp-msil.dll missing beside the
+            // executable, e.g. removed by antivirus) — an environment issue with its own dialog.
+            (messageLower.Contains("could not load file or assembly", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("winfsp-msil", StringComparison.OrdinalIgnoreCase)) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("mount failed with status", StringComparison.OrdinalIgnoreCase) &&
              (messageLower.Contains("0xc0000035", StringComparison.OrdinalIgnoreCase) ||

@@ -197,6 +197,22 @@ public class WinFspMountServiceAdditionalTests : IDisposable
         Assert.True(eventRaised);
     }
 
+    // ─── IsWinFspInteropAssemblyAvailable via reflection ───
+
+    [Fact]
+    public void IsWinFspInteropAssemblyAvailable_LoadsInTestOutput()
+    {
+        var method = typeof(MountService).GetMethod("IsWinFspInteropAssemblyAvailable",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        var result = (bool)method.Invoke(null, null)!;
+
+        // winfsp-msil.dll flows into the test output via the WinFsp project reference,
+        // so the interop assembly must be loadable here. A false result would indicate
+        // the pre-mount guard misfires on a complete installation.
+        Assert.True(result);
+    }
+
     // ─── IsVersionMismatchError via reflection ───
 
     [Fact]
