@@ -48,8 +48,8 @@ Before running Simple Zip Drive, ensure your system meets the following requirem
 
 1.  **.NET 10.0 Runtime:** Download the latest [.NET Desktop Runtime](https://dotnet.microsoft.com/download).
 2.  **Filesystem Driver** (depends on which variant you use):
-    *   **For SimpleZipDrive (Dokan):** Download and install the latest `DokanSetup.exe` from the [Official Releases](https://github.com/dokan-dev/dokany/releases).
-    *   **For SimpleZipDrive_WinFsp:** Download and install [WinFsp](https://github.com/winfsp/winfsp/releases) **2.1 or later** (2.1 is the latest stable release; 2.2+ are beta versions).
+    *   **For SimpleZipDrive (Dokan):** Download and install `DokanSetup.exe` from the [Official Releases](https://github.com/dokan-dev/dokany/releases). **Dokan v2 2.3.0 or later is required** — older driver installs are refused with a *"Dokan Driver Outdated"* dialog.
+    *   **For SimpleZipDrive_WinFsp:** Download and install [WinFsp](https://github.com/winfsp/winfsp/releases) **2.1 or later** (2.1 is the latest stable release; 2.2+ are beta versions). Keep `winfsp-msil.dll` beside the executable — it ships with the app and is removed neither by you nor your antivirus without breaking mounts.
 
 ---
 
@@ -132,7 +132,9 @@ Press `F8` at any time to capture the active window. The image is saved as a PNG
 | Issue                             | Solution                                                                                                                      |
 |:----------------------------------|:------------------------------------------------------------------------------------------------------------------------------|
 | **Dokan Initialization Failed**   | Ensure the Dokan driver is installed and you have restarted your PC after installation. The app detects missing drivers and offers to open the download page automatically. |
+| **Dokan Driver Outdated**         | The installed Dokan driver is older than 2.3.0. Update Dokan from [GitHub](https://github.com/dokan-dev/dokany/releases); the app opens the download page for you if you confirm the dialog. |
 | **WinFsp Not Found**              | Install WinFsp from [GitHub](https://github.com/winfsp/winfsp/releases). The app detects missing drivers and offers to open the download page automatically. |
+| **Missing Application File (winfsp-msil.dll)** | Restore the file beside the executable: re-download the app package and extract **all** files into the same folder. If antivirus keeps removing it, add an exclusion for `winfsp-msil.dll`. |
 | **Drive Letter in Use**           | Specify a different drive letter via CLI or ensure letters M-Q are not mapped to network shares.                              |
 | **Out of Memory**                 | Occurs if too many large files are opened simultaneously. Close applications accessing the virtual drive to free up cache, or unmount the drive to release all cached memory.    |
 | **Archive File Error**            | Simple Zip Drive supports standard ZIP, 7Z, RAR, TAR, and compressed TAR formats (.tar.gz, .tar.bz2, .tar.xz), plus comic-book archives (.cbz, .cbr, .cb7). Other formats like `.gz` or `.bz2` (without tar) are not supported.        |

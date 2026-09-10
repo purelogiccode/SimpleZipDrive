@@ -26,7 +26,7 @@ Both variants are **framework-dependent** — the .NET runtime is *not* bundled:
 
 1. **[.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)** — install the x64 *or* ARM64 Desktop Runtime matching your OS architecture.
 2. **The filesystem driver** for your variant:
-   - **Dokan**: install the latest **Dokan v2** `DokanSetup.exe`. Verify afterwards that the Dokan *user-mode* library is present (`dokan2.dll` is loaded from the Dokan installation, not from the app folder).
+   - **Dokan**: install the latest **Dokan v2** `DokanSetup.exe` (**2.3.0 or newer is required** — older `dokan2.dll` versions are refused with a *"Dokan Driver Outdated"* dialog). Verify afterwards that the Dokan *user-mode* library is present (`dokan2.dll` is loaded from the Dokan installation, not from the app folder).
    - **WinFsp**: install **WinFsp 2.1 or newer** (2.2.x beta releases are also supported). Mounting is blocked if an older version is detected. The `WinFsp.Launcher` service must be running — it is installed and started automatically by the WinFsp installer.
 
 Administrator rights are **not** required to run SimpleZipDrive (see [Security & Privacy](security#uac-and-elevation)).

@@ -32,7 +32,7 @@ SimpleZipDrive ships as two separate executables that share the same core engine
 
 | | **SimpleZipDrive** (Dokan variant) | **SimpleZipDrive_WinFsp** (WinFsp variant) |
 |---|---|---|
-| Filesystem driver | [Dokan v2](https://github.com/dokan-dev/dokany) | [WinFsp ≥ 2.1](https://github.com/winfsp/winfsp) |
+| Filesystem driver | [Dokan v2 ≥ 2.3](https://github.com/dokan-dev/dokany) | [WinFsp ≥ 2.1](https://github.com/winfsp/winfsp) |
 | Executable | `SimpleZipDrive.exe` | `SimpleZipDrive_WinFsp.exe` |
 | Drive-letter mounts | ✔ | ✔ |
 | Folder mounts | ✔ | ✔ |
@@ -76,6 +76,6 @@ See [Variants](variants) for a detailed comparison and help choosing.
 |---|---|
 | Operating system | Windows 10 or 11 (x64 or ARM64) |
 | Runtime | [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
-| Filesystem driver | **Dokan v2** (Dokan variant) or **WinFsp 2.1+** (WinFsp variant) — install the matching driver for the variant you use |
+| Filesystem driver | **Dokan v2 2.3+** (Dokan variant) or **WinFsp 2.1+** (WinFsp variant) — install the matching driver for the variant you use |
 | Disk space | ~10 MB for the application; temp space equal to the largest file you open when the disk cache is used |
 | Memory | The memory cache is clamped to 90 % of installed RAM; the per-entry default is 512 MB |

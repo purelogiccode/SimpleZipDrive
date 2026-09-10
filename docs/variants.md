@@ -13,14 +13,14 @@ SimpleZipDrive is published as two executables. They share the entire core (arch
 | Capability | SimpleZipDrive (Dokan) | SimpleZipDrive_WinFsp (WinFsp) |
 |---|---|---|
 | Executable | `SimpleZipDrive.exe` | `SimpleZipDrive_WinFsp.exe` |
-| Required driver | Dokan v2 | WinFsp **2.1 or newer** (older versions are blocked with a *"WinFsp version mismatch"* dialog; 2.2.x betas work) |
+| Required driver | Dokan v2 **2.3 or newer** (older versions are blocked with a *"Dokan Driver Outdated"* dialog) | WinFsp **2.1 or newer** (older versions are blocked with a *"WinFsp version mismatch"* dialog; 2.2.x betas work) |
 | Driver service | Dokan driver loads on demand | Requires the `WinFsp.Launcher` service to be **Running** (checked before every mount) |
 | Drive-letter mounts (M–Q) | ✔ | ✔ |
 | Folder mounts | ✔ (folder must exist) | ✔ (folder is created if missing, write-tested first) |
 | Cross-integrity mounting | — | ✔ (see below) |
 | Mount implementation | In-process via `DokanNet` (`DokanInstanceBuilder`) | In-process via `FileSystemHost.Mount` |
 | Mount volume style | `RemovableDrive` | Standard host volume |
-| Pre-mount driver check | `DokanVersion()` P/Invoke + architecture check | Native DLL preload, registry version check, service check |
+| Pre-mount driver check | `DokanVersion()` P/Invoke + architecture check + minimum-version gate (dokan2.dll ≥ 2.3.0) | Native DLL preload, registry version check, service check, `winfsp-msil.dll` interop availability |
 | Retries on driver error | 2 retries with 1 s delay (skipped for *"Can't install"*) | Maps NTSTATUS codes to specific messages (see [Mounting](mounting#mount-error-codes)) |
 | Admin warning | Logs a warning when not elevated | No warning; elevation triggers cross-integrity mode instead |
 

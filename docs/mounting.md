@@ -36,7 +36,8 @@ flowchart TD
 | Archive exists / extension supported | ✔ | ✔ |
 | Driver presence | `dokan2.dll` `DokanVersion()` P/Invoke; architecture mismatch (x64 driver on ARM64) detected | Native `winfsp-x64.dll`/`winfsp-x86.dll` preload |
 | Driver service | — | `sc query WinFsp.Launcher` must report `RUNNING` |
-| Driver version | — | Registry `HKLM\SOFTWARE\WOW6432Node\WinFsp` (fallback `HKLM\SOFTWARE\WinFsp`) value `Version`; **≥ 2.1 required**, else *"WinFsp version mismatch: installed x.y, required 2.1. Mount blocked."* |
+| Driver version | `DokanVersion()` P/Invoke; **≥ 2.3.0 required** (DokanNet 2.3 needs the `DokanRegisterWaitForFileSystemClosed` export; older drivers crash with an uncatchable `EntryPointNotFoundException`), else *"Dokan Driver Outdated"* dialog | Registry `HKLM\SOFTWARE\WOW6432Node\WinFsp` (fallback `HKLM\SOFTWARE\WinFsp`) value `Version`; **≥ 2.1 required**, else *"WinFsp version mismatch: installed x.y, required 2.1. Mount blocked."* |
+| WinFsp interop availability | — | `winfsp-msil.dll` beside the exe must be loadable, else *"Missing Application File"* dialog |
 | Mount point availability | Letter free? | Letter free? Folder writable? |
 | Archive opens / password | Central-directory parse; password prompt if encrypted (3 attempts) | Same |
 
@@ -78,6 +79,7 @@ When `host.Mount` fails, the NTSTATUS code is mapped to a specific message:
 
 - `DokanException` triggers up to **2 retries** with a 1-second delay (*"Dokan driver error, retrying in 1s… (attempt 1/2)"*), except when the message contains *"Can't install"* (a hard driver-install failure).
 - Missing or incompatible driver → *"Dokan Driver Not Found"* / *"Dokan Driver Incompatible"* dialog with a link to the [Dokan releases page](https://github.com/dokan-dev/dokany/releases).
+- Outdated driver (dokan2.dll older than 2.3.0) → *"Dokan Driver Outdated"* dialog showing the installed and required versions, with a link to the [Dokan releases page](https://github.com/dokan-dev/dokany/releases).
 - Without elevation the Dokan variant logs *"Warning: Running without Administrator privileges."* — mounting may still work for drive letters depending on your system configuration.
 
 ## Lifecycle and shutdown

@@ -218,10 +218,7 @@ public class MountService : IDisposable, IMountService
         }
         catch (FileLoadException)
         {
-            return false;
-        }
-        catch (BadImageFormatException)
-        {
+            // Includes BadImageFormatException (a subclass of FileLoadException)
             return false;
         }
     }

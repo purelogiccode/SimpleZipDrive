@@ -16,6 +16,7 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 | *"Dokan Driver Not Found"* dialog | Dokan not installed, or `dokan2.dll` not loadable | Install [Dokan v2](https://github.com/dokan-dev/dokany/releases); reboot if the mount still fails |
 | *"Dokan Driver Incompatible"* | x64/x86 Dokan on an ARM64 system (architecture mismatch) | Install the ARM64 Dokan build, or use the Dokan x64 package on x64 Windows |
 | *"Dokan error: …"*, retries *"attempt 1/2"* | Transient driver failure | Usually resolves on retry; if persistent, reinstall Dokan |
+| *"Dokan Driver Outdated"* — installed version below 2.3.0 | dokan2.dll older than 2.3.0; DokanNet 2.3 needs the `DokanRegisterWaitForFileSystemClosed` export (older drivers crash the app instead of failing cleanly) | Update Dokan ([releases](https://github.com/dokan-dev/dokany/releases)); any 2.3.0+ or 2.x newer release works |
 | *"WinFsp not found"* dialog | WinFsp missing | Install [WinFsp](https://github.com/winfsp/winfsp/releases) 2.1+ |
 | *"WinFsp driver service is not running. Please start the WinFsp.Launcher service."* | `WinFsp.Launcher` service stopped | `sc start WinFsp.Launcher` (admin) or restart via `services.msc` |
 | *"WinFsp version mismatch: installed x.y, required 2.1. Mount blocked."* | WinFsp older than 2.1, or interop/driver mismatch | Upgrade WinFsp to ≥ 2.1 stable. 2.2.x betas are fine |

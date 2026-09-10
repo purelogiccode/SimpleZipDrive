@@ -72,8 +72,8 @@ flowchart TB
 
 ## Driver interop details
 
-- **Dokan:** `DokanInstanceBuilder` + `DokanOptions.RemovableDrive`; version probe via `DokanVersion()` P/Invoke; driver output piped through `DokanPrefixedLogger` (`[DokanNet] ` prefix); 2-retry loop on `DokanException` except *"Can't install"*.
-- **WinFsp:** `winfsp.net 2.1.25156` **pinned deliberately** — newer 2.2.x interops reject the stable 2.1 native driver (*"incorrect dll version (need 2.2, have 2.1)"*); `RequiredWinFspVersion = 2.1`; native DLL preloaded; `WinFsp.Launcher` service verified; `host.Mount(mountPoint, securityDescriptor, false, DebugLog=-1)` with a per-attempt native debug log; NTSTATUS→message mapping ([Mounting](mounting#mount-error-codes-winfsp)).
+- **Dokan:** `DokanInstanceBuilder` + `DokanOptions.RemovableDrive`; version probe via `DokanVersion()` P/Invoke with a minimum-version gate (`dokan2.dll` **≥ 2.3.0** — DokanNet 2.3 requires the `DokanRegisterWaitForFileSystemClosed` export, older drivers crash with an uncatchable `EntryPointNotFoundException`); driver output piped through `DokanPrefixedLogger` (`[DokanNet] ` prefix); 2-retry loop on `DokanException` except *"Can't install"*.
+- **WinFsp:** `winfsp.net 2.1.25156` **pinned deliberately** — newer 2.2.x interops reject the stable 2.1 native driver (*"incorrect dll version (need 2.2, have 2.1)"*); `RequiredWinFspVersion = 2.1`; native DLL preloaded; `winfsp-msil.dll` interop assembly probed with `Assembly.Load` before every mount; `WinFsp.Launcher` service verified; `host.Mount(mountPoint, securityDescriptor, false, DebugLog=-1)` with a per-attempt native debug log; NTSTATUS→message mapping ([Mounting](mounting#mount-error-codes-winfsp)).
 - **Packaging constraint:** winfsp-msil's static initializer calls `FileVersionInfo.GetVersionInfo(Assembly.Location)`, which is empty inside single-file bundles — hence `winfsp-msil.dll` must ship beside the exe ([Building & Packaging](building-and-packaging#packaging-internals)).
 
 ## Services and cross-cutting concerns

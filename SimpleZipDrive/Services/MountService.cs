@@ -115,6 +115,14 @@ public class MountService : IDisposable, IMountService
 
         if (!IsDokanLibraryVersionSupported(out var dokanLibraryVersion))
         {
+            if (_dokanArchitectureMismatch)
+            {
+                _loggingService.LogError(
+                    "Dokan driver DLL (dokan2.dll) could not be loaded into this process (architecture mismatch). Unable to mount archive.");
+                ShowDokanNotInstalledDialog();
+                return Task.CompletedTask;
+            }
+
             _loggingService.LogError(
                 $"Dokan driver is outdated (found version {FormatDokanVersion(dokanLibraryVersion)}, " +
                 $"minimum required is {FormatDokanVersion(MinimumDokanLibraryVersion)}). Unable to mount archive.");
