@@ -42,6 +42,7 @@
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="SharpCompress" Version="0.50.4" />
         <PackageReference Include="SharpSevenZip" Version="2.0.126" />
+        <PackageReference Include="ZArchiveSharp" Version="1.0.2" />
     </ItemGroup>
 
 </Project>

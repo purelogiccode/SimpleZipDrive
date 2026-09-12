@@ -19,24 +19,28 @@ public static class ArchiveFormats
     /// <summary>Archive type identifier for TAR files (including compressed variants).</summary>
     public const string Tar = "tar";
 
+    /// <summary>Archive type identifier for ZArchive (.zar) files.</summary>
+    public const string Zar = "zar";
+
     /// <summary>
     ///     Human-readable list of supported extensions, used in error messages and dialogs.
     /// </summary>
     public const string SupportedExtensionsDescription =
-        ".zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, .cb7";
+        ".zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, .cb7, .zar";
 
     /// <summary>
     ///     File-dialog filter covering all supported archive extensions.
     /// </summary>
     public const string DialogFilter =
-        "Archive files (*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz;*.cbz;*.cbr;*.cb7)|*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz;*.cbz;*.cbr;*.cb7|" +
+        "Archive files (*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz;*.cbz;*.cbr;*.cb7;*.zar)|*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz;*.cbz;*.cbr;*.cb7;*.zar|" +
         "ZIP files (*.zip;*.cbz)|*.zip;*.cbz|" +
         "7Z files (*.7z;*.cb7)|*.7z;*.cb7|" +
         "RAR files (*.rar;*.cbr)|*.rar;*.cbr|" +
         "TAR files (*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz)|*.tar;*.tar.gz;*.tar.bz2;*.tar.xz;*.tgz;*.tbz2;*.txz|" +
+        "ZAR files (*.zar)|*.zar|" +
         "All files (*.*)|*.*";
 
-    private static readonly string[] ContainerExtensions = [".zip", ".7z", ".rar", ".tar"];
+    private static readonly string[] ContainerExtensions = [".zip", ".7z", ".rar", ".tar", ".zar"];
 
     private static readonly string[] TarCompressedSuffixes =
         [".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz"];

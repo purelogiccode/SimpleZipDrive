@@ -18,6 +18,8 @@ public class ArchiveFormatsTests
     [InlineData("book.rar", "rar")]
     [InlineData("backup.tar.gz", "tar")]
     [InlineData("backup.tgz", "tar")]
+    [InlineData("game.zar", "zar")]
+    [InlineData("game.ZAR", "zar")]
     public void GetArchiveType_ComicAndKnownExtensions_MapsCorrectly(string filePath, string expected)
     {
         Assert.Equal(expected, ArchiveFormats.GetArchiveType(filePath));
@@ -30,6 +32,8 @@ public class ArchiveFormatsTests
     [InlineData("comic.cb7")]
     [InlineData("book.zip")]
     [InlineData("book.tar.xz")]
+    [InlineData("game.zar")]
+    [InlineData("game.ZAR")]
     public void IsSupportedArchive_ComicAndKnownExtensions_ReturnsTrue(string filePath)
     {
         Assert.True(ArchiveFormats.IsSupportedArchive(filePath));
@@ -51,6 +55,7 @@ public class ArchiveFormatsTests
         Assert.Contains("*.cbz", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("*.cbr", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("*.cb7", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("*.zar", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -59,5 +64,6 @@ public class ArchiveFormatsTests
         Assert.Contains(".cbz", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".cbr", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".cb7", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".zar", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
     }
 }
