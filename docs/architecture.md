@@ -16,7 +16,7 @@ Five projects (solution `CSharp_SimpleZipDrive.sln`, all `net10.0-windows`, SDK 
 | `SimpleZipDrive` | WPF exe | Dokan variant: UI + DokanNet mount service + Dokan `IDokanOperations` implementation (`ZipFs.cs`) |
 | `SimpleZipDrive_WinFsp` | WPF exe | WinFsp variant: same UI + `FileSystemHost`-based mount service + WinFsp `IFileSystem` implementation (`ZipFs.cs`) |
 | `SimpleZipDrive.Core` | class library | Shared engine: archive parsing, caches, streams, services, dialogs, logging, error reporting |
-| `SimpleZipDrive.Tests` | xUnit | ~919 `[Fact]` + 54 `[Theory]` methods; a `WinFsp\` mirror of the service tests; `Fakes\` for driver/report doubles |
+| `SimpleZipDrive.Tests` | xUnit | 952 `[Fact]` + 54 `[Theory]` methods (≈1,245 test cases); a `WinFsp\` mirror of the service tests; `Fakes\` for driver/report doubles |
 | `FileBenchmark` | console exe | Cold-I/O benchmark tool (standby-list purge, XXH3 hashing) |
 
 The WinFsp app project contains a custom MSBuild target, `KeepWinFspInteropOutOfBundle`, that is *essential* for packaged builds — see [Building & Packaging](building-and-packaging#packaging-internals).
@@ -35,7 +35,9 @@ flowchart TB
         ZFS --> MEM[SharedMemoryStream<br/>+ MemoryEntryCacheEntry]
         ZFS --> DISK[Disk cache<br/>secure temp files]
         ZFS --> SZ[SevenZipFallback<br/>SharpSevenZip]
-        ZFS --> SC[SharpCompress]
+        ZFS --> SC[SharpCompress<br/>ZIP / 7Z / RAR / TAR]
+        ZFS --> ZAR[ZarArchive<br/>ZArchiveSharp<br/>Zstd seekable .zar]
+        ZFS --> XISO[XisoArchive<br/>XISOSharp<br/>Xbox .iso / .xiso / .cso]
         UI --> LOG[LoggingService / DiagnosticLogger / AppLogger]
         LOG --> BUG[BugReportSink → bug API]
         UI --> SET[SettingsService → settings.dat]
@@ -53,7 +55,7 @@ flowchart TB
 3. Mount-point resolution ([Mounting](mounting#mount-point-resolution)) → `MountWithAutoDriveLetterAsync` / `MountWithSpecifiedPointAsync` / `MountWithCrossIntegrityFolderAsync`.
 4. Pre-mount checks (driver presence/version/service, mount-point availability, elevation).
 5. `OpenArchiveFileStreamAsync` opens the archive with `FileShare.ReadWrite` (3 attempts, awaited backoff).
-6. `ZipFileSystemCore` opens via SharpCompress, parses the central directory, builds the `EntryNode` tree (including **implicit directories** for every ancestor path), detects encryption, prompts/verifies the password if needed.
+6. `ZipFileSystemCore` opens the archive through SharpCompress (ZIP/7Z/RAR/TAR) or the dedicated `ZarArchive` / `XisoArchive` adapters (`.zar` / Xbox images), parses the entry list, builds the `EntryNode` tree (including **implicit directories** for every ancestor path), detects encryption, prompts/verifies the password if needed.
 7. The driver object (`ZipFs` — Dokan `IDokanOperations` or WinFsp `IFileSystem`) is constructed and mounted **in-process**; the lifecycle task parks until unmount.
 8. Unmount: cancel → driver unmount → 500 ms grace → dispose engine (caches, temp dir).
 
@@ -66,6 +68,7 @@ flowchart TB
   3. **Large entry** (`size ≥ MaxMemoryPerFileMb`) → disk cache.
   4. **Small entry** → shared memory cache (`AcquireSharedMemoryStream` + `DecompressEntryToBuffer`).
   5. Decompression failure → SevenZip fallback → failed entry.
+  For `.zar` and Xbox images the entry stream beneath these tiers is random-access (`ZarEntryStream` decodes only the touched zstd blocks; `XisoEntryStream`/XISOSharp read disc sectors and decode CISO blocks per read), so seeking within an entry never re-decompresses earlier data.
 - **Memory cache:** `MemoryEntryCacheEntry { byte[] Buffer, RefCount, LastUsed }`; per-entry `SemaphoreSlim` serializes first decompression; `EvictColdMemoryEntries` evicts refcount-0 buffers LRU; total budget = 90 % of `TotalAvailableMemoryBytes`; over-budget/OOM → disk cache fallback. `SharedMemoryStream.Dispose` decrements the refcount; refcount-0 buffers stay warm.
 - **Disk cache:** `TempDirectoryPath = %LOCALAPPDATA%\SimpleZipDrive\Temp\<pid>_<guid>`; secure temp files (current-user-only ACL); free-space check; reuse registry per session; recursive delete on dispose; orphan sweep (`CleanupOrphanedTempDirectories`) with PID + process-name guard.
 - **Reads:** positional (`RandomAccess`) where possible, strictly sequential fallback for non-seekable sources; `ReadOnDemand` (WinFsp) services paging I/O without handle context using `ArrayPool<byte>.Shared`.

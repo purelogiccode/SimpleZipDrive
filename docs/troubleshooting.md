@@ -40,6 +40,7 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 | Symptom / message | Cause | Fix |
 |---|---|---|
 | *"The file 'X' is not a supported archive"* | Extension not in the supported list | Rename to the correct extension if it *is* a supported format; otherwise convert |
+| *"The file is not a valid Xbox XISO disc image (.iso, .xiso, or .cso)"* | The file is not an Xbox XDVDFS image — e.g. a PC data-disc ISO, a DVD/Blu-ray image, or a renamed file | Only original Xbox and Xbox 360 game images are supported (this is not a corruption error). See [Archive Support](archive-support#supported-formats) |
 | *"Archive file not found at '…'"* | Path wrong / network share unreachable | Check the path |
 | Password dialog loops, then *"Mount aborted after 3 attempts"* | Wrong password | Verify the password; cancelling stops the mount cleanly |
 | *"The archive file appears to be corrupted, incomplete, or uses an unsupported format/feature"* | Broken download / unsupported feature | Re-download; test the archive in 7-Zip; note that corrupt RARs are reported as corruption (not as password prompts) since 2.9.0 |

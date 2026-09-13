@@ -1,0 +1,60 @@
+name: Wiki Sync
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Sync docs to wiki
+    runs-on: ubuntu-latest
+    env:
+      WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+    steps:
+      - name: Check for WIKI_TOKEN
+        if: env.WIKI_TOKEN == ''
+        run: echo "::notice title=Wiki sync skipped::Add a WIKI_TOKEN repository secret (a PAT with repository access) to enable automatic docs -> wiki sync."
+
+      - name: Checkout
+        if: env.WIKI_TOKEN != ''
+        uses: actions/checkout@v4
+
+      - name: Mirror docs/ into the wiki repository
+        if: env.WIKI_TOKEN != ''
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git clone "https://x-access-token:${WIKI_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+
+          # Replace the wiki pages with the docs pages (index.md becomes Home.md).
+          rm -f wiki/*.md
+          for file in docs/*.md; do
+            name="$(basename "$file")"
+            if [ "$name" = "index.md" ]; then
+              name="Home.md"
+            fi
+            cp "$file" "wiki/$name"
+          done
+
+          cd wiki
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki is already up to date."
+          else
+            git commit -m "Publish full documentation (synced from docs/ at ${SHORT_SHA:0:7})"
+            git push
+          fi

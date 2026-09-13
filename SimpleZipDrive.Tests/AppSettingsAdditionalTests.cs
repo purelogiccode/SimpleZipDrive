@@ -3,6 +3,7 @@ using SimpleZipDrive.Core.Models;
 
 namespace SimpleZipDrive.Tests;
 
+[Collection("Settings file")]
 public class AppSettingsAdditionalTests
 {
     // ─── MaxMemoryPerFileMb: negative value clamps to 1 ───

@@ -1,29 +1,35 @@
 using System.Diagnostics.CodeAnalysis;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using XISOSharp;
 
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-///     An <see cref="IArchiveEntry" /> backed by a node in a <see cref="ZarArchive" />.
+///     An <see cref="IArchiveEntry" /> backed by an entry in an <see cref="XisoArchive" />.
 /// </summary>
-public sealed class ZarArchiveEntry : IArchiveEntry
+public sealed class XisoArchiveEntry : IArchiveEntry
 {
     /// <summary>
-    ///     Initializes a new instance of the <see cref="ZarArchiveEntry" /> class.
+    ///     Initializes a new instance of the <see cref="XisoArchiveEntry" /> class.
     /// </summary>
     /// <param name="archive">The owning archive.</param>
-    /// <param name="key">The entry key, relative to the archive root (directories end with '/').</param>
+    /// <param name="key">The entry key, relative to the image root (directories end with '/').</param>
+    /// <param name="internalPath">The image-internal path (leading '/', e.g. <c>/data/info.txt</c>).</param>
+    /// <param name="startSector">Partition-relative first sector of the entry's data.</param>
     /// <param name="size">The uncompressed size in bytes (0 for directories).</param>
     /// <param name="isDirectory">Whether the entry is a directory.</param>
-    /// <param name="nodeId">The node id of the entry within the archive's file tree.</param>
-    internal ZarArchiveEntry(ZarArchive archive, string key, long size, bool isDirectory, uint nodeId)
+    /// <param name="node">The explorer node backing path-based mounts, or null for stream-backed mounts.</param>
+    internal XisoArchiveEntry(XisoArchive archive, string key, string internalPath, uint startSector, long size,
+        bool isDirectory, ExplorerNode? node = null)
     {
         Archive = archive;
         Key = key;
+        InternalPath = internalPath;
+        StartSector = startSector;
         Size = size;
         IsDirectory = isDirectory;
-        NodeId = nodeId;
+        Node = node;
     }
 
     /// <inheritdoc />
@@ -35,11 +41,17 @@ public sealed class ZarArchiveEntry : IArchiveEntry
     /// <inheritdoc />
     public string Key { get; }
 
-    /// <summary>Gets the node id of the entry within the archive's file tree.</summary>
-    internal uint NodeId { get; }
+    /// <summary>Gets the image-internal path of the entry (leading '/').</summary>
+    internal string InternalPath { get; }
+
+    /// <summary>Gets the partition-relative first sector of the entry's data.</summary>
+    internal uint StartSector { get; }
+
+    /// <summary>Gets the explorer node backing this entry, or null for stream-backed mounts.</summary>
+    internal ExplorerNode? Node { get; }
 
     /// <inheritdoc />
-    public CompressionType CompressionType => CompressionType.ZStandard;
+    public CompressionType CompressionType => CompressionType.None;
 
     /// <inheritdoc />
     public DateTime? ArchivedTime => null;
@@ -92,7 +104,7 @@ public sealed class ZarArchiveEntry : IArchiveEntry
     /// <inheritdoc />
     public Stream OpenEntryStream()
     {
-        return ((ZarArchive)Archive).OpenEntryStream(this);
+        return ((XisoArchive)Archive).OpenEntryStream(this);
     }
 
     /// <inheritdoc />

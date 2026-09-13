@@ -8,17 +8,17 @@ nav_order: 1
 
 ![SimpleZipDrive screenshot](https://github.com/purelogiccode/SimpleZipDrive/raw/master/screenshot.png)
 
-**SimpleZipDrive** is a Windows application that mounts `ZIP`, `7Z`, `RAR`, and `TAR` archives (including compressed TAR variants and comic-book archives) as **virtual drives or NTFS directory mount points**. Mounted archives appear and behave exactly like a regular drive in File Explorer and every other application — files can be browsed, opened, and streamed directly from the archive without extracting it first.
+**SimpleZipDrive** is a Windows application that mounts `ZIP`, `7Z`, `RAR`, and `TAR` archives (including compressed TAR variants and comic-book archives), Zstd-seekable `.zar` containers, and Xbox XISO disc images as **virtual drives or NTFS directory mount points**. Mounted archives appear and behave exactly like a regular drive in File Explorer and every other application — files can be browsed, opened, and streamed directly from the archive without extracting it first.
 
-**Current version: 2.9.0** · License: [GPL v3](https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt) · Downloads: [Releases](https://github.com/purelogiccode/SimpleZipDrive/releases)
+**Current version: 3.0.0** · License: [GPL v3](https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt) · Downloads: [Releases](https://github.com/purelogiccode/SimpleZipDrive/releases)
 
 ---
 
 ## Key Features
 
-- **Multi-format support** — `.zip`, `.7z`, `.rar`, `.tar`, `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tgz`, `.tbz2`, `.txz`, `.cbz`, `.cbr`, `.cb7`.
+- **Multi-format support** — `.zip`, `.7z`, `.rar`, `.tar`, `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tgz`, `.tbz2`, `.txz`, `.cbz`, `.cbr`, `.cb7`, `.zar`, Xbox disc images `.iso` / `.xiso` / `.cso`.
 - **Drive-letter or folder mounting** — mount on the first free drive letter from `M–Q`, a letter you choose, or any folder path.
-- **Hybrid caching engine** — zero-copy direct reads for stored ZIP entries, a shared in-memory cache for small files with decompress-once/share-across-handles semantics, and a disk cache for very large entries.
+- **Hybrid caching engine** — zero-copy direct reads for stored ZIP entries, per-block random access for `.zar` (Zstd seekable) and Xbox images (`.iso`/`.cso`), a shared in-memory cache for small files with decompress-once/share-across-handles semantics, and a disk cache for very large entries.
 - **Read-only and safe** — the mounted volume is strictly read-only; the underlying archive is never modified.
 - **Encrypted archives** — password-protected archives prompt for a password, with verification and up to three attempts.
 - **Cross-integrity mounting (WinFsp)** — makes a mounted drive visible to both standard and elevated (Administrator) processes.

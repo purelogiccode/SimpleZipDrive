@@ -1,30 +1,31 @@
-using ZArchiveSharp;
-
 namespace SimpleZipDrive.Core;
 
 /// <summary>
-///     Seekable, read-only stream over a file stored in a .zar archive. Reads are served
-///     through <see cref="ZArchiveReader.ReadFromFile" />, which decompresses only the
-///     64 KiB blocks touched by the requested range.
+///     Seekable, read-only stream over a file stored in an Xbox XISO disc image. Reads
+///     are served directly from the image stream through the file's sector extent, so
+///     seeking never decompresses or extracts the entry.
 /// </summary>
-public sealed class ZarEntryStream : Stream
+public sealed class XisoEntryStream : Stream
 {
-    private readonly uint _node;
-    private readonly ZArchiveReader _reader;
+    private readonly Lock _readLock;
+    private readonly Stream _source;
+    private readonly long _start;
     private bool _disposed;
     private long _position;
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="ZarEntryStream" /> class.
+    ///     Initializes a new instance of the <see cref="XisoEntryStream" /> class.
     /// </summary>
-    /// <param name="reader">The shared archive reader (not owned by this stream).</param>
-    /// <param name="node">The node id of the file within the archive.</param>
-    /// <param name="size">The uncompressed file size in bytes.</param>
-    internal ZarEntryStream(ZArchiveReader reader, uint node, long size)
+    /// <param name="source">The shared image stream (not owned by this stream).</param>
+    /// <param name="start">The absolute byte offset where the entry's data begins.</param>
+    /// <param name="length">The entry's size in bytes.</param>
+    /// <param name="readLock">Lock serializing reads on the shared image stream.</param>
+    internal XisoEntryStream(Stream source, long start, long length, Lock readLock)
     {
-        _reader = reader;
-        _node = node;
-        Length = size;
+        _source = source;
+        _start = start;
+        _readLock = readLock;
+        Length = length;
     }
 
     /// <inheritdoc />
@@ -68,18 +69,15 @@ public sealed class ZarEntryStream : Stream
         if (remaining <= 0 || count <= 0) return 0;
 
         var toRead = (int)Math.Min(count, remaining);
-        var bytesRead = _reader.ReadFromFile(_node, (ulong)_position, buffer.AsSpan(offset, toRead));
 
-        // ZArchiveReader reports a corrupt/unreadable 64 KiB block as a short read
-        // (a retry then returns 0). A valid read always fills the requested range,
-        // so surface corruption instead of letting callers cache truncated data
-        // as a successful extraction.
-        if (bytesRead < (ulong)toRead)
-            throw new IOException(
-                $"The .zar archive entry contains a corrupt compression block at offset {_position}.");
+        lock (_readLock)
+        {
+            _source.Seek(_start + _position, SeekOrigin.Begin);
+            var bytesRead = _source.Read(buffer, offset, toRead);
 
-        _position += (long)bytesRead;
-        return (int)bytesRead;
+            _position += bytesRead;
+            return bytesRead;
+        }
     }
 
     /// <inheritdoc />

@@ -20,6 +20,11 @@ public class ArchiveFormatsTests
     [InlineData("backup.tgz", "tar")]
     [InlineData("game.zar", "zar")]
     [InlineData("game.ZAR", "zar")]
+    [InlineData("game.iso", "xiso")]
+    [InlineData("game.ISO", "xiso")]
+    [InlineData("game.xiso", "xiso")]
+    [InlineData("game.cso", "xiso")]
+    [InlineData("game.1.cso", "xiso")]
     public void GetArchiveType_ComicAndKnownExtensions_MapsCorrectly(string filePath, string expected)
     {
         Assert.Equal(expected, ArchiveFormats.GetArchiveType(filePath));
@@ -34,6 +39,9 @@ public class ArchiveFormatsTests
     [InlineData("book.tar.xz")]
     [InlineData("game.zar")]
     [InlineData("game.ZAR")]
+    [InlineData("game.iso")]
+    [InlineData("game.xiso")]
+    [InlineData("game.cso")]
     public void IsSupportedArchive_ComicAndKnownExtensions_ReturnsTrue(string filePath)
     {
         Assert.True(ArchiveFormats.IsSupportedArchive(filePath));
@@ -56,6 +64,9 @@ public class ArchiveFormatsTests
         Assert.Contains("*.cbr", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("*.cb7", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("*.zar", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("*.iso", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("*.xiso", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("*.cso", ArchiveFormats.DialogFilter, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -65,5 +76,21 @@ public class ArchiveFormatsTests
         Assert.Contains(".cbr", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".cb7", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".zar", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".iso", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".xiso", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".cso", ArchiveFormats.SupportedExtensionsDescription, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SupportedFormatsDescription_IncludesAllFormatFamilies()
+    {
+        Assert.Contains("ZIP", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("7Z", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("RAR", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("TAR", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".cb7", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".zar", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".xiso", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".cso", ArchiveFormats.SupportedFormatsDescription, StringComparison.OrdinalIgnoreCase);
     }
 }

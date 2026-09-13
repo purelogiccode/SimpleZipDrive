@@ -21,6 +21,8 @@ flowchart LR
     MC -- "memory limit hit / OOM" --> DC
 ```
 
+> **Seekable sources:** `.zar` (Zstd seekable) and Xbox XISO images (`.iso`, `.xiso`, `.cso`) feed these cache tiers from random-access entry streams — `.zar` reads decode only the zstd blocks they touch, `.cso` decodes blocks on demand, and plain `.iso` files are read straight from their disc sectors. Seeking in the source is always cheap; only the cache tier determines what gets buffered.
+
 ## 1. Zero-copy path for stored ZIP entries
 
 A ZIP entry that is **stored** (not deflated), not encrypted, and not part of a solid archive is never decompressed at all. The reader opens a seekable window directly over the archive's bytes at the entry's data offset:

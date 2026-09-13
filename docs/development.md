@@ -32,10 +32,14 @@ Debug runs mount exactly like packaged builds (in-process driver hosting). F5 in
 dotnet test SimpleZipDrive.Tests -c Release
 ```
 
-- **xUnit 2.9.3**, ~919 facts + 54 theories (~1200 cases), coverlet collector included.
+- **xUnit 2.9.3**, 952 facts + 54 theories (~1,245 cases), coverlet collector included.
 - Layout mirrors production: root classes cover the Dokan variant + Core; `WinFsp\` contains parallel `WinFsp*`-prefixed classes for the WinFsp variant; `Fakes\` provides `FakeDokanFileInfo`, `FakeUserNotificationService`, `MockBugReport`.
-- Areas: filesystem core, memory-cache behaviour, error handling, streams/read-ahead, settings, services, update checker (asserts the canonical GitHub endpoint), logging/error filtering, administrator checks, archive formats.
-- **Known flaky test:** `AppSettingsAdditionalTests.Save_WritesValidJson` writes the *real* `%LOCALAPPDATA%\SimpleZipDrive\settings.dat` and can race with parallel test classes; it passes in isolation. (A fix should point `AppSettings` at a temp path under test.)
+- Areas: filesystem core, memory-cache behaviour, error handling, streams/read-ahead, settings, services, update checker (asserts the canonical GitHub endpoint), logging/error filtering, administrator checks, archive formats (including ZArchive/XISO adapters).
+- **Settings-file isolation:** the three test classes that exercise the real `settings.dat` path (`AppSettingsAdditionalTests`, `SettingsServiceTests`, `WinFspSettingsServiceTests`) share the `Settings file` xUnit collection so they never race each other (the old `Save_WritesValidJson` flake).
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request to `master`: restore, Release build (must stay analyzer-warning-clean), full test suite, `.trx` uploaded as the `test-results` artifact. The release workflow (`release.yml`) re-verifies and packages the four platform bundles behind the protected `release` environment; the wiki sync workflow mirrors `docs/` to the repository wiki. See [Building & Packaging](building-and-packaging#automated-builds-github-actions).
 
 ## Code conventions
 

@@ -1,5 +1,5 @@
 title: SimpleZipDrive
-description: Mount ZIP, 7Z, RAR and TAR archives as virtual Windows drives
+description: Mount ZIP, 7Z, RAR, TAR, ZArchive and Xbox XISO archives as virtual Windows drives
 remote_theme: just-the-docs/just-the-docs
 url: https://purelogiccode.github.io
 baseurl: /SimpleZipDrive

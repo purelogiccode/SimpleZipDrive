@@ -23,9 +23,9 @@ Thanks for helping improve SimpleZipDrive!
 
 1. Fork, create a feature branch from `master`.
 2. Follow the [development conventions](development#code-conventions) — the build must stay **analyzer-warning-clean** (Meziantou + Roslynator).
-3. Add/adjust tests: shared behaviour → Core test classes; driver-specific behaviour → the mirrored `WinFsp\*` classes. Run `dotnet test SimpleZipDrive.Tests -c Release`.
-4. Keep changes focused; update `WhatsNew.md` for user-visible changes.
-5. Open the PR against `master` with a short description of the behaviour change and how you verified it (manual mount tests count — mention variant, mount type, elevation).
+3. Add/adjust tests: shared behaviour → Core test classes; driver-specific behaviour → the mirrored `WinFsp\*` classes. Run `dotnet test SimpleZipDrive.Tests -c Release` (CI runs the same suite on every push/PR).
+4. Keep changes focused; update `WhatsNew.md` for user-visible changes (it is tracked in the repository and ships inside every bundle).
+5. Open the PR against `master` with a short description of the behaviour change and how you verified it (manual mount tests count — mention variant, mount type, elevation). The `CI` workflow must be green before merge.
 
 Good first contributions: documentation fixes, additional test coverage for `ZipFileSystemCore`, troubleshooting entries for error messages not yet covered.
 
@@ -37,6 +37,8 @@ Good first contributions: documentation fixes, additional test coverage for `Zip
   - [WinFsp](https://github.com/winfsp/winfsp) — LGPL-3.0 (GPLv3 with FLOSS exception for the driver)
   - [SharpCompress](https://github.com/adamhathcock/sharpcompress) — MIT
   - [SharpSevenZip](https://github.com/adoconnection/sevenzipsystem) — MIT
+  - [ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp) — MIT
+  - [XISOSharp](https://github.com/purelogiccode/XISOSharp) — MIT
   - [Serilog](https://serilog.net) — Apache-2.0
   - 7-Zip (`7z.dll`) — LGPL / unRAR restrictions, per 7-Zip licensing
 

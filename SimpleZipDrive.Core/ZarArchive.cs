@@ -25,11 +25,24 @@ public sealed class ZarArchive : IArchive
     /// <exception cref="InvalidOperationException">The stream is not a valid .zar archive.</exception>
     public ZarArchive(Stream archiveStream)
     {
-        Reader = ZArchiveReader.TryOpen(archiveStream, leaveOpen: true)
-                 ?? throw new InvalidOperationException("The file is not a valid ZArchive (.zar) archive.");
+        ZArchiveReader? reader = null;
+        try
+        {
+            // DecodeExtendedNames fixes the upstream 0.1.2 quirk where names of
+            // 128+ characters decode to an empty string and become invisible.
+            reader = ZArchiveReader.TryOpen(archiveStream, leaveOpen: true,
+                         new ZArchiveReaderOptions { DecodeExtendedNames = true })
+                     ?? throw new InvalidOperationException("The file is not a valid ZArchive (.zar) archive.");
 
-        _volume = new ZarVolume((archiveStream as FileStream)?.Name ?? string.Empty);
-        EnumerateEntries();
+            Reader = reader;
+            _volume = new ZarVolume((archiveStream as FileStream)?.Name ?? string.Empty);
+            EnumerateEntries();
+        }
+        catch
+        {
+            reader?.Dispose();
+            throw;
+        }
     }
 
     internal ZArchiveReader Reader { get; }
@@ -67,10 +80,7 @@ public sealed class ZarArchive : IArchive
     /// </summary>
     internal Stream OpenEntryStream(ZarArchiveEntry entry)
     {
-        var node = LookUpNode(entry.Key)
-                   ?? throw new FileNotFoundException($"Entry '{entry.Key}' was not found in the .zar archive.");
-
-        return new ZarEntryStream(Reader, node, entry.Size);
+        return new ZarEntryStream(Reader, entry.NodeId, entry.Size);
     }
 
     /// <inheritdoc />
@@ -86,17 +96,11 @@ public sealed class ZarArchive : IArchive
     }
 
     /// <summary>
-    ///     Resolves an entry key (relative to the archive root, directories ending with '/')
-    ///     to its node id, or null when the path does not exist.
+    ///     Resolves the archive root node id, or null when the root cannot be found.
     /// </summary>
-    private uint? LookUpNode(string key)
+    private uint? LookUpRoot()
     {
-        var path = key.TrimEnd('/');
-
-        var node = path.Length == 0
-            ? Reader.LookUp("/", true, true)
-            : Reader.LookUp(path, true, true);
-
+        var node = Reader.LookUp("/", true, true);
         return node == ZArchiveReader.InvalidNode ? null : node;
     }
 
@@ -106,7 +110,7 @@ public sealed class ZarArchive : IArchive
     /// </summary>
     private void EnumerateEntries()
     {
-        var rootNode = LookUpNode("/")
+        var rootNode = LookUpRoot()
                        ?? throw new InvalidOperationException("The .zar archive root could not be resolved.");
 
         var pending = new Stack<(uint Node, string Path)>();
@@ -121,21 +125,20 @@ public sealed class ZarArchive : IArchive
             var count = Reader.GetDirEntryCount(node);
             for (var i = 0ul; i < count; i++)
             {
-                if (!Reader.GetDirEntry(node, (uint)i, out var item)) continue;
+                if (!Reader.TryGetDirEntry(node, (uint)i, out var childNode, out var item)) continue;
                 if (string.IsNullOrEmpty(item.Name)) continue;
 
                 var childPath = path.Length == 0 ? item.Name : path + "/" + item.Name;
 
                 if (item.IsDirectory)
                 {
-                    _entries.Add(new ZarArchiveEntry(this, childPath + "/", 0, isDirectory: true));
-
-                    var childNode = LookUpNode(childPath);
-                    if (childNode.HasValue) pending.Push((childNode.Value, childPath));
+                    _entries.Add(new ZarArchiveEntry(this, childPath + "/", 0, isDirectory: true, childNode));
+                    pending.Push((childNode, childPath));
                 }
                 else
                 {
-                    _entries.Add(new ZarArchiveEntry(this, childPath, checked((long)item.Size), isDirectory: false));
+                    _entries.Add(new ZarArchiveEntry(this, childPath, checked((long)item.Size), isDirectory: false,
+                        childNode));
                 }
             }
         }
@@ -149,6 +152,7 @@ public sealed class ZarArchive : IArchive
     {
         private IEnumerator<ZarArchiveEntry>? _enumerator;
         private readonly ZarArchive _archive = archive;
+        private bool _completed;
 
         public ArchiveType Type => _archive.Type;
 
@@ -171,7 +175,7 @@ public sealed class ZarArchive : IArchive
 
         public bool MoveToNextEntry()
         {
-            if (Cancelled) return false;
+            if (Cancelled || _completed) return false;
 
             _enumerator ??= _archive._entries.GetEnumerator();
 
@@ -179,6 +183,7 @@ public sealed class ZarArchive : IArchive
             {
                 _enumerator.Dispose();
                 _enumerator = null;
+                _completed = true;
                 return false;
             }
 

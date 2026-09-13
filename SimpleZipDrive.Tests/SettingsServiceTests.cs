@@ -3,6 +3,7 @@ using SimpleZipDrive.Core.Services;
 
 namespace SimpleZipDrive.Tests;
 
+[Collection("Settings file")]
 public class SettingsServiceTests
 {
     [Fact]

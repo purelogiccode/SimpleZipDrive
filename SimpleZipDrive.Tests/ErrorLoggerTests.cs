@@ -443,7 +443,9 @@ public class ErrorLoggerTests : IDisposable
     [Fact]
     public void FireAndForget_MethodExists()
     {
+#pragma warning disable MA0147
         var fireAndForget = ErrorLogger.FireAndForgetAsync;
+#pragma warning restore MA0147
 
         Assert.NotNull(fireAndForget);
     }

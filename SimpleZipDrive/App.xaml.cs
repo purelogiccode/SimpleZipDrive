@@ -51,17 +51,19 @@ public partial class App
             var loggingService = ServiceProvider.Get<ILoggingService>();
 
             loggingService.Log("Archive Drive using DokanNet (Streaming Access with In-Memory Entry Cache)");
-            loggingService.Log("Supports: ZIP, 7Z, RAR, and TAR archives");
+            loggingService.Log($"Supports: {ArchiveFormats.SupportedFormatsDescription}");
             loggingService.Log("");
             loggingService.Log("Usage 1 (Explicit Mount): SimpleZipDrive.exe <PathToArchiveFile> <MountPoint>");
             loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\archive.zip\" M");
             loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\archive.7z\" N");
             loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\archive.rar\" O");
+            loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\archive.zar\" N");
+            loggingService.Log("Example: SimpleZipDrive.exe \"C:\\path\\to\\game.iso\" O");
             loggingService.Log(
                 @"MountPoint can be a drive letter (e.g., M) or a path to an existing empty folder (e.g., C:\mount\zip)");
             loggingService.Log("");
             loggingService.Log(
-                "Usage 2 (Drag-and-Drop): Drag a .zip, .7z, .rar, .tar, .tar.gz, .tar.bz2, .tar.xz, .tgz, .tbz2, .txz, .cbz, .cbr, or .cb7 file onto the SimpleZipDrive.exe icon.");
+                $"Usage 2 (Drag-and-Drop): Drag a {ArchiveFormats.SupportedExtensionsDescription} file onto the SimpleZipDrive.exe icon.");
             loggingService.Log(@"It will attempt to mount on M:\, then N:\, O:\, P:\, Q:\ automatically.");
             loggingService.Log("");
 

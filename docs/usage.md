@@ -33,6 +33,9 @@ Examples:
 SimpleZipDrive.exe "C:\Data\backup.zip" M        → drive M:
 SimpleZipDrive.exe "C:\Data\backup.7z" N         → drive N:
 SimpleZipDrive.exe "C:\Data\photos.rar" O        → drive O:
+SimpleZipDrive.exe "C:\Data\backup.zar" N        → Zstd-seekable ZArchive
+SimpleZipDrive.exe "C:\Games\MyGame.iso" N       → Xbox XISO disc image
+SimpleZipDrive.exe "C:\Games\MyGame.cso" N       → compressed Xbox image
 SimpleZipDrive.exe "C:\Data\docs.zip" "C:\mount\zip"   → folder mount
 SimpleZipDrive.exe "C:\Data\docs.zip"            → auto-mount on M:–Q:
 ```

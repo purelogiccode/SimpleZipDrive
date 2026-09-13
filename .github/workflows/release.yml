@@ -1,0 +1,182 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build and release (e.g. 3.0.0)'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'release_*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Resolve and validate version
+        id: resolve
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          $version = if ($env:EVENT_NAME -eq 'workflow_dispatch') { $env:INPUT_VERSION } else { $env:REF_NAME -replace '^release_', '' }
+          $version = "$version".Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid version '$version' - expected a three-part version such as 3.0.0." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Release version: $version"
+
+  verify:
+    name: Verify build & tests
+    needs: [version]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Verify csproj version matches
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          [xml]$core = Get-Content -LiteralPath SimpleZipDrive.Core\SimpleZipDrive.Core.csproj
+          $assemblyVersion = $core.Project.PropertyGroup.AssemblyVersion | Where-Object { $_ } | Select-Object -First 1
+          if ($assemblyVersion -ne $env:VERSION) {
+            throw "Version mismatch: release $($env:VERSION) but SimpleZipDrive.Core AssemblyVersion is '$assemblyVersion'. Bump all five csproj files first."
+          }
+
+      - name: Restore
+        run: dotnet restore CSharp_SimpleZipDrive.sln
+
+      - name: Build (Release)
+        run: dotnet build CSharp_SimpleZipDrive.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test SimpleZipDrive.Tests\SimpleZipDrive.Tests.csproj -c Release --no-build
+
+  bundles:
+    name: Build bundles
+    needs: [version, verify]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Package the four per-variant bundles
+        shell: pwsh
+        run: |
+          .\scripts\package-release.ps1 -Version $env:VERSION -OutputDirectory "$env:RUNNER_TEMP\bundles" -StagingDirectory "$env:RUNNER_TEMP\staging" -SkipTests
+
+      - name: Generate release notes from WhatsNew.md
+        shell: pwsh
+        run: |
+          $content = Get-Content -LiteralPath WhatsNew.md -Raw
+          $pattern = "(?ms)^##\s+$([regex]::Escape($env:VERSION))\s*\r?\n(.*?)(?=^##\s+|\z)"
+          $match = [regex]::Match($content, $pattern)
+          if ($match.Success) {
+            $notes = $match.Groups[1].Value.Trim()
+          } else {
+            $notes = "Release $($env:VERSION). See WhatsNew.md for the full changelog."
+          }
+          $notes += "`n`n---`n`nFull changelog: [$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/blob/master/WhatsNew.md]($env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/blob/master/WhatsNew.md)"
+          Set-Content -LiteralPath "$env:RUNNER_TEMP\bundles\release-notes.md" -Value $notes -Encoding utf8
+
+      - name: Write review summary with checksums
+        shell: pwsh
+        run: |
+          $lines = @('## Bundles ready for review', '', 'Download the **release-bundles** artifact below and inspect the zips before approving the release.', '')
+          Get-ChildItem -LiteralPath "$env:RUNNER_TEMP\bundles" -Filter *.zip | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+            $lines += ('- `{0}` - {1:N0} bytes - SHA256 `{2}`' -f $_.Name, $_.Length, $hash)
+          }
+          $lines += ''
+          $lines += 'The **Publish release** job is waiting for approval in the protected `release` environment.'
+          $lines | Set-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+
+      - name: Upload bundles for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundles
+          path: |
+            ${{ runner.temp }}/bundles/*.zip
+            ${{ runner.temp }}/bundles/release-notes.md
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish release (approval required)
+    needs: [version, bundles]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download bundles
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundles
+          path: bundles
+
+      - name: Verify the four expected bundles are present
+        shell: pwsh
+        run: |
+          $expected = @(
+            "release_$($env:VERSION)_Dokan_win-x64.zip",
+            "release_$($env:VERSION)_Dokan_win-arm64.zip",
+            "release_$($env:VERSION)_WinFsp_win-x64.zip",
+            "release_$($env:VERSION)_WinFsp_win-arm64.zip"
+          )
+          foreach ($name in $expected) {
+            if (-not (Test-Path -LiteralPath (Join-Path 'bundles' $name))) { throw "Missing expected bundle: $name" }
+          }
+          Get-ChildItem -LiteralPath bundles -File | Select-Object Name, Length
+
+      - name: Create or update the GitHub release
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          TAG="release_${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists - updating notes and uploading/replacing the four bundles."
+            gh release edit "$TAG" --notes-file bundles/release-notes.md
+            gh release upload "$TAG" bundles/*.zip --clobber
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            gh release create "$TAG" --title "$VERSION" --target "$RELEASE_SHA" --notes-file bundles/release-notes.md bundles/*.zip
+          else
+            gh release create "$TAG" --title "$VERSION" --notes-file bundles/release-notes.md bundles/*.zip
+          fi
+          echo "Published: $(gh release view "$TAG" --json url --jq .url)"

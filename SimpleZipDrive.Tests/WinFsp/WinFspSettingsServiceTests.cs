@@ -3,6 +3,7 @@ using SimpleZipDrive.Core.Services;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 
+[Collection("Settings file")]
 public class WinFspSettingsServiceTests
 {
     [Fact]

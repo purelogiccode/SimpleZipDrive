@@ -232,6 +232,7 @@ public class ZipFileSystemCore : IDisposable
                 "rar" => RarArchive.OpenArchive(stream, new ReaderOptions { LeaveStreamOpen = true }),
                 "tar" => TarArchive.OpenArchive(stream, new ReaderOptions { LeaveStreamOpen = true }),
                 "zar" => new ZarArchive(stream),
+                "xiso" => new XisoArchive(stream),
                 _ => throw new NotSupportedException($"Archive type '{ArchiveType}' is not supported.")
             };
 
@@ -288,6 +289,7 @@ public class ZipFileSystemCore : IDisposable
             "rar" => RarArchive.OpenArchive(stream, new ReaderOptions { Password = password, LeaveStreamOpen = true }),
             "tar" => TarArchive.OpenArchive(stream, new ReaderOptions { Password = password, LeaveStreamOpen = true }),
             "zar" => new ZarArchive(stream),
+            "xiso" => new XisoArchive(stream),
             _ => throw new NotSupportedException($"Archive type '{ArchiveType}' is not supported.")
         };
     }

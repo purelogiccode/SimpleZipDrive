@@ -44,10 +44,13 @@ Buffers are shared: opening the same file repeatedly adds no memory after the fi
 Yes, via SharpCompress. Very large *entries* (over the per-file RAM limit) are handled by the disk cache.
 
 **Does it support split/multi-volume archives?**
-No.
+Split ZIP/7Z/RAR sets: no. Split CISO Xbox images (`.1.cso`, `.2.cso`, …): yes.
 
 **Does it mount `.iso`/`.vhd`/`.exe` installers?**
-No — only the formats listed in [Archive Support](archive-support#supported-formats).
+Xbox XDVDFS images (`.iso`, `.xiso`) and compressed CISO images (`.cso`) mount read-only like any other archive. Generic PC ISO 9660/UDF images, `.vhd`, and `.exe` installers are not supported — a non-Xbox `.iso` is rejected with *"The file is not a valid Xbox XISO disc image"*.
+
+**What is a `.zar` file?**
+A Zstd-seekable archive container (ZArchive) used mainly by the Xbox 360 archival scene. Reads decompress only the blocks they touch, so large `.zar` archives seek instantly with no temporary extraction. See [Archive Support](archive-support#supported-formats).
 
 **Antivirus flags the app or the mount is slow — related?**
 Real-time scanning can slow mounted reads substantially; excluding the mount letter or the app folder is a common remedy. Only download binaries from official [GitHub releases](https://github.com/purelogiccode/SimpleZipDrive/releases).

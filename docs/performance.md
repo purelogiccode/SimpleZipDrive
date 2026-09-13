@@ -24,6 +24,7 @@ Your results depend on: archive compression level, storage speed of the *archive
 ## Why reads are fast
 
 - **Stored ZIP entries bypass decompression entirely** — data is streamed straight from the archive with positional I/O and 4 MB read-ahead ([Caching](caching#1-zero-copy-path-for-stored-zip-entries)).
+- **Seekable formats decode only what a read touches** — `.zar` (Zstd seekable) and Xbox `.cso` images decompress just the blocks they touch, and plain Xbox `.iso` files are read directly from disc sectors ([Archive Support](archive-support#supported-formats)).
 - **Decompressed entries are cached once and shared** — repeated opens (typical game launchers re-reading the same file) never re-decompress.
 - **Large entries extract once** to a local file, after which the OS file cache takes over.
 
@@ -53,6 +54,6 @@ To benchmark a *mounted* drive, mount the archive first and run `FileBenchmark M
 
 ## Known bottlenecks
 
-- First access to a *compressed* entry always pays one decompression (CPU-bound, typically 100–400 MB/s depending on the method).
+- First access to a *compressed* entry always pays one decompression (CPU-bound, typically 100–400 MB/s depending on the method). Block-seekable sources (`.zar`, `.cso`) are the exception — they decode per touched block instead of decompressing the whole entry.
 - Very large numbers of entries (100k+) lengthen the central-directory parse at mount time.
 - Random access into *deflated* entries requires re-decompression from the buffer — the memory cache makes this cheap, the disk cache bounds it.

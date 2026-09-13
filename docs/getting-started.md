@@ -36,7 +36,7 @@ If all five letters are taken, an error is logged and you can mount to a folder 
 Open **This PC** — the archive is now a removable-style drive named after the archive. Files open directly from the archive:
 
 - Small files are decompressed once into memory and shared by every reader.
-- Large files stream straight from the archive (stored ZIP entries) or through the disk cache.
+- Large files stream straight from the archive (stored ZIP entries, `.zar` containers, and Xbox disc images) or through the disk cache.
 - Re-opening a file that is still in the memory cache is effectively instant.
 
 Nothing is written to the archive or the drive — the volume is strictly [read-only](security#read-only-guarantee).
