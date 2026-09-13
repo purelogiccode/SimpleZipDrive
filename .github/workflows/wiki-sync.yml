@@ -27,7 +27,7 @@ jobs:
 
       - name: Checkout
         if: env.WIKI_TOKEN != ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Mirror docs/ into the wiki repository
         if: env.WIKI_TOKEN != ''
