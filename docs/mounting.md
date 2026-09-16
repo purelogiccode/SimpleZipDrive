@@ -77,7 +77,8 @@ When `host.Mount` fails, the NTSTATUS code is mapped to a specific message:
 
 ## Dokan error handling
 
-- `DokanException` triggers up to **2 retries** with a 1-second delay (*"Dokan driver error, retrying in 1s… (attempt 1/2)"*), except when the message contains *"Can't install"* (a hard driver-install failure).
+- `DokanException` triggers up to **2 retries** with a 1-second delay (*"Dokan driver error, retrying in 1s… (attempt 1/2)"*). Retries are skipped for deterministic failures, detected via `DokanException.ErrorStatus` (message text is localized, so text matching is unreliable): driver installation (`DriverInstallError`), drive-letter/mount-point assignment (`MountError`, `DriveLetterError`, `MountPointError`), and version mismatch (`VersionError`).
+- `MountError` / `DriveLetterError` (letter already in use or mount permission denied — e.g. *"Das Laufwerk bzw. die Verknüpfung kann nicht zugewiesen werden."* on German systems) → dedicated *"Mount Point Unavailable"* dialog suggesting a different letter/folder or running as administrator.
 - Missing or incompatible driver → *"Dokan Driver Not Found"* / *"Dokan Driver Incompatible"* dialog with a link to the [Dokan releases page](https://github.com/dokan-dev/dokany/releases).
 - Outdated driver (dokan2.dll older than 2.3.0) → *"Dokan Driver Outdated"* dialog showing the installed and required versions, with a link to the [Dokan releases page](https://github.com/dokan-dev/dokany/releases).
 - Without elevation the Dokan variant logs *"Warning: Running without Administrator privileges."* — mounting may still work for drive letters depending on your system configuration.

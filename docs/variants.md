@@ -21,7 +21,7 @@ SimpleZipDrive is published as two executables. They share the entire core (arch
 | Mount implementation | In-process via `DokanNet` (`DokanInstanceBuilder`) | In-process via `FileSystemHost.Mount` |
 | Mount volume style | `RemovableDrive` | Standard host volume |
 | Pre-mount driver check | `DokanVersion()` P/Invoke + architecture check + minimum-version gate (dokan2.dll ≥ 2.3.0) | Native DLL preload, registry version check, service check, `winfsp-msil.dll` interop availability |
-| Retries on driver error | 2 retries with 1 s delay (skipped for *"Can't install"*) | Maps NTSTATUS codes to specific messages (see [Mounting](mounting#mount-error-codes)) |
+| Retries on driver error | 2 retries with 1 s delay (skipped for deterministic `DokanStatus` failures: install, mount-point/letter, version) | Maps NTSTATUS codes to specific messages (see [Mounting](mounting#mount-error-codes)) |
 | Admin warning | Logs a warning when not elevated | No warning; elevation triggers cross-integrity mode instead |
 
 ## Cross-integrity mounting (WinFsp only)

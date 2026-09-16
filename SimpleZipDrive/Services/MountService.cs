@@ -213,6 +213,23 @@ public class MountService : IDisposable, IMountService
     }
 
     /// <summary>
+    ///     Determines whether a <see cref="DokanException" /> describes a transient driver
+    ///     failure that a short retry can plausibly resolve (e.g. the driver briefly answering
+    ///     "something is wrong"). Deterministic failures — driver installation, drive-letter or
+    ///     mount-point assignment, and version mismatches — must not be retried: retrying the
+    ///     same mount point adds latency and can leave a half-created device behind.
+    /// </summary>
+    /// <remarks>
+    ///     Status-based on purpose: DokanNet localizes exception messages via satellite
+    ///     resource assemblies, so message-text matching (previously
+    ///     <c>Message.Contains("Can't install")</c>) silently broke on non-English systems.
+    /// </remarks>
+    private static bool IsTransientDokanError(DokanException ex)
+    {
+        return ex.ErrorStatus is DokanStatus.Error or DokanStatus.StartError;
+    }
+
+    /// <summary>
     ///     Opens the archive file for reading. Uses <see cref="FileShare.ReadWrite" /> so mounting
     ///     succeeds even when another process currently holds the archive open (e.g. antivirus,
     ///     download managers, torrent clients), with a short retry loop for transient sharing
@@ -371,6 +388,18 @@ public class MountService : IDisposable, IMountService
         }
     }
 
+    private static void ShowMountPointErrorDialog(string mountPoint)
+    {
+        var message = $"The drive could not be mounted on '{mountPoint}'.\n\n" +
+                      "The drive letter or mount point may already be in use by another drive, " +
+                      "or the current user does not have permission to create drive mounts.\n\n" +
+                      "Try a different drive letter or mount folder, or start the application " +
+                      "as administrator.";
+
+        MessageBox.Show(message, "Mount Point Unavailable",
+            MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     private async Task MountWithAutoDriveLetterAsync(string archivePath, string archiveType, ILogger logger)
     {
         char[] preferredDriveLetters = ['M', 'N', 'O', 'P', 'Q'];
@@ -509,9 +538,7 @@ public class MountService : IDisposable, IMountService
                         dokanInstance = builder.Build(_currentZipFs);
                         break;
                     }
-                    catch (DokanException ex) when (attempt < maxRetries &&
-                                                    !ex.Message.Contains("Can't install",
-                                                        StringComparison.OrdinalIgnoreCase))
+                    catch (DokanException ex) when (attempt < maxRetries && IsTransientDokanError(ex))
                     {
                         var delay = retryDelayMs * (attempt + 1);
                         _loggingService.Log(
@@ -565,7 +592,12 @@ public class MountService : IDisposable, IMountService
             ErrorLoggerStatic.ReportSilentException(ex,
                 $"MountService.AttemptMountLifecycleAsync: DokanException mounting '{archivePath}' to '{mountPoint}'",
                 true);
-            ShowDokanDriverErrorDialog(ex.Message);
+
+            if (ex.ErrorStatus is DokanStatus.MountError or DokanStatus.DriveLetterError)
+                ShowMountPointErrorDialog(mountPoint);
+            else
+                ShowDokanDriverErrorDialog(ex.Message);
+
             CurrentArchivePath = null;
             return false;
         }
