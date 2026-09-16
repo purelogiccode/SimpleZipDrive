@@ -85,7 +85,7 @@ flowchart TB
 - **Settings:** `AppSettings` JSON at `%LOCALAPPDATA%\SimpleZipDrive\settings.dat`; corrupt file → reported + reset.
 - **Logging:** single Serilog pipeline (`AppLogger`): verbose → session file; Information+ → debugger; Warning+ → `BugReportSink` → bug API (filtered by `ErrorLogger.IsUserError`); UI pane via `LoggingService` (5000-entry cap, 100 ms dedupe); `DiagnosticLogger` facade with sections/headers.
 - **Global exception handling:** WPF dispatcher / AppDomain / unobserved tasks → `ErrorLoggerStatic`; fatal reports posted synchronously (30 s) before exit; pending reports drained at shutdown (5 s).
-- **Update check:** `releases/latest` GitHub API, `tag_name` regex compare, silent on failure.
+- **Update check:** `releases/latest` GitHub API, `tag_name` regex compare, silent on failure. The "current version" is read from the Core assembly, which is version-pinned to both app executables — deliberately not `Assembly.GetEntryAssembly()`, whose version under IDE test runners is the test host's and can trigger false update notifications in tests.
 - **Stats:** startup POST `{ applicationId, version }`; HTTP 429 ignored.
 
 ## Threading and shutdown

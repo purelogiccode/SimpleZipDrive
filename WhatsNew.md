@@ -1,5 +1,15 @@
 # What's New
 
+## 3.0.1
+
+### Fixed
+- **Dokan variant: mount-point failures are now detected by error status instead of error text (issue #67092).** The retry guard matched the English-only message *"Can't install"*, so on localized systems (DokanNet ships German, French, and Swedish resources) it silently broke and deterministic failures were pointlessly retried, adding ~3 s of latency per failed mount. Retries are now gated on `DokanException.ErrorStatus`: only the transient `Error` and `StartError` statuses are retried; driver-install, drive-letter/mount-point, and version failures fail immediately.
+- **Dokan variant: a failed drive letter or mount folder now shows a dedicated *"Mount Point Unavailable"* dialog** instead of the misleading reinstall-driver dialog. It explains that the letter or folder may already be in use or that permission is missing, and suggests a different letter/folder or running as administrator.
+
+### Internal
+- Update checks now read the current version from the Core assembly (version-pinned to both app executables) instead of `Assembly.GetEntryAssembly()`, which under IDE test runners is the test host and made the "same version" tests spuriously notify the user when the runner version was below the latest release.
+- Updated `Meziantou.Analyzer` to 3.0.259, `SharpSevenZip` to 2.0.128, `Microsoft.NET.Test.Sdk` to 18.10.1, and the GitHub Actions (checkout v5, setup-dotnet v5, upload-artifact v7, download-artifact v8); restored trailing newlines accidentally removed from six Core source files by the analyzer cleanup.
+
 ## 3.0.0
 
 ### Added
