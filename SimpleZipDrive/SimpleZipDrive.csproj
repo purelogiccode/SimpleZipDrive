@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
@@ -10,8 +10,8 @@
         <DebugSymbols>true</DebugSymbols>
         <ApplicationIcon>icon\zip.ico</ApplicationIcon>
         <IsPackable>false</IsPackable>
-        <AssemblyVersion>3.0.0</AssemblyVersion>
-        <FileVersion>3.0.0</FileVersion>
+        <AssemblyVersion>3.0.1</AssemblyVersion>
+        <FileVersion>3.0.1</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
         <Company>PureLogicCode.com</Company>
         <ApplicationManifest>app.manifest</ApplicationManifest>
