@@ -142,6 +142,7 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - name: Download bundles
         uses: actions/download-artifact@v8
