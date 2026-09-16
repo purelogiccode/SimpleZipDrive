@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using System.Reflection;
 using System.Text.Json;
 using SimpleZipDrive.Core.Services;
 using SimpleZipDrive.Tests.Fakes;
@@ -14,7 +13,7 @@ namespace SimpleZipDrive.Tests;
 [SuppressMessage("ReSharper", "NullableWarningSuppressionIsUsed")]
 public class UpdateServiceIntegrationTests
 {
-    private readonly Version _currentVersion = Assembly.GetExecutingAssembly().GetName().Version
+    private readonly Version _currentVersion = typeof(UpdateService).Assembly.GetName().Version
                                                ?? new Version(0, 0, 0, 0);
 
     private readonly FakeUserNotificationService _fakeNotificationService = new();

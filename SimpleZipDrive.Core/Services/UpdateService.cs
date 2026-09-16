@@ -1,6 +1,5 @@
 using System.Net.Security;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Security.Authentication;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -34,6 +33,17 @@ public partial class UpdateService : IUpdateService
     private readonly IUserNotificationService _userNotificationService;
 
     /// <summary>
+    ///     The version used as the "current" application version in update comparisons.
+    ///     Read from the Core assembly, which is version-pinned to both app executables in
+    ///     the project files. <see cref="Assembly.GetEntryAssembly" /> is deliberately not
+    ///     used here: under unit-test runners the entry assembly is the test host, whose
+    ///     version is unrelated to the application version and can be lower than the latest
+    ///     release, producing false "update available" notifications in tests.
+    /// </summary>
+    private static Version CurrentAppVersion =>
+        typeof(UpdateService).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
+
+    /// <summary>
     ///     Initializes a new instance of the <see cref="UpdateService" /> class.
     /// </summary>
     /// <param name="userNotificationService">The user notification service.</param>
@@ -61,8 +71,7 @@ public partial class UpdateService : IUpdateService
     {
         try
         {
-            var current = Assembly.GetEntryAssembly()?.GetName().Version
-                          ?? new Version(0, 0, 0, 0);
+            var current = CurrentAppVersion;
 
             var client = GetHttpClient();
 
