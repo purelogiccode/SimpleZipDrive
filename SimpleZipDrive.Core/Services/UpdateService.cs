@@ -35,10 +35,11 @@ public partial class UpdateService : IUpdateService
     /// <summary>
     ///     The version used as the "current" application version in update comparisons.
     ///     Read from the Core assembly, which is version-pinned to both app executables in
-    ///     the project files. <see cref="Assembly.GetEntryAssembly" /> is deliberately not
-    ///     used here: under unit-test runners the entry assembly is the test host, whose
-    ///     version is unrelated to the application version and can be lower than the latest
-    ///     release, producing false "update available" notifications in tests.
+    ///     the project files. <see cref="M:System.Reflection.Assembly.GetEntryAssembly" />
+    ///     is deliberately not used here: under unit-test runners the entry assembly is the
+    ///     test host, whose version is unrelated to the application version and can be lower
+    ///     than the latest release, producing false "update available" notifications in
+    ///     tests.
     /// </summary>
     private static Version CurrentAppVersion =>
         typeof(UpdateService).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
