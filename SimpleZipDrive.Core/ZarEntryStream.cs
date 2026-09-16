@@ -75,8 +75,10 @@ public sealed class ZarEntryStream : Stream
         // so surface corruption instead of letting callers cache truncated data
         // as a successful extraction.
         if (bytesRead < (ulong)toRead)
+        {
             throw new IOException(
                 $"The .zar archive entry contains a corrupt compression block at offset {_position}.");
+        }
 
         _position += (long)bytesRead;
         return (int)bytesRead;

@@ -192,7 +192,8 @@ public sealed class ZarArchive : IArchive
 
         public void WriteEntryTo(Stream writableStream)
         {
-            using var entryStream = _archive.OpenEntryStream(Current ?? throw new InvalidOperationException("No current entry."));
+            using var entryStream =
+                _archive.OpenEntryStream(Current ?? throw new InvalidOperationException("No current entry."));
             entryStream.CopyTo(writableStream);
         }
 

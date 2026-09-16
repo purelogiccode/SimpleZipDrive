@@ -296,9 +296,9 @@ public class XisoArchiveTests : IDisposable
         Assert.True(stream.CanSeek);
 
         var buffer = new byte[16];
-        stream.Position = 150 * 1024 - 16;
+        stream.Position = (150 * 1024) - 16;
         Assert.Equal(16, stream.Read(buffer, 0, 16));
-        Assert.Equal((byte)((150 * 1024 - 16) % 251), buffer[0]);
+        Assert.Equal((byte)(((150 * 1024) - 16) % 251), buffer[0]);
     }
 
     // ─── Corrupt image hardening ───
