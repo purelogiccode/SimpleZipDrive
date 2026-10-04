@@ -350,6 +350,23 @@ public class UpdateServiceIntegrationTests
     }
 
     [Fact]
+    public async Task CheckForUpdateAsync_WhenVersionComponentsOverflow_DoesNotNotifyUser()
+    {
+        // The regex matches "digits.digits.digits", but Version cannot represent components
+        // above int.MaxValue; the check must swallow that quietly instead of reporting a bug.
+        var json = CreateGitHubReleaseJson("release_99999999999.1.1");
+
+        using var httpClient = CreateMockHttpClient(json);
+        var updateService = new UpdateService(_fakeNotificationService, httpClient);
+
+        // Act
+        await updateService.CheckForUpdateAsync(CancellationToken.None);
+
+        // Assert
+        Assert.False(_fakeNotificationService.ShowUpdateAvailableCalled);
+    }
+
+    [Fact]
     public async Task CheckForUpdateAsync_WhenResponseIsInvalidJson_DoesNotNotifyUser()
     {
         // Arrange

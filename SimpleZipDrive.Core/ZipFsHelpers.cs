@@ -125,11 +125,15 @@ public static class ZipFsHelpers
                     try
                     {
                         using var process = Process.GetProcessById(pid);
-                        // PID exists – verify it belongs to a SimpleZipDrive variant.
-                        // If the process name doesn't match, the original owner crashed
-                        // and the PID was reassigned by the OS, so the directory is orphaned.
+                        // PID exists – verify it belongs to a SimpleZipDrive variant. The Dokan
+                        // and WinFsp executables share this temp root, so an active directory
+                        // owned by either variant must be preserved. If the process name doesn't
+                        // match, the original owner crashed and the PID was reassigned by the
+                        // OS, so the directory is orphaned.
+                        var processName = process.ProcessName;
                         shouldDelete =
-                            !process.ProcessName.Equals(CurrentProcessName, StringComparison.OrdinalIgnoreCase);
+                            !processName.Equals(CurrentProcessName, StringComparison.OrdinalIgnoreCase) &&
+                            !IsSimpleZipDriveProcessName(processName);
                     }
                     catch (ArgumentException)
                     {
@@ -164,6 +168,16 @@ public static class ZipFsHelpers
     public static void EnsureCleanupPerformed()
     {
         if (Interlocked.Exchange(ref _cleanupPerformed, 1) == 0) CleanupOrphanedTempDirectories();
+    }
+
+    /// <summary>
+    ///     Determines whether a process name belongs to a SimpleZipDrive variant. The Dokan
+    ///     and WinFsp executables share the same temp root, so a temp directory owned by a
+    ///     live variant must be preserved regardless of which executable is running.
+    /// </summary>
+    internal static bool IsSimpleZipDriveProcessName(string processName)
+    {
+        return processName.StartsWith("SimpleZipDrive", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static bool IsDirectory(IArchiveEntry? entry)

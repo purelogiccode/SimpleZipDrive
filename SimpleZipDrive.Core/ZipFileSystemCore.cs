@@ -1258,6 +1258,11 @@ public class ZipFileSystemCore : IDisposable
     /// </summary>
     public string CreateSecureTempFile()
     {
+        // The temp directory can be removed externally (e.g. by another instance's orphan
+        // cleanup) while this instance is alive; recreate it so caching does not fail with
+        // "Could not find a part of the path".
+        Directory.CreateDirectory(TempDirectoryPath);
+
         var tempFilePath = Path.Combine(TempDirectoryPath, Guid.NewGuid().ToString("N") + ".tmp");
 
         File.Create(tempFilePath).Dispose();

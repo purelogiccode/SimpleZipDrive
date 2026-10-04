@@ -85,7 +85,7 @@ public partial class UpdateService : IUpdateService
             var m = VersionRegex().Match(tagName);
             if (!m.Success) return;
 
-            var latest = Version.Parse(m.Value);
+            if (!Version.TryParse(m.Value, out var latest)) return;
 
             if (latest <= current) return;
 
@@ -136,19 +136,33 @@ public partial class UpdateService : IUpdateService
     private static async Task<(string TagName, string HtmlUrl)?> TryGetLatestReleaseAsync(
         HttpClient client, string url, CancellationToken cancellationToken)
     {
-        using var resp = await client.GetAsync(url, cancellationToken);
-        if (!resp.IsSuccessStatusCode) return null;
+        try
+        {
+            using var resp = await client.GetAsync(url, cancellationToken);
+            if (!resp.IsSuccessStatusCode) return null;
 
-        await using var jsonStream = await resp.Content.ReadAsStreamAsync(cancellationToken);
-        using var doc = await JsonDocument.ParseAsync(jsonStream, cancellationToken: cancellationToken);
+            await using var jsonStream = await resp.Content.ReadAsStreamAsync(cancellationToken);
+            using var doc = await JsonDocument.ParseAsync(jsonStream, cancellationToken: cancellationToken);
 
-        var tagName = doc.RootElement.GetProperty("tag_name").GetString();
-        var htmlUrl = doc.RootElement.GetProperty("html_url").GetString();
-        if (tagName is null || htmlUrl is null) return null;
+            if (!doc.RootElement.TryGetProperty("tag_name", out var tagNameElement) ||
+                !doc.RootElement.TryGetProperty("html_url", out var htmlUrlElement))
+                return null;
 
-        return (tagName, htmlUrl);
+            var tagName = tagNameElement.GetString();
+            var htmlUrl = htmlUrlElement.GetString();
+            if (tagName is null || htmlUrl is null) return null;
+
+            return (tagName, htmlUrl);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            // A 2xx response with a malformed or non-JSON body (e.g. a proxy or captive
+            // portal page) is an environment condition, not an application error.
+            DiagnosticLogger.Log($"Update check skipped: response was not valid JSON ({ex.Message}).");
+            return null;
+        }
     }
 
-    [GeneratedRegex(@"\d+\.\d+\.\d+", RegexOptions.Compiled, "00:00:01")]
+    [GeneratedRegex(@"\d+\.\d+\.\d+", RegexOptions.Compiled, matchTimeoutMilliseconds: 1000)]
     private static partial Regex VersionRegex();
 }

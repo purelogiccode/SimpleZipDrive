@@ -97,6 +97,22 @@ public partial class App
             ErrorLoggerStatic.InitializeGlobalExceptionHandlers();
 
             _ = RunBackgroundTasksAsync();
+
+            // Create the main window explicitly instead of relying on StartupUri. Resolving a
+            // relative StartupUri against WPF's pack base URI throws UriFormatException on some
+            // systems (e.g. compatibility/translation layers), which prevented the window from
+            // ever opening.
+            try
+            {
+                var mainWindow = new MainWindow();
+                MainWindow = mainWindow;
+                mainWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                ErrorLoggerStatic.ReportSilentException(ex, "App.OnStartup: Failed to create the main window");
+                Shutdown(1);
+            }
         }
         catch (Exception ex)
         {

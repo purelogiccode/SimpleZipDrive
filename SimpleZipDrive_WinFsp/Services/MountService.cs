@@ -24,6 +24,7 @@ public class MountService : IDisposable, IMountService
     private const int StatusNoSuchDevice = unchecked((int)0xC000000E);
 
     private const int StatusObjectNameCollision = unchecked((int)0xC0000035);
+    private const int StatusObjectNameInvalid = unchecked((int)0xC0000033);
 
     // WinFsp 2.1 is the latest stable release (2.2+ are beta versions).
     // winfsp.net 2.1.25156 is built against it and accepts native WinFsp >= 2.1.
@@ -328,6 +329,8 @@ public class MountService : IDisposable, IMountService
                 "A device already exists at this mount point. Please choose a different location.",
             StatusObjectNameCollision =>
                 "The mount point is already in use by another drive or process. Please choose a different drive letter or folder.",
+            StatusObjectNameInvalid =>
+                "The mount point name is invalid. Please choose a valid drive letter (e.g. M:) or an existing folder path.",
             StatusNoSuchDevice =>
                 "The WinFsp device is not available. Please verify the WinFsp driver is installed and running.",
             _ =>
@@ -562,6 +565,15 @@ public class MountService : IDisposable, IMountService
             MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
+    private static void ShowInvalidMountPointDialog(string mountPoint)
+    {
+        var message = $"The mount point '{mountPoint}' is not a valid drive letter or folder.\n\n" +
+                      "Please choose a valid drive letter (e.g. M:) or an existing folder path.";
+
+        MessageBox.Show(message, "Invalid Mount Point",
+            MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     private static bool IsVersionMismatchError(Exception ex)
     {
         var deepest = GetDeepestMessage(ex);
@@ -677,8 +689,11 @@ public class MountService : IDisposable, IMountService
         {
             _loggingService.LogError($"Mount point '{mountPoint}' is not accessible or cannot be created.");
             DiagnosticLogger.Log($"Mount point verification failed for '{mountPoint}'.");
-            ShowWinFspDriverErrorDialog(
-                $"The mount point '{mountPoint}' is not accessible. Please choose a different location or check permissions.");
+            if (isDriveLetter)
+                ShowMountPointInUseDialog(mountPoint);
+            else
+                ShowWinFspDriverErrorDialog(
+                    $"The mount point '{mountPoint}' is not accessible. Please choose a different location or check permissions.");
             return false;
         }
 
@@ -824,6 +839,9 @@ public class MountService : IDisposable, IMountService
                             // The mount point is already in use - this is not a driver problem,
                             // so don't suggest reinstalling/updating WinFsp.
                             ShowMountPointInUseDialog(mountPoint);
+                            break;
+                        case StatusObjectNameInvalid:
+                            ShowInvalidMountPointDialog(mountPoint);
                             break;
                         default:
                             ShowWinFspMountFailedUpdateDialog(specificError);

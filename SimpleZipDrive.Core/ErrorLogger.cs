@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -388,6 +389,10 @@ public class ErrorLogger : IDisposable
             // the update check handles its own network noise quietly before reaching this point.
             case HttpRequestException
                 when ex.InnerException is OperationCanceledException or TaskCanceledException:
+            // DNS and connection failures ("Host not found", no internet, server unreachable) are
+            // environment conditions, not application bugs.
+            case HttpRequestException when ex.InnerException is SocketException:
+            case SocketException:
             // Archive decryption failures (wrong password, encrypted data) originate from
             // SharpCompress. A CryptographicException from any other source may be a real
             // application bug (e.g. protected-data misuse) and must stay reportable.
@@ -485,13 +490,14 @@ public class ErrorLogger : IDisposable
              messageLower.Contains("not running", StringComparison.OrdinalIgnoreCase)) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("could not be loaded", StringComparison.OrdinalIgnoreCase)) ||
-            // Assembly-load failure of the WinFsp interop (winfsp-msil.dll missing beside the
-            // executable, e.g. removed by antivirus) — an environment issue with its own dialog.
-            (messageLower.Contains("could not load file or assembly", StringComparison.OrdinalIgnoreCase) &&
-             messageLower.Contains("winfsp-msil", StringComparison.OrdinalIgnoreCase)) ||
+            // Assembly-load failures (e.g. winfsp-msil.dll or SharpSevenZip.dll missing beside
+            // the executable, removed by antivirus or an incomplete extraction) are environment
+            // issues with their own dialogs.
+            messageLower.Contains("could not load file or assembly", StringComparison.OrdinalIgnoreCase) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("mount failed with status", StringComparison.OrdinalIgnoreCase) &&
-             (messageLower.Contains("0xc0000035", StringComparison.OrdinalIgnoreCase) ||
+             (messageLower.Contains("0xc0000033", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("0xc0000035", StringComparison.OrdinalIgnoreCase) ||
               messageLower.Contains("0xc0000038", StringComparison.OrdinalIgnoreCase) ||
               messageLower.Contains("0xc000003a", StringComparison.OrdinalIgnoreCase) ||
               messageLower.Contains("0xc000000e", StringComparison.OrdinalIgnoreCase) ||
@@ -499,6 +505,12 @@ public class ErrorLogger : IDisposable
               messageLower.Contains("0xc000009a", StringComparison.OrdinalIgnoreCase))) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("already in use", StringComparison.OrdinalIgnoreCase)) ||
+            // Unavailable mount points (drive letter or folder in use, no permission to create
+            // the mount) and missing cache/temp directories are environment conditions.
+            (messageLower.Contains("mount point", StringComparison.OrdinalIgnoreCase) &&
+             (messageLower.Contains("not accessible", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("cannot be created", StringComparison.OrdinalIgnoreCase))) ||
+            messageLower.Contains("could not find a part of the path", StringComparison.OrdinalIgnoreCase) ||
             messageLower.Contains("dokan driver not found", StringComparison.OrdinalIgnoreCase) ||
             // Produced at runtime from DokanNet's DokanException.Message ("Can't install the Dokan driver"),
             // e.g. "Dokan error: Can't install the Dokan driver" and "[Warning] ... - Can't install the Dokan driver".

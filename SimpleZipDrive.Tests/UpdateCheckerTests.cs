@@ -313,7 +313,7 @@ public partial class UpdateCheckerTests
         Assert.Equal(isValid, isHttps && isGitHub && hasReleases);
     }
 
-    [GeneratedRegex(@"\d+\.\d+(?:\.\d+)?", RegexOptions.Compiled, "00:00:01")]
+    [GeneratedRegex(@"\d+\.\d+(?:\.\d+)?", RegexOptions.Compiled, matchTimeoutMilliseconds: 1000)]
     private static partial Regex VersionRegex();
 
     #endregion

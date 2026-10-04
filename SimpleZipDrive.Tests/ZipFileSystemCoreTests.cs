@@ -521,6 +521,26 @@ public class ZipFileSystemCoreTests : IDisposable
         File.Delete(path2);
     }
 
+    [Fact]
+    public void CreateSecureTempFile_RecreatesDeletedTempDirectory()
+    {
+        // The temp directory may be removed externally (e.g. orphan cleanup from another
+        // instance); creating a cache file must recreate it instead of failing with
+        // "Could not find a part of the path".
+        var core = CreateCore();
+        var tempDir = core.TempDirectoryPath;
+
+        Directory.Delete(tempDir, true);
+        Assert.False(Directory.Exists(tempDir));
+
+        var filePath = core.CreateSecureTempFile();
+
+        Assert.True(File.Exists(filePath));
+        Assert.True(Directory.Exists(tempDir));
+
+        File.Delete(filePath);
+    }
+
     // ─── Dispose tests ───
 
     [Fact]

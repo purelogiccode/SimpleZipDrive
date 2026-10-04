@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using SimpleZipDrive.Core;
 
@@ -325,12 +326,27 @@ public class ErrorLoggerAdditionalTests
     [Fact]
     public void IsUserError_HttpRequestExceptionWithoutCanceledInner_ReturnsFalse()
     {
-        // Only canceled HTTP requests are treated as user errors; other network failures may be
-        // real application errors and must stay reportable. The update check handles its own
-        // network noise quietly before this filter is ever consulted.
+        // A non-network inner exception (e.g. a server error) may be a real application error
+        // and must stay reportable. Only DNS/connection failures (SocketException) are treated
+        // as environment noise by the separate filter below.
         var ex = new HttpRequestException("request failed", new InvalidOperationException("server error"));
         var result = ErrorLogger.IsUserError(ex);
         Assert.False(result);
+    }
+
+    // ─── IsUserError: network failures ("Host not found") are environment conditions ───
+
+    [Fact]
+    public void IsUserError_HttpRequestExceptionWithSocketExceptionInner_ReturnsTrue()
+    {
+        var ex = new HttpRequestException("Host not found.", new SocketException((int)SocketError.HostNotFound));
+        Assert.True(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_SocketException_ReturnsTrue()
+    {
+        Assert.True(ErrorLogger.IsUserError(new SocketException((int)SocketError.HostNotFound)));
     }
 
     // ─── IsUserError: expected environment conditions (WinFsp / Dokan) are not bugs ───
@@ -343,7 +359,14 @@ public class ErrorLoggerAdditionalTests
     [InlineData("WinFsp native DLL could not be loaded. The DLL may be missing.")]
     [InlineData(
         @"Error: Failed to mount 'D:\Games\game.rar'. Could not load file or assembly 'winfsp-msil, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b099876d8fa9b1f3'.")]
+    [InlineData(
+        "Error unmounting drive: Could not load file or assembly 'SharpSevenZip, Version=2.0.128.0, Culture=neutral, PublicKeyToken=null'. The system cannot find the file specified.")]
     [InlineData("WinFsp mount failed with status 0xC0000035: Mount failed with status 0xC0000035.")]
+    [InlineData(
+        "WinFsp mount failed with status 0xC0000033: Mount failed with status 0xC0000033. This may be caused by an outdated WinFsp driver.")]
+    [InlineData("Mount point 'N:' is not accessible or cannot be created.")]
+    [InlineData(
+        @"Mount error: Could not find a part of the path 'C:\Users\Red\AppData\Local\SimpleZipDrive\Temp\344344_4348ff0eabcd46499496a744557eb147'.")]
     [InlineData("The WinFsp driver was not found or is not running. Please install or start the WinFsp service.")]
     [InlineData("Dokan driver not found. Unable to mount archive.")]
     [InlineData("Can't install the Dokan driver")]

@@ -41,6 +41,26 @@ public class ZipFsHelpersCleanupTests
         Assert.Null(ex);
     }
 
+    // ─── IsSimpleZipDriveProcessName: both variants share the temp root ───
+
+    [Theory]
+    [InlineData("SimpleZipDrive")]
+    [InlineData("SimpleZipDrive_WinFsp")]
+    [InlineData("simplezipdrive_winfsp")]
+    public void IsSimpleZipDriveProcessName_VariantNames_ReturnsTrue(string processName)
+    {
+        Assert.True(ZipFsHelpers.IsSimpleZipDriveProcessName(processName));
+    }
+
+    [Theory]
+    [InlineData("explorer")]
+    [InlineData("dotnet")]
+    [InlineData("")]
+    public void IsSimpleZipDriveProcessName_OtherNames_ReturnsFalse(string processName)
+    {
+        Assert.False(ZipFsHelpers.IsSimpleZipDriveProcessName(processName));
+    }
+
     // ─── IsMatchSimple: cache hit path ───
 
     [Fact]
