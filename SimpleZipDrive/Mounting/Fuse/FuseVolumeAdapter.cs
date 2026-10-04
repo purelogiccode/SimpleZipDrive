@@ -1,5 +1,4 @@
 using System.Buffers;
-using SimpleZipDrive.FuseSharp;
 
 namespace SimpleZipDrive.Mounting.Fuse;
 

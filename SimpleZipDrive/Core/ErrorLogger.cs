@@ -543,10 +543,10 @@ public class ErrorLogger : IDisposable
                 else
                     await SendMessageToApiAsync(level, message, context, cts.Token);
             }
-            catch (Exception ex)
+            catch (Exception ex2)
             {
                 // Forwarding is best-effort.
-                DiagnosticLogger.Log(ex, "ErrorLogger.ForwardLogEventToApi: forwarding failed");
+                DiagnosticLogger.Log(ex2, "ErrorLogger.ForwardLogEventToApi: forwarding failed");
             }
         });
 
