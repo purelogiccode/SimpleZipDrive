@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0-windows</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
@@ -9,6 +9,8 @@
         <AssemblyVersion>3.0.1</AssemblyVersion>
         <FileVersion>3.0.1</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
+        <!-- The Windows-only mount backends are exercised directly by the tests. -->
+        <NoWarn>$(NoWarn);CA1416</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -46,9 +48,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\SimpleZipDrive.Core\SimpleZipDrive.Core.csproj" />
         <ProjectReference Include="..\SimpleZipDrive\SimpleZipDrive.csproj" />
-        <ProjectReference Include="..\SimpleZipDrive_WinFsp\SimpleZipDrive_WinFsp.csproj" />
     </ItemGroup>
 
 </Project>

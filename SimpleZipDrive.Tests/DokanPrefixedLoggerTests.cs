@@ -1,4 +1,4 @@
-using SimpleZipDrive.Services;
+using SimpleZipDrive.Mounting.Dokan;
 
 namespace SimpleZipDrive.Tests;
 

@@ -1,0 +1,193 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SimpleZipDrive.Views.SettingsWindow"
+        Title="Settings"
+        Height="720"
+        Width="560"
+        HorizontalContentAlignment="Stretch"
+        VerticalContentAlignment="Stretch"
+        WindowStartupLocation="CenterScreen"
+        CanResize="True">
+    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="Settings"
+                   Classes="header"
+                   Margin="0,0,0,15"
+                   ToolTip.Tip="Application settings" />
+
+        <!-- Memory Settings -->
+        <Border Grid.Row="1"
+                Background="{StaticResource BgSecondaryBrush}"
+                BorderBrush="{StaticResource BorderPrimaryBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="15"
+                Margin="0,0,0,10"
+                ToolTip.Tip="Memory configuration settings">
+            <StackPanel>
+                <TextBlock Text="Memory Settings"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
+                <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                    <Label Grid.Column="0"
+                           Content="Max RAM per file:"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"
+                           ToolTip.Tip="Maximum amount of RAM to allocate for each mounted file" />
+                    <TextBox x:Name="RamLimitTextBox"
+                             Grid.Column="1"
+                             Width="90"
+                             Height="32"
+                             TextAlignment="Right"
+                             ToolTip.Tip="Enter the maximum RAM limit in megabytes (numeric value only)" />
+                    <Label Grid.Column="2"
+                           Content="MB"
+                           VerticalAlignment="Center"
+                           Margin="8,0,0,0"
+                           ToolTip.Tip="Megabytes - unit of memory measurement" />
+                    <TextBlock Grid.Column="3"
+                               VerticalAlignment="Center"
+                               Margin="15,0,0,0"
+                               Classes="hint"
+                               Text="(512 MB default)"
+                               ToolTip.Tip="Default value if not specified" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Mount Settings -->
+        <Border Grid.Row="2"
+                Background="{StaticResource BgSecondaryBrush}"
+                BorderBrush="{StaticResource BorderPrimaryBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="15"
+                Margin="0,0,0,15"
+                ToolTip.Tip="Mount configuration settings">
+            <StackPanel>
+                <TextBlock Text="Mount Settings"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                    <Label Grid.Row="0"
+                           Grid.Column="0"
+                           Content="Default mount type:"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,8"
+                           ToolTip.Tip="Default method for mounting archives" />
+                    <ComboBox x:Name="MountTypeComboBox"
+                              Grid.Row="0"
+                              Grid.Column="1"
+                              Width="220"
+                              HorizontalAlignment="Left"
+                              Height="32"
+                              Margin="0,0,0,8"
+                              ToolTip.Tip="Select the default mount type for archives" />
+
+                    <Label Grid.Row="1"
+                           Grid.Column="0"
+                           Content="Mount backend:"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"
+                           ToolTip.Tip="File-system driver used to expose the archive" />
+                    <ComboBox x:Name="MountBackendComboBox"
+                              Grid.Row="1"
+                              Grid.Column="1"
+                              Width="220"
+                              HorizontalAlignment="Left"
+                              Height="32"
+                              ToolTip.Tip="Select which driver to use: WinFsp or Dokan on Windows, FUSE on Linux/macOS" />
+                </Grid>
+                <TextBlock x:Name="BackendHintText"
+                           Classes="hint"
+                           TextWrapping="Wrap"
+                           Margin="0,8,0,0"
+                           Text="Auto picks WinFsp, then Dokan on Windows; FUSE on Linux/macOS." />
+            </StackPanel>
+        </Border>
+
+        <!-- Security Settings -->
+        <Border Grid.Row="3"
+                Background="{StaticResource BgSecondaryBrush}"
+                BorderBrush="{StaticResource BorderPrimaryBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="15"
+                Margin="0,0,0,15"
+                ToolTip.Tip="Security settings for cross-process visibility">
+            <StackPanel>
+                <TextBlock Text="Security Settings (WinFsp, Windows)"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
+                <CheckBox x:Name="CrossIntegrityCheckBox"
+                          Content="Cross-integrity mount (visible to elevated/Admin processes)"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="Forces folder-based mount with a permissive security descriptor so both standard and elevated processes can access the mounted drive. Drive letter mounts cannot bypass UAC isolation." />
+                <TextBlock Classes="hint"
+                           Text="Requires folder mount. Drive letters are isolated by Windows UAC."
+                           Margin="24,4,0,10" />
+
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Label Grid.Column="0"
+                           Content="Mount folder:"
+                           VerticalAlignment="Center"
+                           Margin="24,0,10,0"
+                           ToolTip.Tip="Base folder for cross-integrity mounts. Each archive gets a subfolder." />
+                    <TextBox x:Name="MountFolderTextBox"
+                             Grid.Column="1"
+                             Height="32"
+                             ToolTip.Tip="Leave empty to use default: %LOCALAPPDATA%\SimpleZipDrive\Mounts" />
+                    <Button Grid.Column="2"
+                            Content="Browse..."
+                            Click="BrowseMountFolder_Click"
+                            Width="85"
+                            Height="32"
+                            Margin="8,0,0,0"
+                            Theme="{StaticResource SecondaryButton}"
+                            ToolTip.Tip="Select a folder for cross-integrity mounts" />
+                </Grid>
+                <TextBlock Classes="hint"
+                           Text="Leave empty for default: %LOCALAPPDATA%\SimpleZipDrive\Mounts"
+                           Margin="37,4,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- Automation Settings -->
+        <Border Grid.Row="4"
+                Background="{StaticResource BgSecondaryBrush}"
+                BorderBrush="{StaticResource BorderPrimaryBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="15"
+                Margin="0,0,0,15"
+                ToolTip.Tip="Automation settings">
+            <StackPanel>
+                <TextBlock Text="Automation Settings"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
+                <CheckBox x:Name="AutoOpenCheckBox"
+                          Content="Automatically open the mounted drive"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="When enabled, the mounted location will be opened automatically after a successful mount" />
+            </StackPanel>
+        </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="6"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="10">
+            <Button Content="Save"
+                    Click="Save_Click"
+                    Width="85"
+                    Theme="{StaticResource PrimaryButton}"
+                    ToolTip.Tip="Save settings" />
+            <Button Content="Cancel"
+                    Click="Cancel_Click"
+                    Width="85"
+                    Theme="{StaticResource SecondaryButton}"
+                    ToolTip.Tip="Discard changes and close" />
+        </StackPanel>
+    </Grid>
+</Window>

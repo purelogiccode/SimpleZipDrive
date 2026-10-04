@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Core.Models;
-using SimpleZipDrive_WinFsp.Services;
+using SimpleZipDrive.Mounting.WinFsp;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 
@@ -20,19 +20,19 @@ public class WinFspMountServiceTests : IDisposable
     [Fact]
     public void Constructor_NullLoggingService_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new MountService(null!, _settingsService));
+        Assert.Throws<ArgumentNullException>(() => new WinFspMountService(null!, _settingsService));
     }
 
     [Fact]
     public void Constructor_NullSettingsService_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new MountService(_loggingService, null!));
+        Assert.Throws<ArgumentNullException>(() => new WinFspMountService(_loggingService, null!));
     }
 
     [Fact]
     public void Constructor_ValidArguments_CreatesInstance()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
         Assert.NotNull(service);
         Assert.False(service.IsMounted);
         Assert.Null(service.CurrentMountPoint);
@@ -55,7 +55,7 @@ public class WinFspMountServiceTests : IDisposable
     [InlineData("archive.cb7", "7z")]
     public void GetArchiveType_KnownExtensions_ReturnsCorrectType(string filePath, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         var result = service.GetArchiveType(filePath);
 
@@ -68,7 +68,7 @@ public class WinFspMountServiceTests : IDisposable
     [InlineData("archive.dll", "dll")]
     public void GetArchiveType_UnknownExtensions_ReturnsExtensionWithoutDot(string filePath, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         var result = service.GetArchiveType(filePath);
 
@@ -81,7 +81,7 @@ public class WinFspMountServiceTests : IDisposable
     [InlineData("archive.7Z", "7z")]
     public void GetArchiveType_IsCaseInsensitive(string filePath, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         var result = service.GetArchiveType(filePath);
 
@@ -94,7 +94,7 @@ public class WinFspMountServiceTests : IDisposable
     [InlineData(@"\\network\share\documents\data.rar", "rar")]
     public void GetArchiveType_FullPaths_ReturnsCorrectType(string filePath, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         var result = service.GetArchiveType(filePath);
 
@@ -104,7 +104,7 @@ public class WinFspMountServiceTests : IDisposable
     [Fact]
     public void GetArchiveType_NoExtension_ReturnsEmptyString()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         var result = service.GetArchiveType("fileWithoutExtension");
 

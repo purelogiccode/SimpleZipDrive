@@ -4,7 +4,7 @@ using System.Security.AccessControl;
 using System.Text;
 using SimpleZipDrive.Core;
 using SimpleZipDrive.Core.Models;
-using WinFspZipFs = SimpleZipDrive_WinFsp.ZipFs;
+using WinFspZipFs = SimpleZipDrive.Mounting.WinFsp.WinFspZipFs;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 

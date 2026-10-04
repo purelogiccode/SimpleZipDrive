@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Text;
 using SimpleZipDrive.Core;
-using WinFspZipFs = SimpleZipDrive_WinFsp.ZipFs;
+using WinFspZipFs = SimpleZipDrive.Mounting.WinFsp.WinFspZipFs;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 

@@ -1,0 +1,93 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SimpleZipDrive.Views.AboutWindow"
+        Title="About Simple Zip Drive"
+        Height="440"
+        Width="520"
+        CanResize="False"
+        HorizontalContentAlignment="Stretch"
+        VerticalContentAlignment="Stretch"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="25" RowDefinitions="Auto,Auto,Auto,*,Auto">
+        <TextBlock Grid.Row="0"
+                   Text="Simple Zip Drive"
+                   Classes="title"
+                   Margin="0,0,0,5"
+                   ToolTip.Tip="Application name" />
+
+        <TextBlock Grid.Row="1"
+                   x:Name="VersionTextBlock"
+                   Classes="accent"
+                   Margin="0,0,0,20"
+                   ToolTip.Tip="Current application version" />
+
+        <Border Grid.Row="2"
+                Background="{StaticResource BgSecondaryBrush}"
+                BorderBrush="{StaticResource BorderPrimaryBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="15"
+                Margin="0,0,0,15"
+                ToolTip.Tip="Application description">
+            <TextBlock TextWrapping="Wrap"
+                       Classes="body"
+                       ToolTip.Tip="A high-performance, user-mode filesystem utility">
+                A high-performance, user-mode filesystem utility that allows you
+                to mount ZIP, 7Z, RAR, TAR, ZAR, and Xbox XISO archives as virtual
+                drives or folders on Windows, Linux, and macOS.
+            </TextBlock>
+        </Border>
+
+        <StackPanel Grid.Row="3" Margin="0,0,0,15" Spacing="8">
+            <TextBlock TextWrapping="Wrap">
+                <Run Text="Built on " Foreground="{StaticResource TextMutedBrush}" />
+                <HyperlinkButton x:Name="WinFspLink" Content="WinFsp"
+                                 Click="WinFspLink_Click" Padding="0"
+                                 Foreground="{StaticResource AccentSecondaryBrush}"
+                                 ToolTip.Tip="Open WinFsp website (Windows file system driver)" />
+                <Run Text=", " Foreground="{StaticResource TextMutedBrush}" />
+                <HyperlinkButton x:Name="DokanLink" Content="DokanNet"
+                                 Click="DokanLink_Click" Padding="0"
+                                 Foreground="{StaticResource AccentSecondaryBrush}"
+                                 ToolTip.Tip="Open DokanNet website (user-mode file system library for Windows)" />
+                <Run Text=", " Foreground="{StaticResource TextMutedBrush}" />
+                <HyperlinkButton x:Name="FuseLink" Content="FUSE (FuseSharp)"
+                                 Click="FuseLink_Click" Padding="0"
+                                 Foreground="{StaticResource AccentSecondaryBrush}"
+                                 ToolTip.Tip="FUSE support for Linux and macOS via the bundled FuseSharp library" />
+                <Run Text=" and " Foreground="{StaticResource TextMutedBrush}" />
+                <HyperlinkButton x:Name="SharpCompressLink" Content="SharpCompress"
+                                 Click="SharpCompressLink_Click" Padding="0"
+                                 Foreground="{StaticResource AccentSecondaryBrush}"
+                                 ToolTip.Tip="Open SharpCompress website (archive compression library)" />
+                <Run Text="." Foreground="{StaticResource TextMutedBrush}" />
+            </TextBlock>
+
+            <TextBlock TextWrapping="Wrap">
+                <Run Text="Licensed under " Foreground="{StaticResource TextMutedBrush}" />
+                <Run Text="GPLv3" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
+                <Run Text="." Foreground="{StaticResource TextMutedBrush}" />
+            </TextBlock>
+
+            <HyperlinkButton x:Name="GitHubLink"
+                             Content="https://github.com/purelogiccode/SimpleZipDrive"
+                             Click="GitHubLink_Click" Padding="0"
+                             Foreground="{StaticResource AccentSecondaryBrush}"
+                             ToolTip.Tip="Open project GitHub repository" />
+
+            <TextBlock TextWrapping="Wrap"
+                       Classes="muteditalic"
+                       ToolTip.Tip="Developer website">
+                www.purelogiccode.com
+            </TextBlock>
+        </StackPanel>
+
+        <Button Grid.Row="4"
+                Content="Close"
+                Click="Close_Click"
+                Width="85"
+                HorizontalAlignment="Right"
+                Theme="{StaticResource SecondaryButton}"
+                ToolTip.Tip="Close this window" />
+    </Grid>
+</Window>

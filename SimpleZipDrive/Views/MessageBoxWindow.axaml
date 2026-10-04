@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SimpleZipDrive.Views.MessageBoxWindow"
+        Title="Simple Zip Drive"
+        SizeToContent="WidthAndHeight"
+        MinWidth="340"
+        MaxWidth="620"
+        CanResize="False"
+        ShowInTaskbar="False"
+        HorizontalContentAlignment="Stretch"
+        VerticalContentAlignment="Stretch"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="20" RowDefinitions="Auto,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="14">
+            <TextBlock x:Name="IconText"
+                       FontSize="26"
+                       VerticalAlignment="Top"
+                       Text="" />
+            <TextBlock x:Name="MessageText"
+                       TextWrapping="Wrap"
+                       MaxWidth="500"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource TextPrimaryBrush}" />
+        </StackPanel>
+
+        <StackPanel x:Name="ButtonsPanel"
+                    Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,20,0,0"
+                    Spacing="10" />
+    </Grid>
+</Window>

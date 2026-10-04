@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Core.Models;
-using SimpleZipDrive_WinFsp.Services;
+using SimpleZipDrive.Mounting.WinFsp;
 
 namespace SimpleZipDrive.Tests.WinFsp;
 
@@ -23,10 +23,10 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public async Task MountAsync_WhenAlreadyMounted_ThrowsInvalidOperation()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         // Simulate mounted state via reflection
-        var isMountedProp = typeof(MountService).GetProperty("IsMounted");
+        var isMountedProp = typeof(WinFspMountService).GetProperty("IsMounted");
         isMountedProp!.SetValue(service, true);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.MountAsync("test.zip"));
@@ -35,7 +35,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public async Task MountAsync_NonExistentFile_ThrowsFileNotFound()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         await Assert.ThrowsAsync<FileNotFoundException>(() =>
             service.MountAsync(@"C:\nonexistent\path\file.zip"));
@@ -50,7 +50,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
         {
             await File.WriteAllTextAsync(tempFile, "test");
 
-            var service = new MountService(_loggingService, _settingsService);
+            var service = new WinFspMountService(_loggingService, _settingsService);
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.MountAsync(tempFile));
         }
@@ -68,7 +68,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
         {
             await File.WriteAllTextAsync(tempFile, "test");
 
-            var service = new MountService(_loggingService, _settingsService);
+            var service = new WinFspMountService(_loggingService, _settingsService);
 
             var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.MountAsync(tempFile));
             Assert.Contains(".gz", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -85,7 +85,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public async Task UnmountAsync_WhenNotMounted_DoesNothing()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         var ex = await Record.ExceptionAsync(service.UnmountAsync);
         Assert.Null(ex);
@@ -96,7 +96,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void Dispose_DoesNotThrow()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         var ex = Record.Exception(service.Dispose);
         Assert.Null(ex);
@@ -105,7 +105,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void Dispose_DoubleDispose_DoesNotThrow()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         service.Dispose();
         var ex = Record.Exception(service.Dispose);
@@ -123,7 +123,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [InlineData(@"C:\path\to\archive.TGZ", "tar")]
     public void GetArchiveType_UpperCaseExtension_ReturnsLowerCase(string path, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
         Assert.Equal(expected, service.GetArchiveType(path));
     }
 
@@ -133,21 +133,21 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [InlineData("archive.Rar", "rar")]
     public void GetArchiveType_MixedCaseExtension_ReturnsLowerCase(string path, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
         Assert.Equal(expected, service.GetArchiveType(path));
     }
 
     [Fact]
     public void GetArchiveType_PathWithSpaces_WorksCorrectly()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
         Assert.Equal("zip", service.GetArchiveType("my archive.zip"));
     }
 
     [Fact]
     public void GetArchiveType_PathWithDots_WorksCorrectly()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
         Assert.Equal("zip", service.GetArchiveType("archive.v2.backup.zip"));
     }
 
@@ -161,7 +161,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [InlineData(@"C:\path\to\archive.tar.gz", "tar")]
     public void GetArchiveType_TarCompressedVariants_ReturnsTar(string path, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
         Assert.Equal(expected, service.GetArchiveType(path));
     }
 
@@ -170,11 +170,11 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void MountStatusChanged_InitiallyNotSubscribed_NoError()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         // Event should be null initially (no subscribers)
         // Invoking OnMountStatusChanged via reflection should not throw
-        var method = typeof(MountService).GetMethod("OnMountStatusChanged",
+        var method = typeof(WinFspMountService).GetMethod("OnMountStatusChanged",
             BindingFlags.NonPublic | BindingFlags.Instance);
 
         var ex = Record.Exception(() => method!.Invoke(service, null));
@@ -184,13 +184,13 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void MountStatusChanged_CanSubscribe()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
         var eventRaised = false;
 
         service.MountStatusChanged += (_, _) => eventRaised = true;
 
         // Invoke via reflection
-        var method = typeof(MountService).GetMethod("OnMountStatusChanged",
+        var method = typeof(WinFspMountService).GetMethod("OnMountStatusChanged",
             BindingFlags.NonPublic | BindingFlags.Instance);
         method!.Invoke(service, null);
 
@@ -202,7 +202,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void IsWinFspInteropAssemblyAvailable_LoadsInTestOutput()
     {
-        var method = typeof(MountService).GetMethod("IsWinFspInteropAssemblyAvailable",
+        var method = typeof(WinFspMountService).GetMethod("IsWinFspInteropAssemblyAvailable",
             BindingFlags.NonPublic | BindingFlags.Static)!;
 
         var result = (bool)method.Invoke(null, null)!;
@@ -218,7 +218,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void IsVersionMismatchError_IncorrectDllVersion_ReturnsTrue()
     {
-        var method = typeof(MountService).GetMethod("IsVersionMismatchError",
+        var method = typeof(WinFspMountService).GetMethod("IsVersionMismatchError",
             BindingFlags.NonPublic | BindingFlags.Static)!;
 
         var ex = new TypeLoadException("incorrect dll version (need 2.2, have 2.1)");
@@ -230,7 +230,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void IsVersionMismatchError_TypeInitializationWithDllVersion_ReturnsTrue()
     {
-        var method = typeof(MountService).GetMethod("IsVersionMismatchError",
+        var method = typeof(WinFspMountService).GetMethod("IsVersionMismatchError",
             BindingFlags.NonPublic | BindingFlags.Static)!;
 
         var inner = new TypeLoadException("incorrect dll version (need 2.2, have 2.1)");
@@ -243,7 +243,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void IsVersionMismatchError_UnrelatedException_ReturnsFalse()
     {
-        var method = typeof(MountService).GetMethod("IsVersionMismatchError",
+        var method = typeof(WinFspMountService).GetMethod("IsVersionMismatchError",
             BindingFlags.NonPublic | BindingFlags.Static)!;
 
         var ex = new IOException("file not found");
@@ -257,7 +257,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void GetDeepestMessage_NoInnerException_ReturnsTopMessage()
     {
-        var method = typeof(MountService).GetMethod("GetDeepestMessage",
+        var method = typeof(WinFspMountService).GetMethod("GetDeepestMessage",
             BindingFlags.NonPublic | BindingFlags.Static)!;
 
         var ex = new InvalidOperationException("top level message");
@@ -269,7 +269,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void GetDeepestMessage_WithInnerException_ReturnsInnermostMessage()
     {
-        var method = typeof(MountService).GetMethod("GetDeepestMessage",
+        var method = typeof(WinFspMountService).GetMethod("GetDeepestMessage",
             BindingFlags.NonPublic | BindingFlags.Static)!;
 
         var inner = new IOException("deepest message");
@@ -296,7 +296,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [InlineData("path/to/dir", false)]
     public void IsDriveLetterMountPoint_VariousInputs_ReturnsExpected(string mountPoint, bool expected)
     {
-        var method = typeof(MountService).GetMethod("IsDriveLetterMountPoint",
+        var method = typeof(WinFspMountService).GetMethod("IsDriveLetterMountPoint",
             BindingFlags.NonPublic | BindingFlags.Static)!;
 
         var result = (bool)method.Invoke(null, [mountPoint])!;
@@ -309,7 +309,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
     [Fact]
     public void Constructor_SavesReferencesToServices()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new WinFspMountService(_loggingService, _settingsService);
 
         Assert.NotNull(service);
         Assert.False(service.IsMounted);
@@ -324,7 +324,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
         try
         {
             await File.WriteAllTextAsync(tempFile, "test");
-            var service = new MountService(_loggingService, _settingsService);
+            var service = new WinFspMountService(_loggingService, _settingsService);
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.MountAsync(tempFile));
 
@@ -341,7 +341,7 @@ public class WinFspMountServiceAdditionalTests : IDisposable
 
     private static string InvokeGetMountStatusErrorMessage(int statusCode)
     {
-        var method = typeof(MountService).GetMethod("GetMountStatusErrorMessage",
+        var method = typeof(WinFspMountService).GetMethod("GetMountStatusErrorMessage",
             BindingFlags.NonPublic | BindingFlags.Static)!;
         return (string)method.Invoke(null, [statusCode])!;
     }

@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Core.Models;
-using SimpleZipDrive.Services;
+using SimpleZipDrive.Mounting.Dokan;
 
 namespace SimpleZipDrive.Tests;
 
@@ -22,7 +22,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void UnmountAsync_NotMounted_ReturnsImmediately()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
 
         // Should not throw when unmounting when not mounted
         var ex = Record.Exception(() => service.UnmountAsync().GetAwaiter().GetResult());
@@ -34,7 +34,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void IsMounted_DefaultIsFalse()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
         Assert.False(service.IsMounted);
     }
 
@@ -43,7 +43,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void CurrentMountPoint_DefaultIsNull()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
         Assert.Null(service.CurrentMountPoint);
     }
 
@@ -52,7 +52,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void CurrentArchivePath_DefaultIsNull()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
         Assert.Null(service.CurrentArchivePath);
     }
 
@@ -67,7 +67,7 @@ public class MountServiceAdditionalTests : IDisposable
     [InlineData("TEST.TGZ", "tar")]
     public void GetArchiveType_CaseInsensitive(string path, string expected)
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
         Assert.Equal(expected, service.GetArchiveType(path));
     }
 
@@ -76,7 +76,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void GetArchiveType_PathWithSpaces()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
         Assert.Equal("zip", service.GetArchiveType(@"C:\My Documents\my archive.zip"));
     }
 
@@ -85,7 +85,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void MountStatusChanged_Event_CanSubscribe()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
         var eventRaised = false;
 
         service.MountStatusChanged += (_, _) => eventRaised = true;
@@ -99,7 +99,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void Dispose_DoubleDispose_DoesNotThrow()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
 
         service.Dispose();
         var ex = Record.Exception(service.Dispose);
@@ -111,7 +111,7 @@ public class MountServiceAdditionalTests : IDisposable
     [Fact]
     public void Dispose_NotMounted_DoesNotThrow()
     {
-        var service = new MountService(_loggingService, _settingsService);
+        var service = new DokanMountService(_loggingService, _settingsService);
 
         var ex = Record.Exception(service.Dispose);
         Assert.Null(ex);

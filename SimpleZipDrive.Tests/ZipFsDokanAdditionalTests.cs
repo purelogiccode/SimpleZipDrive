@@ -3,6 +3,7 @@ using System.Security.AccessControl;
 using System.Text;
 using DokanNet;
 using SimpleZipDrive.Core;
+using ZipFs = SimpleZipDrive.Mounting.Dokan.DokanZipFs;
 using SimpleZipDrive.Tests.Fakes;
 using FileAccess = DokanNet.FileAccess;
 

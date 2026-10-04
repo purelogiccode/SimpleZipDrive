@@ -8,6 +8,7 @@ using SharpCompress.Common;
 using SharpCompress.Writers;
 using SharpCompress.Writers.SevenZip;
 using SimpleZipDrive.Core;
+using ZipFs = SimpleZipDrive.Mounting.Dokan.DokanZipFs;
 using SimpleZipDrive.Tests.Fakes;
 using FileAccess = DokanNet.FileAccess;
 
