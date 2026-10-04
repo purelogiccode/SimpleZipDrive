@@ -8,12 +8,20 @@ namespace SimpleZipDrive.Core.Services;
 
 /// <summary>
 ///     Captures the active application window using Avalonia rendering and saves it as a PNG
-///     inside the "Screenshot" folder within the application folder.
+///     inside the "Screenshot" folder within the application folder. If that folder is not
+///     writable, the screenshot is saved to the "Screenshot" folder under
+///     <c>%LOCALAPPDATA%\SimpleZipDrive</c> instead.
 /// </summary>
 public class ScreenshotService : IScreenshotService
 {
     private const string ScreenshotFolderName = "Screenshot";
-    private static readonly string ScreenshotDirectory = Path.Combine(AppContext.BaseDirectory, ScreenshotFolderName);
+    private const string ApplicationFolderName = "SimpleZipDrive";
+
+    internal static readonly string ScreenshotDirectory = Path.Combine(AppContext.BaseDirectory, ScreenshotFolderName);
+
+    internal static readonly string FallbackScreenshotDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        ApplicationFolderName, ScreenshotFolderName);
 
     private readonly ILoggingService _loggingService;
 
@@ -79,29 +87,73 @@ public class ScreenshotService : IScreenshotService
             (int)Math.Ceiling(height * scale));
 
         var renderTarget = new RenderTargetBitmap(pixelSize, new Vector(96 * scale, 96 * scale));
-        renderTarget.Render(window);
+        try
+        {
+            renderTarget.Render(window);
+        }
+        catch
+        {
+            renderTarget.Dispose();
+            throw;
+        }
+
         return renderTarget;
     }
 
     private ScreenshotResult SaveScreenshot(RenderTargetBitmap bitmap)
     {
+        return SaveScreenshotCore(path => bitmap.Save(path, new PngBitmapEncoderOptions()));
+    }
+
+    /// <summary>
+    ///     Saves the screenshot to the application's "Screenshot" folder, falling back to
+    ///     the "Screenshot" folder under <c>%LOCALAPPDATA%\SimpleZipDrive</c> when the
+    ///     application folder is not writable. The <paramref name="saveToFile" /> callback
+    ///     receives the full destination path and performs the actual write.
+    /// </summary>
+    internal ScreenshotResult SaveScreenshotCore(Action<string> saveToFile)
+    {
+        return SaveScreenshotCore(saveToFile, ScreenshotDirectory, FallbackScreenshotDirectory);
+    }
+
+    internal ScreenshotResult SaveScreenshotCore(Action<string> saveToFile, string primaryDirectory,
+        string fallbackDirectory)
+    {
         var fileName = $"Screenshot_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png";
-        var filePath = Path.Combine(ScreenshotDirectory, fileName);
+        var primaryPath = Path.Combine(primaryDirectory, fileName);
 
         try
         {
-            Directory.CreateDirectory(ScreenshotDirectory);
-            bitmap.Save(filePath, new PngBitmapEncoderOptions());
+            Directory.CreateDirectory(primaryDirectory);
+            saveToFile(primaryPath);
 
-            _loggingService.Log($"Screenshot saved: {filePath}");
-            return new ScreenshotResult(true, filePath, null);
+            _loggingService.Log($"Screenshot saved: {primaryPath}");
+            return new ScreenshotResult(true, primaryPath, null);
         }
         catch (Exception ex)
         {
             ErrorLoggerStatic.ReportSilentException(ex,
-                "ScreenshotService.SaveScreenshot: Failed to save the screenshot");
-            _loggingService.LogError($"Failed to save screenshot to '{ScreenshotDirectory}': {ex.Message}");
-            return new ScreenshotResult(false, filePath, "write permission issues");
+                "ScreenshotService.SaveScreenshot: Failed to save the screenshot to the application folder");
+            _loggingService.LogError(
+                $"Failed to save screenshot to '{primaryDirectory}': {ex.Message}. " +
+                $"Trying fallback location '{fallbackDirectory}'.");
+        }
+
+        var fallbackPath = Path.Combine(fallbackDirectory, fileName);
+        try
+        {
+            Directory.CreateDirectory(fallbackDirectory);
+            saveToFile(fallbackPath);
+
+            _loggingService.Log($"Screenshot saved to fallback location: {fallbackPath}");
+            return new ScreenshotResult(true, fallbackPath, null);
+        }
+        catch (Exception ex)
+        {
+            ErrorLoggerStatic.ReportSilentException(ex,
+                "ScreenshotService.SaveScreenshot: Failed to save the screenshot to the fallback folder");
+            _loggingService.LogError($"Failed to save screenshot to '{fallbackDirectory}': {ex.Message}");
+            return new ScreenshotResult(false, null, ex.Message);
         }
     }
 }

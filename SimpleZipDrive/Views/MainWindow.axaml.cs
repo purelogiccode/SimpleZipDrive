@@ -270,7 +270,7 @@ public partial class MainWindow : Window, IDisposable
             {
                 StatusText.Text = "Screenshot failed.";
                 MessageBox.Show(
-                    "The screenshot could not be saved due to write permission issues.",
+                    $"The screenshot could not be saved.\n\n{result.ErrorMessage ?? "Unknown error."}",
                     "Screenshot Failed", MessageBoxButton.Ok, MessageBoxImage.Warning);
             }
         }
@@ -278,7 +278,7 @@ public partial class MainWindow : Window, IDisposable
         {
             ErrorLoggerStatic.ReportSilentException(ex, "MainWindow.TakeScreenshot: Failed to capture screenshot");
             MessageBox.Show(
-                "The screenshot could not be saved due to write permission issues.",
+                $"The screenshot could not be saved.\n\n{ex.Message}",
                 "Screenshot Failed", MessageBoxButton.Ok, MessageBoxImage.Warning);
         }
     }

@@ -13,6 +13,7 @@ public sealed class LogTextWriter : TextWriter
     private readonly CancellationTokenSource _cts = new();
     private readonly TextWriter? _fallbackWriter;
     private readonly Task _processingTask;
+    private bool _disposed;
 
     /// <summary>Creates a new writer that forwards console output to the logging service.</summary>
     /// <param name="fallbackWriter">Writer used when the logging service is unavailable (e.g. during shutdown).</param>
@@ -58,7 +59,7 @@ public sealed class LogTextWriter : TextWriter
     /// <inheritdoc />
     public override void WriteLine()
     {
-        _channel.Writer.TryWrite(CoreNewLine.ToString() ?? Environment.NewLine);
+        _channel.Writer.TryWrite(new string(CoreNewLine));
         _channel.Writer.TryWrite(string.Empty); // Empty string signals end of line
     }
 
@@ -129,8 +130,11 @@ public sealed class LogTextWriter : TextWriter
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        // TextWriter.Dispose is expected to be idempotent; completing an already-completed
+        // channel throws ChannelClosedException, so guard the cleanup.
+        if (disposing && !_disposed)
         {
+            _disposed = true;
             _channel.Writer.Complete();
 
             try
