@@ -1,5 +1,12 @@
 # FileBenchmark
 
+[![.NET 10.0](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)](https://github.com/purelogiccode/SimpleZipDrive)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](../LICENSE.txt)
+[![CI](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml)
+[![C#](https://img.shields.io/badge/C%23-14-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
+[![Part of SimpleZipDrive](https://img.shields.io/badge/part%20of-SimpleZipDrive-blue.svg)](https://github.com/purelogiccode/SimpleZipDrive)
+
 A console tool for measuring cold-file I/O performance. Drops the Windows Standby List (page cache) between each test to ensure accurate, hardware-bound disk I/O measurements unaffected by OS-level caching.
 
 ## Requirements

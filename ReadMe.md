@@ -2,9 +2,23 @@
 
 [![.NET 10.0](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/purelogiccode/SimpleZipDrive/releases)
+[![Architecture](https://img.shields.io/badge/arch-x64%20%7C%20arm64-blue)](https://github.com/purelogiccode/SimpleZipDrive/releases)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.txt)
 [![GitHub release](https://img.shields.io/github/v/release/purelogiccode/SimpleZipDrive)](https://github.com/purelogiccode/SimpleZipDrive/releases)
 [![CI](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml)
+[![Release](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml)
+[![Wiki Sync](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml)
+
+[![Tests](https://img.shields.io/badge/tests-1430%20passing-brightgreen)](#-technical-architecture)
+[![C#](https://img.shields.io/badge/C%23-14-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
+[![Avalonia](https://img.shields.io/badge/Avalonia-12.1.3-8A2BE2)](https://avaloniaui.net/)
+[![7-Zip](https://img.shields.io/badge/7--Zip-26.03-yellow)](https://github.com/ip7z/7zip)
+[![Downloads](https://img.shields.io/github/downloads/purelogiccode/SimpleZipDrive/total)](https://github.com/purelogiccode/SimpleZipDrive/releases)
+[![Stars](https://img.shields.io/github/stars/purelogiccode/SimpleZipDrive?style=flat)](https://github.com/purelogiccode/SimpleZipDrive/stargazers)
+[![Forks](https://img.shields.io/github/forks/purelogiccode/SimpleZipDrive?style=flat)](https://github.com/purelogiccode/SimpleZipDrive/network/members)
+[![Issues](https://img.shields.io/github/issues/purelogiccode/SimpleZipDrive)](https://github.com/purelogiccode/SimpleZipDrive/issues)
+[![Last commit](https://img.shields.io/github/last-commit/purelogiccode/SimpleZipDrive)](https://github.com/purelogiccode/SimpleZipDrive/commits/master)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/purelogiccode/SimpleZipDrive/blob/master/docs/contributing.md)
 
 **Simple Zip Drive** is a high-performance, cross-platform, user-mode filesystem utility that allows you to mount ZIP, 7Z, RAR, TAR, ZArchive, and Xbox XISO archives as virtual drives or folders on **Windows, Linux, and macOS**. It provides seamless, read-only access to compressed data without the need for manual extraction.
 
