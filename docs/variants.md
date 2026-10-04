@@ -1,23 +1,36 @@
 ---
-title: Variants
+title: Mount Backends
 permalink: /variants
 nav_order: 5
 ---
 
-# Variants: Dokan vs. WinFsp
+# Mount Backends: WinFsp, Dokan and FUSE
 
-SimpleZipDrive is published as two executables. They share the entire core (archive engine, caches, settings, logging) and the UI; the difference is the user-mode filesystem driver used to present the virtual drive.
+SimpleZipDrive is a single cross-platform application. The archive engine, caches, settings, logging, and UI are shared everywhere; the only difference is the user-mode filesystem driver used to present the virtual drive. The driver is selected inside the app:
 
-## Comparison
+| Platform | Available backends |
+|---|---|
+| Windows | **WinFsp**, **Dokan** (or **Auto**) |
+| Linux / macOS | **FUSE** (libfuse3 on Linux, macFUSE on macOS) |
 
-| Capability | SimpleZipDrive (Dokan) | SimpleZipDrive_WinFsp (WinFsp) |
+Choose the backend in **Settings → Mount Settings → Mount backend**:
+
+- **Auto (recommended)** - uses WinFsp when it is installed, otherwise Dokan on Windows; FUSE on Linux/macOS.
+- **Dokan** - force the Dokan driver (Windows only).
+- **WinFsp** - force the WinFsp driver (Windows only).
+- **FUSE** - force FUSE (Linux/macOS only).
+
+If the selected backend is not available (driver missing or unsupported platform), the app reports the reason in the log and shows a dialog instead of mounting.
+
+## Windows: Dokan vs. WinFsp
+
+| Capability | Dokan | WinFsp |
 |---|---|---|
-| Executable | `SimpleZipDrive.exe` | `SimpleZipDrive_WinFsp.exe` |
 | Required driver | Dokan v2 **2.3 or newer** (older versions are blocked with a *"Dokan Driver Outdated"* dialog) | WinFsp **2.1 or newer** (older versions are blocked with a *"WinFsp version mismatch"* dialog; 2.2.x betas work) |
 | Driver service | Dokan driver loads on demand | Requires the `WinFsp.Launcher` service to be **Running** (checked before every mount) |
-| Drive-letter mounts (M–Q) | ✔ | ✔ |
-| Folder mounts | ✔ (folder must exist) | ✔ (folder is created if missing, write-tested first) |
-| Cross-integrity mounting | — | ✔ (see below) |
+| Drive-letter mounts (M-Q) | Yes | Yes |
+| Folder mounts | Yes (folder must exist) | Yes (folder is created if missing, write-tested first) |
+| Cross-integrity mounting | - | Yes (see below) |
 | Mount implementation | In-process via `DokanNet` (`DokanInstanceBuilder`) | In-process via `FileSystemHost.Mount` |
 | Mount volume style | `RemovableDrive` | Standard host volume |
 | Pre-mount driver check | `DokanVersion()` P/Invoke + architecture check + minimum-version gate (dokan2.dll ≥ 2.3.0) | Native DLL preload, registry version check, service check, `winfsp-msil.dll` interop availability |
@@ -28,10 +41,10 @@ SimpleZipDrive is published as two executables. They share the entire core (arch
 
 Windows isolates resources between integrity levels: a drive mounted by an elevated (Administrator) process is normally **invisible or inaccessible** to standard-user processes, and vice versa.
 
-The WinFsp variant solves this with **cross-integrity folder mounts**:
+The WinFsp backend solves this with **cross-integrity folder mounts**:
 
-- The archive is mounted on a **folder** instead of a drive letter — by default under `%LOCALAPPDATA%\SimpleZipDrive\Mounts\<ArchiveName>` (configurable, see [Configuration](configuration#settings-reference)).
-- A permissive security descriptor (`D:P(A;;FA;;;WD)` — Everyone: Full Access, protected DACL) is applied so both standard and elevated processes can read the mount.
+- The archive is mounted on a **folder** instead of a drive letter - by default under `%LOCALAPPDATA%\SimpleZipDrive\Mounts\<ArchiveName>` (configurable, see [Configuration](configuration#settings-reference)).
+- A permissive security descriptor (`D:P(A;;FA;;;WD)` - Everyone: Full Access, protected DACL) is applied so both standard and elevated processes can read the mount.
 - It is used automatically when:
   - the app **runs as Administrator** (forced, so your standard-user apps can see the drive), or
   - the **Cross-integrity mount** setting is enabled.
@@ -39,13 +52,23 @@ The WinFsp variant solves this with **cross-integrity folder mounts**:
 
 See [Mounting](mounting#cross-integrity-folder-mounts) for the mechanics and [Security & Privacy](security) for the security implications.
 
-## Which one should you use?
+## Linux and macOS: FUSE
 
-- **Default recommendation: Dokan.** Long-established driver, simplest setup, identical core features.
+On Linux and macOS the app mounts archives on **folders** through the bundled FuseSharp library:
+
+- **Linux** requires **libfuse3** (e.g. `sudo apt install libfuse3-3`, `sudo dnf install fuse3`).
+- **macOS** requires **macFUSE** (https://macfuse.github.io/).
+- When no mount point is supplied, a temporary folder under the system temp directory is created and removed on unmount.
+- The volume is exposed read-only, exactly like the Windows backends.
+
+## Which one should you use on Windows?
+
+- **Default recommendation: Auto**, which prefers **WinFsp** when installed and falls back to **Dokan**.
+- **Choose Dokan** if you prefer the long-established Dokan driver or cannot install WinFsp.
 - **Choose WinFsp** if you need:
   - mounting by **elevated** processes that must remain accessible to normal apps (or vice versa),
   - automatic creation of fresh mount folders,
   - the WinFsp ecosystem (e.g. you already use other WinFsp-based filesystems).
 - **Driver version discipline (WinFsp):** keep the native driver at **2.1 stable** or a **2.2+ beta**. The app deliberately uses the 2.1 managed interop because newer interop packages reject the stable 2.1 driver with *"incorrect dll version (need 2.2, have 2.1)"*. If you upgrade the native driver to a 2.2+ beta, the app continues to work.
 
-You can install **both variants side by side** — they use separate executables and separate driver stacks, but only **one mount at a time per instance**.
+You can install both Windows drivers side by side and switch between them in Settings; only **one mount at a time per instance** is supported.

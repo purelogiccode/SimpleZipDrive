@@ -9,21 +9,21 @@ nav_order: 19
 
 ## Release artifacts
 
-Every release ships **four** zip packages:
+Every release ships **six** zip packages - one per supported runtime identifier:
 
 ```
-release_<version>_<Variant>_win-<arch>.zip
-     3.0.0     Dokan|WinFsp     x64|arm64
+release_<version>_<rid>.zip
+     3.0.0     win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
 ```
 
 | Package | Contents |
 |---|---|
-| `…_Dokan_win-x64.zip` | `SimpleZipDrive.exe`, `7z.dll`, `7z_arm64.dll`, `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
-| `…_Dokan_win-arm64.zip` | same layout |
-| `…_WinFsp_win-x64.zip` | `SimpleZipDrive_WinFsp.exe`, **`winfsp-msil.dll`**, `7z.dll`, `7z_arm64.dll`, docs |
-| `…_WinFsp_win-arm64.zip` | same layout |
+| `._win-x64.zip` | `SimpleZipDrive.exe`, `7z.dll`, `7z_arm64.dll`, `winfsp-msil.dll`, Avalonia native libraries (`libSkiaSharp.dll`, `libHarfBuzzSharp.dll`, `av_libglesv2.dll`), `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
+| `._win-arm64.zip` | same layout |
+| `._linux-x64.zip` / `._linux-arm64.zip` | `SimpleZipDrive` (apphost), `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
+| `._osx-x64.zip` / `._osx-arm64.zip` | `SimpleZipDrive`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
 
-All are **framework-dependent single-file** executables (~4–5 MB): the .NET Desktop Runtime and the filesystem driver are the only prerequisites.
+All are **framework-dependent single-file** executables: the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only prerequisites.
 
 ## Automated builds (GitHub Actions)
 
@@ -31,52 +31,55 @@ Three workflows live in `.github/workflows`:
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | Every push/PR to `master` | Restores, builds the solution in Release (analyzer-warning-clean), runs the full test suite, uploads the `.trx` results |
-| `release.yml` | `workflow_dispatch` (version input) or a `release_*` tag push | Verifies the csproj version matches, builds + tests, publishes and packages the four bundles, uploads them as the `release-bundles` artifact, then **waits for approval in the protected `release` environment** before creating/updating the GitHub release |
+| `ci.yml` | Every push/PR to `master` | Builds and tests the solution on Windows and compiles the app on Ubuntu and macOS |
+| `release.yml` | `workflow_dispatch` (version input) or a `release_*` tag push | Verifies the csproj version matches, builds + tests on Windows, publishes and packages the six bundles on Windows/Linux/macOS runners, uploads them as `release-bundles-*` artifacts, then **waits for approval in the protected `release` environment** before creating/updating the GitHub release |
 | `wiki-sync.yml` | Push to `master` touching `docs/**` (or manually) | Mirrors `docs/*.md` into the repository wiki (`index.md` → `Home.md`) |
 
 ### Reviewing a release before it is published
 
 1. Run **Release** from the Actions tab (or push a `release_x.y.z` tag).
-2. When the *Build bundles* job finishes, download the **release-bundles** artifact from the run summary — the four `release_<version>_<Variant>_win-<arch>.zip` files plus `release-notes.md`. The run summary lists sizes and SHA256 checksums, and nothing is public yet.
-3. Inspect the zips and smoke-test at least one packaged exe.
-4. Approve the waiting **Publish release** job in the `release` environment (Settings → Environments → `release` → required reviewer). The workflow then creates the GitHub release with the four bundles attached and the matching `WhatsNew.md` section as the release notes.
+2. When the *Build bundles* jobs finish, download the **release-bundles-*** artifacts from the run summary - the six `release_<version>_<rid>.zip` files. The run summary lists sizes and SHA256 checksums, and nothing is public yet.
+3. Inspect the zips and smoke-test at least one packaged executable per OS.
+4. Approve the waiting **Publish release** job in the `release` environment (Settings → Environments → `release` → required reviewer). The workflow then creates the GitHub release with the six bundles attached and the matching `WhatsNew.md` section as the release notes.
 
 If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 
-> **First-time setup:** the `release` environment needs at least one required reviewer, and the wiki sync needs a `WIKI_TOKEN` repository secret (a PAT with repository access — `GITHUB_TOKEN` cannot push to the wiki repository). Both are already configured for this repository.
+> **First-time setup:** the `release` environment needs at least one required reviewer, and the wiki sync needs a `WIKI_TOKEN` repository secret (a PAT with repository access - `GITHUB_TOKEN` cannot push to the wiki repository). Both are already configured for this repository.
 
 ### Local packaging
 
 `scripts/package-release.ps1` performs the same publish/package steps locally:
 
 ```powershell
+# All six targets (publish runs on the current OS)
 .\scripts\package-release.ps1 -Version 3.0.0
+
+# Only the targets for one OS
+.\scripts\package-release.ps1 -Version 3.0.0 -RuntimeIdentifiers win-x64,win-arm64
 ```
 
-It runs the test suite first (pass `-SkipTests` to skip), publishes all four variant/RID combinations, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Existing files in that folder are never deleted; only the four bundles for the requested version are written (or overwritten).
+It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Existing files in that folder are never deleted; only the bundles for the requested version are written (or overwritten). On Linux/macOS the script uses the `zip` CLI so the apphost keeps its executable bit.
 
 ## Publish commands
 
-> **Important:** the `.csproj` files contain `<SelfContained>true</SelfContained>`, but releases are built **framework-dependent** — the publish command must override it with `--self-contained false`. Publishing without the override produces huge self-contained bundles that also break the packaging assumptions documented below.
+> **Important:** the `.csproj` contains `<SelfContained>true</SelfContained>`, but releases are built **framework-dependent** - the publish command must override it with `--self-contained false`. Publishing without the override produces huge self-contained bundles that also break the packaging assumptions documented below.
 
 ```powershell
-# Dokan variant
-dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r win-x64   --self-contained false -o out\Dokan_x64
-dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r win-arm64 --self-contained false -o out\Dokan_arm64
-
-# WinFsp variant
-dotnet publish SimpleZipDrive_WinFsp\SimpleZipDrive_WinFsp.csproj -c Release -r win-x64   --self-contained false -o out\WinFsp_x64
-dotnet publish SimpleZipDrive_WinFsp\SimpleZipDrive_WinFsp.csproj -c Release -r win-arm64 --self-contained false -o out\WinFsp_arm64
+dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r win-x64    --self-contained false -o out\win-x64
+dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r win-arm64  --self-contained false -o out\win-arm64
+dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r linux-x64  --self-contained false -o out\linux-x64
+dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r linux-arm64 --self-contained false -o out\linux-arm64
+dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r osx-x64    --self-contained false -o out\osx-x64
+dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r osx-arm64  --self-contained false -o out\osx-arm64
 ```
 
-When packaging by hand, include only the single-file exe, the native runtime files from the publish root (`7z.dll`, `7z_arm64.dll`, and `winfsp-msil.dll` for WinFsp), and `ReadMe.md`/`LICENSE.txt`/`WhatsNew.md` — not the package-provided `x64\`/`x86\` 7z copies that also land in the publish output.
+When packaging by hand, include the single-file executable, every file in the publish root except PDBs and the package-provided `x64\`/`x86\` 7z copies, and `ReadMe.md`/`LICENSE.txt`/`WhatsNew.md`. The native libraries in the publish root (Avalonia's Skia/HarfBuzz/ANGLE libraries, `7z.dll`/`7z_arm64.dll`, `winfsp-msil.dll`) must ship loose beside the executable.
 
 ## Packaging internals
 
 Three constraints make the file layout non-negotiable:
 
-1. **`winfsp-msil.dll` must stay a real file beside the exe** (WinFsp variant). Its static initializer (`Fsp.Interop.Api.CheckVersion`) calls `FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location)`; `Assembly.Location` is an empty string inside a single-file bundle, so `Path.GetFullPath("")` throws and **every mount dies with "The path is empty (Parameter 'path')"** before the driver is ever contacted. The csproj contains a target that runs before the bundler computes its file list:
+1. **`winfsp-msil.dll` must stay a real file beside the exe.** Its static initializer (`Fsp.Interop.Api.CheckVersion`) calls `FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location)`; `Assembly.Location` is an empty string inside a single-file bundle, so `Path.GetFullPath("")` throws and **every WinFsp mount dies with "The path is empty (Parameter 'path')"** before the driver is ever contacted. The csproj contains a target that runs before the bundler computes its file list:
 
    ```xml
    <Target Name="KeepWinFspInteropOutOfBundle" BeforeTargets="_ComputeFilesToBundle">
@@ -88,21 +91,21 @@ Three constraints make the file layout non-negotiable:
    </Target>
    ```
 
-   Timing matters: `AfterTargets="ComputeFilesToPublish"` / `BeforeTargets="BundleFiles"` do **not** work — the SDK splits bundled/non-bundled files in `_ComputeFilesToBundle`.
+   Timing matters: `AfterTargets="ComputeFilesToPublish"` / `BeforeTargets="BundleFiles"` do **not** work - the SDK splits bundled/non-bundled files in `_ComputeFilesToBundle`.
 
-2. **`7z.dll` / `7z_arm64.dll` must stay real files beside the exe** (both variants). `SevenZipFallback` probes `AppContext.BaseDirectory` for the library matching the process architecture (`SharpSevenZipBase.SetLibraryPath`); bundling them into the exe makes the fallback silently unavailable. Both ship in every package so one zip works on x64 and ARM64.
+2. **`7z.dll` / `7z_arm64.dll` must stay real files beside the exe on Windows.** `SevenZipFallback` probes `AppContext.BaseDirectory` for the library matching the process architecture (`SharpSevenZipBase.SetLibraryPath`); bundling them into the exe makes the fallback silently unavailable. Both ship in every Windows package so one zip works on x64 and ARM64. Linux/macOS packages do not include the 7-Zip fallback; the fallback is Windows-only.
 
-3. **winfsp.net stays at 2.1.x** (`2.1.25156`). Interop 2.2.x rejects the stable native 2.1 driver (*"incorrect dll version (need 2.2, have 2.1)"*); interop 2.1 accepts both the 2.1 stable driver and 2.2+ betas. Version gates live in `MountService` (`RequiredWinFspVersion = 2.1`).
+3. **winfsp.net stays at 2.1.x** (`2.1.25156`). Interop 2.2.x rejects the stable native 2.1 driver (*"incorrect dll version (need 2.2, have 2.1)"*); interop 2.1 accepts both the 2.1 stable driver and 2.2+ betas. Version gates live in `WinFspMountService` (`RequiredWinFspVersion = 2.1`).
 
 ## Release process checklist
 
-1. Bump `<AssemblyVersion>`/`<FileVersion>` to the new version in **all five** `.csproj` files (there is no explicit `<Version>` property; `AssemblyVersion` drives the published version).
-2. Update `WhatsNew.md` (user-facing Added/Fixed/Changed/Internal sections) — the matching `## <version>` section becomes the GitHub release notes automatically.
-3. Push to `master` — the **CI** workflow must be green.
-4. Run **Release** from the Actions tab with the version, or push a `release_<version>` tag. The workflow verifies the csproj version, runs the tests again, and builds the four bundles.
-5. Download the **release-bundles** artifact and **review the zips before approving** — the run summary lists sizes and SHA256 checksums.
-6. Smoke-test a downloaded bundle: mount a stored ZIP, a compressed archive, a `.zar` container, and an Xbox `.iso`/`.cso` image through the *packaged* exe (both a drive letter and a folder; elevated *and* non-elevated for WinFsp).
-7. Approve the **Publish release** job in the `release` environment. The workflow creates the GitHub release with the four bundles attached (full release — not draft/prerelease).
+1. Bump `<AssemblyVersion>`/`<FileVersion>` to the new version in `SimpleZipDrive.csproj` and `SimpleZipDrive.Tests.csproj` (there is no explicit `<Version>` property; `AssemblyVersion` drives the published version).
+2. Update `WhatsNew.md` (user-facing Added/Fixed/Changed/Internal sections) - the matching `## <version>` section becomes the GitHub release notes automatically.
+3. Push to `master` - the **CI** workflow must be green.
+4. Run **Release** from the Actions tab with the version, or push a `release_<version>` tag. The workflow verifies the csproj version, runs the tests again, and builds the six bundles.
+5. Download the **release-bundles-*** artifacts and **review the zips before approving** - the run summary lists sizes and SHA256 checksums.
+6. Smoke-test a downloaded bundle on each OS: mount a stored ZIP, a compressed archive, a `.zar` container, and an Xbox `.iso`/`.cso` image through the *packaged* executable (both a drive letter and a folder; elevated *and* non-elevated for WinFsp; a folder mount on Linux/macOS).
+7. Approve the **Publish release** job in the `release` environment. The workflow creates the GitHub release with the six bundles attached (full release - not draft/prerelease).
 8. Inform issue reporters whose bugs the release fixes.
 
-Bundles can also be produced locally with `scripts/package-release.ps1 -Version <version>` and uploaded by hand with `gh release create release_<version> --title "<version>" --notes-file … *.zip`, but the Actions path is the supported one.
+Bundles can also be produced locally with `scripts/package-release.ps1 -Version <version>` and uploaded by hand with `gh release create release_<version> --title "<version>" --notes-file . *.zip`, but the Actions path is the supported one.

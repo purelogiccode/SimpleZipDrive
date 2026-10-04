@@ -26,20 +26,18 @@ nav_order: 1
 - **Configurable memory limit** — per-file RAM cache limit (512 MB default), clamped automatically to 90 % of available system memory.
 - **Built-in diagnostics** — session logs, native driver debug logs, orphaned temp-file cleanup, and automatic bug reporting.
 
-## The Two Variants
+## One App, Three Backends
 
-SimpleZipDrive ships as two separate executables that share the same core engine and user interface:
+SimpleZipDrive is a single cross-platform application; the mount backend is selected in Settings:
 
-| | **SimpleZipDrive** (Dokan variant) | **SimpleZipDrive_WinFsp** (WinFsp variant) |
+| | **Windows** | **Linux / macOS** |
 |---|---|---|
-| Filesystem driver | [Dokan v2 ≥ 2.3](https://github.com/dokan-dev/dokany) | [WinFsp ≥ 2.1](https://github.com/winfsp/winfsp) |
-| Executable | `SimpleZipDrive.exe` | `SimpleZipDrive_WinFsp.exe` |
-| Drive-letter mounts | ✔ | ✔ |
+| Filesystem driver | [WinFsp ≥ 2.1](https://github.com/winfsp/winfsp) or [Dokan v2 ≥ 2.3](https://github.com/dokan-dev/dokany), or Auto | FUSE ([libfuse3](https://github.com/libfuse/libfuse) / [macFUSE](https://macfuse.github.io/)) |
+| Drive-letter mounts | ✔ | — |
 | Folder mounts | ✔ | ✔ |
-| Cross-integrity mounts | — | ✔ |
-| Maturity | Mature, widely deployed | Modern, actively developed driver |
+| Cross-integrity mounts | ✔ (WinFsp only) | — |
 
-See [Variants](variants) for a detailed comparison and help choosing.
+See [Mount Backends](variants) for a detailed comparison and help choosing.
 
 ## Documentation
 
@@ -47,7 +45,7 @@ See [Variants](variants) for a detailed comparison and help choosing.
 - [Installation](installation) — prerequisites, which package to download, install/upgrade/uninstall
 - [Getting Started](getting-started) — your first mount in two minutes
 - [Usage Guide](usage) — every way to mount, unmount, and operate the app
-- [Variants](variants) — Dokan vs. WinFsp in depth
+- [Variants](variants) — WinFsp vs. Dokan vs. FUSE in depth
 
 ### Deep Dives — [overview](guides)
 - [Mounting](mounting) — mount-point resolution, drive letters, folder and cross-integrity mounts, error codes

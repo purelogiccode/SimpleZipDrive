@@ -1,17 +1,19 @@
-# Simple Zip Drive for Windows
+# Simple Zip Drive
 
-[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)]()
 [![.NET 10.0](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
-[![Platform](https://img.shields.io/badge/platform-Windows%20x64%20%7C%20ARM64-blue)](https://github.com/purelogiccode/SimpleZipDrive/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/purelogiccode/SimpleZipDrive/releases)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.txt)
 [![GitHub release](https://img.shields.io/github/v/release/purelogiccode/SimpleZipDrive)](https://github.com/purelogiccode/SimpleZipDrive/releases)
 [![CI](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml)
 
-**Simple Zip Drive** is a high-performance, user-mode filesystem utility that allows you to mount ZIP, 7Z, RAR, TAR, ZArchive, and Xbox XISO archives as virtual drives or NTFS directory mount points. It provides seamless, read-only access to compressed data without the need for manual extraction.
+**Simple Zip Drive** is a high-performance, cross-platform, user-mode filesystem utility that allows you to mount ZIP, 7Z, RAR, TAR, ZArchive, and Xbox XISO archives as virtual drives or folders on **Windows, Linux, and macOS**. It provides seamless, read-only access to compressed data without the need for manual extraction.
 
-The solution includes two variants:
-*   **SimpleZipDrive** - Built on [DokanNet](https://github.com/dokan-dev/dokan-dotnet)
-*   **SimpleZipDrive_WinFsp** - Built on [WinFsp](https://github.com/winfsp/winfsp)
+A single application supports every filesystem backend:
+
+*   **Windows** - [WinFsp](https://github.com/winfsp/winfsp) or [DokanNet](https://github.com/dokan-dev/dokan-dotnet), selectable in Settings (Auto prefers WinFsp when installed).
+*   **Linux / macOS** - FUSE via the bundled FuseSharp library (libfuse3 on Linux, macFUSE on macOS).
+
+The UI is built with [Avalonia](https://avaloniaui.net/) and shares one codebase across all platforms.
 
 Unlike traditional archive utilities that extract the entire archive to a temporary folder, Simple Zip Drive utilizes a **hybrid streaming engine** to minimize memory overhead and maximize random-access performance.
 
@@ -30,13 +32,13 @@ Unlike traditional archive utilities that extract the entire archive to a tempor
     *   **Stored Entries (ZIP):** Uncompressed entries are read directly from the source archive with zero-copy, zero-cache performance - no RAM or disk overhead.
     *   **Small Files:** Cached in-memory for near-instantaneous access. Each file is decompressed only once and the buffer is shared across all open handles, so memory usage stays at approximately one copy per file regardless of how many applications access it. Decompression writes directly into the final buffer, halving the transient peak memory footprint during extraction of large entries.
     *   **Large Files (≥512 MB by default):** Automatically offloaded to a temporary disk cache to prevent RAM exhaustion. The per-file memory threshold can be adjusted via the Settings window.
-*   **Framework-Dependent Single Executable:** Ships as framework-dependent single-file binaries (x64 and ARM64) - the `exe` with the native `7z.dll` / `7z_arm64.dll` fallback libraries (and `winfsp-msil.dll` for the WinFsp variant) beside it, plus this README and the license. No runtime files to carry around; only the [.NET Desktop Runtime](https://dotnet.microsoft.com/download) and the filesystem driver must be installed.
+*   **Framework-Dependent Single Executable:** Ships as framework-dependent single-file binaries for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`. The Windows packages include the native `7z.dll` / `7z_arm64.dll` fallback libraries and `winfsp-msil.dll` beside the executable. Only the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) must be installed.
 *   **Streaming Architecture:** The source archive is accessed via a direct file stream, supporting archives of virtually any size.
 *   **Zero-Configuration UI:** Supports drag-and-drop functionality for automatic mounting to the first available drive letter (M-Q). The mounted drive label displays the archive filename.
 *   **Configurable Cache:** Open `Settings > RAM Limit` to adjust the per-file RAM cache limit. The value is automatically clamped to 90% of available system memory to prevent out-of-memory errors.
 *   **Configurable Mount Type:** Open `Settings` to choose the default mount type: **Drive Letter** (auto-selects M-Q) or **Folder** (browse for an NTFS directory). You can also use `File > Mount as Drive Letter` or `File > Mount as Folder` for one-time selection.
 *   **Encrypted Archive Support:** Prompts for passwords when accessing protected archives.
-*   **Cross-Integrity Mount (WinFsp):** When enabled in Settings, mounts archives to a folder path with a permissive security descriptor so that both standard and elevated (Administrator) processes can access the mounted drive. When SimpleZipDrive_WinFsp runs as Administrator, this mode is automatically enforced. Drive letter mounts remain isolated by Windows UAC — this is an OS limitation, not a WinFsp limitation.
+*   **Cross-Integrity Mount (WinFsp):** When enabled in Settings, mounts archives to a folder path with a permissive security descriptor so that both standard and elevated (Administrator) processes can access the mounted drive. When the app runs as Administrator with the WinFsp backend, this mode is automatically enforced. Drive letter mounts remain isolated by Windows UAC — this is an OS limitation, not a WinFsp limitation.
 *   **Screenshot Capture:** Press `F8` at any time to capture the active window and save it as a PNG in the `Screenshot` folder next to the application — handy for attaching visuals to bug reports.
 *   **Automated Maintenance:** Integrated update checker (with MessageBox prompt before opening the browser) and automatic cleanup of temporary cache files upon unmounting. Also cleans up orphaned temp directories from previous sessions on startup.
 *   **Enterprise Logging:** Comprehensive error tracking via a unified per-session log file and remote diagnostic reporting.
@@ -47,21 +49,23 @@ Unlike traditional archive utilities that extract the entire archive to a tempor
 
 Before running Simple Zip Drive, ensure your system meets the following requirements:
 
-1.  **.NET 10.0 Runtime:** Download the latest [.NET Desktop Runtime](https://dotnet.microsoft.com/download).
-2.  **Filesystem Driver** (depends on which variant you use):
-    *   **For SimpleZipDrive (Dokan):** Download and install `DokanSetup.exe` from the [Official Releases](https://github.com/dokan-dev/dokany/releases). **Dokan v2 2.3.0 or later is required** — older driver installs are refused with a *"Dokan Driver Outdated"* dialog.
-    *   **For SimpleZipDrive_WinFsp:** Download and install [WinFsp](https://github.com/winfsp/winfsp/releases) **2.1 or later** (2.1 is the latest stable release; 2.2+ are beta versions). Keep `winfsp-msil.dll` beside the executable — it ships with the app and is removed neither by you nor your antivirus without breaking mounts.
+1.  **.NET 10.0 Runtime:** Download the latest [.NET 10 runtime](https://dotnet.microsoft.com/download).
+2.  **Filesystem Driver** (depends on your platform):
+    *   **Windows — Dokan backend:** Download and install `DokanSetup.exe` from the [Official Releases](https://github.com/dokan-dev/dokany/releases). **Dokan v2 2.3.0 or later is required** — older driver installs are refused with a *"Dokan Driver Outdated"* dialog.
+    *   **Windows — WinFsp backend:** Download and install [WinFsp](https://github.com/winfsp/winfsp/releases) **2.1 or later** (2.1 is the latest stable release; 2.2+ are beta versions). Keep `winfsp-msil.dll` beside the executable — it ships with the app and is removed neither by you nor your antivirus without breaking mounts.
+    *   **Linux:** Install libfuse3 (e.g. `sudo apt install libfuse3-3` or `sudo dnf install fuse3`).
+    *   **macOS:** Install [macFUSE](https://macfuse.github.io/).
 
 ---
 
-## 📦 Project Variants
+## 📦 Mount Backends
 
-| Variant | Driver | Library | Notes |
-|:--------|:-------|:--------|:------|
-| **SimpleZipDrive** | Dokan | [DokanNet](https://github.com/dokan-dev/dokan-dotnet) | Original implementation |
-| **SimpleZipDrive_WinFsp** | WinFsp | [winfsp.net](https://github.com/winfsp/winfsp) | Alternative implementation |
+| Platform | Backends | Notes |
+|:---------|:---------|:------|
+| **Windows** | **WinFsp**, **Dokan**, or **Auto** | Select in *Settings → Mount backend*. Auto prefers WinFsp when installed, otherwise Dokan. |
+| **Linux / macOS** | **FUSE** | libfuse3 / macFUSE required. Archives mount on folders. |
 
-Both variants share the same UI and feature set; only the underlying filesystem driver differs.
+All backends share the same UI and feature set; only the underlying filesystem driver differs. See [Mount Backends](docs/variants.md) for the full comparison.
 
 ---
 
@@ -163,7 +167,8 @@ This project is licensed under the GPLv3 License – see the [LICENSE](LICENSE.t
 
 **Third-Party Libraries:**
 *   [DokanNet](https://github.com/dokan-dev/dokan-dotnet) (MIT) - used by SimpleZipDrive
-*   [WinFsp](https://github.com/winfsp/winfsp) (LGPL-3.0) - used by SimpleZipDrive_WinFsp
+*   [WinFsp](https://github.com/winfsp/winfsp) (LGPL-3.0) - WinFsp backend on Windows
+*   [FuseSharp](https://github.com/purelogiccode/SimpleXisoDrive) (GPL-3.0) - FUSE binding used on Linux/macOS (vendored)
 *   [SharpCompress](https://github.com/adamhathcock/sharpcompress) (MIT)
 *   [SharpSevenZip](https://github.com/adoconnection/SevenZipExtractor) (MIT)
 *   [ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp) (MIT)

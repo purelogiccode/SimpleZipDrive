@@ -9,17 +9,15 @@ nav_order: 18
 
 ## Solution layout
 
-Five projects (solution `CSharp_SimpleZipDrive.sln`, all `net10.0-windows`, SDK pinned via `global.json`):
+Three projects (solution `CSharp_SimpleZipDrive.sln`, `net10.0`, SDK pinned via `global.json`):
 
 | Project | Kind | Role |
 |---|---|---|
-| `SimpleZipDrive` | WPF exe | Dokan variant: UI + DokanNet mount service + Dokan `IDokanOperations` implementation (`ZipFs.cs`) |
-| `SimpleZipDrive_WinFsp` | WPF exe | WinFsp variant: same UI + `FileSystemHost`-based mount service + WinFsp `IFileSystem` implementation (`ZipFs.cs`) |
-| `SimpleZipDrive.Core` | class library | Shared engine: archive parsing, caches, streams, services, dialogs, logging, error reporting |
-| `SimpleZipDrive.Tests` | xUnit | 952 `[Fact]` + 54 `[Theory]` methods (≈1,245 test cases); a `WinFsp\` mirror of the service tests; `Fakes\` for driver/report doubles |
+| `SimpleZipDrive` | Avalonia exe | Single cross-platform app: UI, archive engine (former Core), and all mount backends (Dokan, WinFsp, FUSE + vendored FuseSharp) |
+| `SimpleZipDrive.Tests` | xUnit | `[Fact]`/`[Theory]` coverage for the engine, services, both Windows backends, and the FUSE adapter; `Fakes\` for driver/report doubles |
 | `FileBenchmark` | console exe | Cold-I/O benchmark tool (standby-list purge, XXH3 hashing) |
 
-The WinFsp app project contains a custom MSBuild target, `KeepWinFspInteropOutOfBundle`, that is *essential* for packaged builds — see [Building & Packaging](building-and-packaging#packaging-internals).
+The app project contains a custom MSBuild target, `KeepWinFspInteropOutOfBundle`, that is *essential* for packaged builds — see [Building & Packaging](building-and-packaging#packaging-internals).
 
 ## Component overview
 
