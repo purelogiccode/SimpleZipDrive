@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build-test:
-    name: Build & test
+    name: Build & test (Windows)
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -44,3 +44,24 @@ jobs:
           name: test-results
           path: '**/TestResults/*.trx'
           if-no-files-found: ignore
+
+  build-cross-platform:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Build (Release)
+        run: dotnet build SimpleZipDrive/SimpleZipDrive.csproj -c Release
