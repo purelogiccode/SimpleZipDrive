@@ -10,7 +10,7 @@ A two-minute walkthrough of your first mount.
 
 ## 1. Mount an archive
 
-**Drag-and-drop (easiest):** drag any supported archive file onto the executable in Explorer. The app starts, logs *"Drag-and-drop mode: Detected archive file '…'"* and mounts immediately.
+**Drag-and-drop (easiest):** drag any supported archive file onto the executable in your file manager. The app starts, logs *"Drag-and-drop mode: Detected archive file '…'"* and mounts immediately.
 
 **From the app menu:** start the app, use *Mount* (or *Mount as Drive* / *Mount as Folder*) and pick an archive file.
 
@@ -22,18 +22,20 @@ SimpleZipDrive.exe "C:\Games\MyGame.zip" M
 
 ## 2. Where it mounts
 
-With no mount point specified, the app tries the drive letters **M, N, O, P, Q** in order and uses the first free one — the log shows:
+**Windows:** with no mount point specified, the app tries the drive letters **M, N, O, P, Q** in order and uses the first free one — the log shows:
 
 ```text
 Attempting to mount on 'M:'...
 Successfully mounted on 'M:'.
 ```
 
-If all five letters are taken, an error is logged and you can mount to a folder instead. A bare letter (`M`) is automatically expanded to `M:` (Dokan variant: `M:\`). See [Mounting](mounting) for the full rules.
+If all five letters are taken, an error is logged and you can mount to a folder instead. A bare letter (`M`) is automatically expanded to `M:` (Dokan backend: `M:\`). See [Mounting](mounting) for the full rules.
 
-## 3. Use the drive
+**Linux/macOS:** archives mount on a folder. With no mount point specified, a temporary folder under the system temp directory is used; pick any folder explicitly to control the location.
 
-Open **This PC** — the archive is now a removable-style drive named after the archive. Files open directly from the archive:
+## 3. Use the mount
+
+Open **This PC** (Windows) or your file manager (Linux/macOS) — the archive is now a drive/folder named after the archive. Files open directly from the archive:
 
 - Small files are decompressed once into memory and shared by every reader.
 - Large files stream straight from the archive (stored ZIP entries, `.zar` containers, and Xbox disc images) or through the disk cache.
@@ -47,7 +49,7 @@ Any of the following:
 
 - Press **Unmount** in the app window,
 - close the app window (it unmounts cleanly before exiting), or
-- eject the drive from Explorer's tray icon.
+- on Windows, eject the drive from Explorer's tray icon; on Linux/macOS, unmount it from the system (`fusermount3 -u <folder>` / `umount <folder>`).
 
 Unmounting deletes the session's temporary disk-cache files automatically.
 
@@ -58,5 +60,5 @@ The window's log pane tells you exactly what happened at every step: archive typ
 ## Next steps
 
 - [Usage Guide](usage) — mounting to folders, passwords, command-line details
-- [Variants](variants) — decide between Dokan and WinFsp
+- [Mount Backends](variants) — decide between Dokan, WinFsp and FUSE
 - [Troubleshooting](troubleshooting) — when a mount fails

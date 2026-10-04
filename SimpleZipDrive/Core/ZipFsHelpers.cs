@@ -41,6 +41,7 @@ public static class ZipFsHelpers
     private static int _cleanupPerformed;
 
     private static readonly string CurrentProcessName = Process.GetCurrentProcess().ProcessName;
+    private static readonly Lock RegistrationLock = new();
     private static volatile string? _currentInstanceDirName;
     private static readonly char[] InvalidVolumeLabelChars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
 
@@ -54,16 +55,25 @@ public static class ZipFsHelpers
     /// </summary>
     public static void RegisterCurrentTempDirectory(string dirName)
     {
-        _currentInstanceDirName = dirName;
+        lock (RegistrationLock)
+        {
+            _currentInstanceDirName = dirName;
+        }
     }
 
     /// <summary>
-    ///     Clears the current instance's temp directory registration, e.g. after construction
-    ///     failed and the directory was removed.
+    ///     Clears the temp directory registration for <paramref name="dirName" />, e.g. after
+    ///     construction failed and the directory was removed. Only clears the registration when
+    ///     it still belongs to <paramref name="dirName" />, so a failed instance cannot unprotect
+    ///     the directory of a different, healthy instance in the same process.
     /// </summary>
-    internal static void ClearCurrentTempDirectory()
+    internal static void ClearCurrentTempDirectory(string dirName)
     {
-        _currentInstanceDirName = null;
+        lock (RegistrationLock)
+        {
+            if (string.Equals(_currentInstanceDirName, dirName, StringComparison.OrdinalIgnoreCase))
+                _currentInstanceDirName = null;
+        }
     }
 
     /// <summary>

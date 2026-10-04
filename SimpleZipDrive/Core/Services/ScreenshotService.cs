@@ -167,9 +167,18 @@ public class ScreenshotService : IScreenshotService
     {
         var path = Path.Combine(directory, $"Screenshot_{timestamp}.png");
 
-        for (var suffix = 1; suffix < 1000 && File.Exists(path); suffix++)
-            path = Path.Combine(directory, $"Screenshot_{timestamp}_{suffix}.png");
+        for (var suffix = 1; suffix <= 999; suffix++)
+        {
+            if (!File.Exists(path))
+                return path;
 
-        return path;
+            path = Path.Combine(directory, $"Screenshot_{timestamp}_{suffix}.png");
+        }
+
+        if (!File.Exists(path))
+            return path;
+
+        // All suffixed candidates exist (pathological); fall back to a GUID name.
+        return Path.Combine(directory, $"Screenshot_{timestamp}_{Guid.NewGuid():N}.png");
     }
 }

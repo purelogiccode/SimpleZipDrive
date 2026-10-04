@@ -158,7 +158,12 @@ public sealed class FuseMountService : IDisposable, IMountService
         if (Volatile.Read(ref _unmountRequested) != 0)
         {
             // Unmount was requested while the mount was still starting; abort cleanly.
+            // Dispose may already have run while this instance was mounting (it skips its
+            // cleanup while a mount is in progress), so make sure the core - which owns the
+            // archive file stream - is disposed even when CleanupAfterUnmount already ran.
             Interlocked.Exchange(ref _mounting, 0);
+            _core?.Dispose();
+            _core = null;
             CleanupAfterUnmount();
             return;
         }
@@ -234,22 +239,37 @@ public sealed class FuseMountService : IDisposable, IMountService
                 return;
             }
 
-            _fileSystem?.Stop();
+            // Stop() pokes the mount point to wake the blocking loop read; run it off the UI
+            // thread so the wake-up delay can never freeze the interface.
+            await Task.Run(() => _fileSystem?.Stop()).ConfigureAwait(false);
 
-            var exited = await Task.Run(() => thread.Join(TimeSpan.FromSeconds(5)));
+            var exited = await Task.Run(() => thread.Join(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
             if (!exited)
             {
                 _loggingService.Log("FUSE session did not exit in time; requesting an external unmount...");
                 TryExternalUnmount(CurrentMountPoint ?? _mountPoint);
+                exited = await Task.Run(() => thread.Join(TimeSpan.FromSeconds(3))).ConfigureAwait(false);
+            }
+
+            if (exited)
+            {
+                // The thread exited, so its finally block has already released the core;
+                // running the idempotent cleanup here guarantees the temp mount point is gone.
+                CleanupAfterUnmount();
+                _loggingService.Log("Drive unmounted successfully.");
             }
             else
             {
-                // When the thread did not exit, it still owns the core and will clean up in
-                // its finally block; disposing the core here would race with FUSE callbacks.
-                CleanupAfterUnmount();
+                // The FUSE thread still owns the core and will clean up when it exits;
+                // disposing the core here would race with live FUSE callbacks.
+                _loggingService.LogError(
+                    "The FUSE session did not exit; the drive may still be mounted. Unmount it from " +
+                    "the system or close the application before mounting another archive.");
+                IsMounted = false;
+                CurrentMountPoint = null;
+                CurrentArchivePath = null;
             }
 
-            _loggingService.Log("Drive unmounted successfully.");
             OnMountStatusChanged();
         }
         catch (Exception ex)
@@ -279,14 +299,16 @@ public sealed class FuseMountService : IDisposable, IMountService
             if (thread is { IsAlive: true })
                 exited = thread.Join(TimeSpan.FromSeconds(2));
 
-            if (exited)
+            if (exited && Volatile.Read(ref _mounting) == 0)
             {
                 CleanupAfterUnmount();
             }
             else
             {
-                // The FUSE thread may still be executing callbacks; its finally block will
-                // dispose the core when it exits, so do not tear it down underneath it.
+                // Either the FUSE thread may still be executing callbacks (its finally block
+                // will dispose the core when it exits), or a mount is still starting
+                // (MountAsync observes _unmountRequested and cleans up after itself).
+                // Tearing the core down here would race with either path.
                 IsMounted = false;
                 CurrentMountPoint = null;
                 CurrentArchivePath = null;
@@ -303,8 +325,10 @@ public sealed class FuseMountService : IDisposable, IMountService
         if (Volatile.Read(ref _unmountRequested) != 0)
         {
             // Unmount was requested while the session was starting; stop it as soon as the
-            // session reports itself mounted.
-            _fileSystem?.Stop();
+            // session reports itself mounted. Only fuse_exit may be used here: this callback
+            // runs on the FUSE loop thread, and waking the loop with a mount-point request
+            // would deadlock (that request could only be served by this same blocked thread).
+            _fileSystem?.RequestExit();
             return;
         }
 

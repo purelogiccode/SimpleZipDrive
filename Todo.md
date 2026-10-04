@@ -255,16 +255,44 @@ inaccurate.
 | `linux-x64/7zzs` | `eab4c8d7f193e3d6d3237370bbcaa879a160a3f1dc82202207e27baeab79b6ac` |
 | `linux-arm64/7zzs` | `277907bc627633ec344757fe47699856cbb6e37f75cbc310d37d62cfacdd73b2` |
 | `osx/7zz` (universal) | `74b0910e50ea44d9760a57fada2192cfd530ba8bffbe7b47c412a464b796cabf` |
-| `License.txt` | `1790374e5352329cedb46ee3808930a88e9ca2f08b82b10fcf5cf605d2c301b1` |
+| `License.txt` (combined Windows + Linux/macOS texts) | `4b29a373c9eee142edf852c88d0f8e781ec8d3594611ef28f9b758058e7e74da` |
 
 To update: download the new release packages from the 7-Zip GitHub releases, replace the
 five binaries, refresh `License.txt` and the hashes above, and re-run the test suite.
 
 ---
 
+## Follow-up review (3.1.0)
+
+A second review of everything committed after `acffb16f` found and fixed additional issues:
+
+- **FUSE self-deadlock**: unmount requested before the `init` callback returned called
+  `Stop()` from the FUSE loop thread; the mount-point wake-up poke could only be served by
+  that same blocked thread. The callback now uses a poke-free `RequestExit()`.
+- **FUSE lifecycle races**: unmount during startup leaked the core/file stream; `Dispose`
+  could clean up concurrently with a starting mount; a timed-out unmount was reported as
+  success; `Stop()` could freeze the UI for ~1 s. All four addressed in `FuseMountService`.
+- **Resolver latch**: `FuseInterop.RegisterResolver` set its flag before registering, so a
+  transient failure disabled resolution permanently.
+- **Extraction fallback**: any extraction exception now triggers the 7-Zip fallback (data
+  corruption can surface as a BCL exception); fallback results use the normalized cache key
+  (no repeated extraction per handle); `CreateSecureTempFile` refuses to run after dispose;
+  `ClearCurrentTempDirectory` only clears its own registration.
+- **Dialogs**: `MessageBoxWindow` now sets `IsDefault`/`IsCancel`; modal dialogs are
+  serialized through `ModalDialogHost`, use a non-racy cancellation-token lifetime, and pick
+  the active window as owner.
+- **Shutdown**: `UpdateService` re-checks cancellation before showing the update prompt;
+  `LogTextWriter` no longer disposes its token source while the processing task is running.
+- **Error reporting**: WinFsp assembly-load failures and missing *application* paths remain
+  suppressed; unrelated assembly/path failures are reported again.
+- **Screenshot**: the unique-name loop no longer returns an existing `_999` file.
+- **Packaging**: `winfsp-msil.dll` excluded from Linux/macOS publishes; combined
+  `7zip-license.txt`; Unix 7-Zip binaries committed as `100755`; local packaging on Windows
+  skips non-Windows RIDs instead of producing bundles without the executable bit.
+
 ## Notes
 
-- The suite now contains 1429 tests (101 added in the screenshot/test batch) with 0 build
+- The suite now contains 1430 tests (101 added in the screenshot/test batch) with 0 build
   warnings; it was run ten consecutive times green before the 7-Zip CLI change and is re-run
   after each subsequent change.
 - The screenshot service already existed (registered at `App.axaml.cs:170`, invoked on F8 at

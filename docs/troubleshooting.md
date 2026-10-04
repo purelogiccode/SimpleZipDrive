@@ -22,6 +22,10 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 | *"WinFsp version mismatch: installed x.y, required 2.1. Mount blocked."* | WinFsp older than 2.1, or interop/driver mismatch | Upgrade WinFsp to ≥ 2.1 stable. 2.2.x betas are fine |
 | *"WinFsp native DLL could not be loaded"* | Native driver DLL unreadable | Reinstall WinFsp; check that no AV quarantined `winfsp-x64.dll` |
 | *"Missing Application File"* — `winfsp-msil.dll` not found beside the exe | The interop library was removed (typically by antivirus) or the package was extracted incompletely | Restore `winfsp-msil.dll` next to the executable: re-download the complete package, extract **all** files into the same folder, and add an AV exclusion for the file if it keeps disappearing |
+| *"FUSE Not Available"* dialog on Linux | libfuse3 missing | Install it (`sudo apt install libfuse3-3`, `sudo dnf install fuse3`, …) |
+| *"FUSE Not Available"* dialog on macOS | macFUSE missing or not loaded | Install [macFUSE](https://macfuse.github.io/) and approve the system extension |
+| FUSE mount fails with *"failed to mount at '…'"* | `/dev/fuse` not accessible (containers, WSL1) or the mount folder is not empty | Ensure `/dev/fuse` exists and is readable; use an empty mount folder |
+| FUSE session does not exit / *"the drive may still be mounted"* | The session is wedged or `fusermount3`/`umount` failed | Unmount from the system (`fusermount3 -u <folder>` / `umount <folder>`) or close the app; the mount is not reported as unmounted until the session actually exits |
 
 ## Mount-point problems
 
@@ -44,7 +48,7 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 | *"Archive file not found at '…'"* | Path wrong / network share unreachable | Check the path |
 | Password dialog loops, then *"Mount aborted after 3 attempts"* | Wrong password | Verify the password; cancelling stops the mount cleanly |
 | *"The archive file appears to be corrupted, incomplete, or uses an unsupported format/feature"* | Broken download / unsupported feature | Re-download; test the archive in 7-Zip; note that corrupt RARs are reported as corruption (not as password prompts) since 2.9.0 |
-| Specific entries unreadable, log shows *"Decompression failed"* / *"SevenZip fallback also failed"* | Entry-level corruption or exotic compression | Verify the archive; re-create it if possible |
+| Specific entries unreadable, log shows *"Decompression failed"* / *"SevenZip fallback also failed"* | Entry-level corruption or exotic compression | Verify the archive; re-create it if possible. If the log says the fallback is unavailable, check that `7za.exe`/`7zzs`/`7zz` and `7zip-license.txt` are present beside the executable and that the binary is executable on Linux/macOS (`chmod +x`) |
 | *"Insufficient disk space to extract file '…'"* | Temp volume full | Free space on the drive holding `%LOCALAPPDATA%` |
 
 ## Runtime behaviour
@@ -63,5 +67,5 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 
 1. Close the app (unmount first).
 2. Delete `%LOCALAPPDATA%\SimpleZipDrive`.
-3. If mount points stay broken, restart Windows (driver state resets).
+3. If mount points stay broken, restart your system (driver state resets).
 4. Still broken? Reinstall the driver (Dokan/WinFsp) and the app ([Installation](installation)).

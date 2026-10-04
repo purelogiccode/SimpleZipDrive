@@ -7,10 +7,15 @@
     executable for each requested runtime identifier and packages it with ReadMe.md,
     LICENSE.txt and WhatsNew.md using the release_<version>_<rid>.zip naming convention.
 
-    Windows bundles include the native 7-Zip fallback libraries (7z.dll / 7z_arm64.dll)
-    and the loose winfsp-msil.dll interop assembly. Linux and macOS bundles contain the
-    native apphost only; the 7-Zip fallback is unavailable there and FUSE (libfuse3 /
-    macFUSE) is resolved from the host system at runtime.
+    Every bundle contains the 7-Zip command-line fallback binary for its platform
+    (7za.exe on Windows, 7zzs on Linux, 7zz on macOS) and the 7-Zip license text.
+    Windows bundles additionally contain the loose winfsp-msil.dll interop assembly;
+    FUSE (libfuse3 / macFUSE) is resolved from the host system at runtime.
+
+    Linux and macOS bundles must be produced on Linux/macOS so the zip preserves the
+    Unix executable bit on the apphost and the 7-Zip binary (CI builds each OS on its
+    matching runner). When the script runs on a Windows host, non-Windows runtime
+    identifiers are skipped with a warning for this reason.
 
     Existing files in the output directory are never deleted; only the bundles for the
     requested version and runtime identifiers are created (or overwritten if they already
@@ -81,12 +86,22 @@ if (-not $SkipTests)
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed - release bundles were not created.' }
 }
 
-$isWindowsHost = $IsWindows
+# $IsWindows only exists in PowerShell 6+; in Windows PowerShell 5.1 it is $null and the
+# host is always Windows, so a null value must be treated as a Windows host.
+$isWindowsHost = $null -eq $IsWindows -or $IsWindows
 $bundles = @()
 
 foreach ($rid in $RuntimeIdentifiers)
 {
     $isWindowsRid = $rid.StartsWith('win-', [System.StringComparison]::OrdinalIgnoreCase)
+
+    if ($isWindowsHost -and -not $isWindowsRid)
+    {
+        Write-Warning ("Skipping $rid - Linux/macOS bundles must be built on Linux/macOS " +
+            "(building them on Windows would lose the Unix executable bit). CI builds each OS on its matching runner.")
+        continue
+    }
+
     $publishDirectory = Join-Path $StagingDirectory $rid
 
     if (Test-Path -LiteralPath $publishDirectory) { Remove-Item -LiteralPath $publishDirectory -Recurse -Force }

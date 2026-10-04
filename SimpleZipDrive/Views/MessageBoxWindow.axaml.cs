@@ -72,7 +72,11 @@ public partial class MessageBoxWindow : Window
             Content = content,
             Width = 85,
             Theme = theme,
-            Tag = result
+            Tag = result,
+            // Wire the keyboard the same way the WPF MessageBox did: Enter accepts the
+            // default button, Escape activates Cancel/No.
+            IsDefault = isDefault,
+            IsCancel = result is MessageBoxResult.Cancel or MessageBoxResult.No
         };
 
         button.Click += OnButtonClick;

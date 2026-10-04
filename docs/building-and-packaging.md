@@ -13,15 +13,15 @@ Every release ships **six** zip packages - one per supported runtime identifier:
 
 ```
 release_<version>_<rid>.zip
-     3.0.0     win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
+     3.1.0     win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
 ```
 
 | Package | Contents |
 |---|---|
-| `._win-x64.zip` | `SimpleZipDrive.exe`, `7z.dll`, `7z_arm64.dll`, `winfsp-msil.dll`, Avalonia native libraries (`libSkiaSharp.dll`, `libHarfBuzzSharp.dll`, `av_libglesv2.dll`), `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
-| `._win-arm64.zip` | same layout |
-| `._linux-x64.zip` / `._linux-arm64.zip` | `SimpleZipDrive` (apphost), `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
-| `._osx-x64.zip` / `._osx-arm64.zip` | `SimpleZipDrive`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
+| `._win-x64.zip` | `SimpleZipDrive.exe`, `7za.exe`, `7zip-license.txt`, `winfsp-msil.dll`, Avalonia native libraries (`libSkiaSharp.dll`, `libHarfBuzzSharp.dll`, `av_libglesv2.dll`), `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
+| `._win-arm64.zip` | same layout (ARM64 `7za.exe`) |
+| `._linux-x64.zip` / `._linux-arm64.zip` | `SimpleZipDrive` (apphost), `7zzs`, `7zip-license.txt`, `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
+| `._osx-x64.zip` / `._osx-arm64.zip` | `SimpleZipDrive`, universal `7zz`, `7zip-license.txt`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
 
 All are **framework-dependent single-file** executables: the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only prerequisites.
 
@@ -51,14 +51,14 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 `scripts/package-release.ps1` performs the same publish/package steps locally:
 
 ```powershell
-# All six targets (publish runs on the current OS)
-.\scripts\package-release.ps1 -Version 3.0.0
+# All targets for the current OS (other OSes are skipped on Windows, see below)
+.\scripts\package-release.ps1 -Version 3.1.0
 
 # Only the targets for one OS
-.\scripts\package-release.ps1 -Version 3.0.0 -RuntimeIdentifiers win-x64,win-arm64
+.\scripts\package-release.ps1 -Version 3.1.0 -RuntimeIdentifiers win-x64,win-arm64
 ```
 
-It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Existing files in that folder are never deleted; only the bundles for the requested version are written (or overwritten). On Linux/macOS the script uses the `zip` CLI so the apphost keeps its executable bit.
+It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Existing files in that folder are never deleted; only the bundles for the requested version are written (or overwritten). On Linux/macOS the script uses the `zip` CLI so the apphost and the 7-Zip binary keep their executable bit; **on a Windows host, Linux/macOS runtime identifiers are skipped with a warning** because `Compress-Archive` cannot record Unix permissions. Build those bundles on their own OS (as the release workflow does) - a Windows developer asking for all six targets gets the two Windows bundles plus a clear warning.
 
 ## Publish commands
 
@@ -73,7 +73,7 @@ dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r osx-x64    --s
 dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r osx-arm64  --self-contained false -o out\osx-arm64
 ```
 
-When packaging by hand, include the single-file executable, every file in the publish root except PDBs and the package-provided `x64\`/`x86\` 7z copies, and `ReadMe.md`/`LICENSE.txt`/`WhatsNew.md`. The native libraries in the publish root (Avalonia's Skia/HarfBuzz/ANGLE libraries, `7z.dll`/`7z_arm64.dll`, `winfsp-msil.dll`) must ship loose beside the executable.
+When packaging by hand, include the single-file executable, every file in the publish root except PDBs, and `ReadMe.md`/`LICENSE.txt`/`WhatsNew.md`. The support files in the publish root (the platform 7-Zip binary and its `7zip-license.txt`, Avalonia's Skia/HarfBuzz/ANGLE libraries, and on Windows `winfsp-msil.dll`) must ship loose beside the executable.
 
 ## Packaging internals
 
@@ -93,7 +93,9 @@ Three constraints make the file layout non-negotiable:
 
    Timing matters: `AfterTargets="ComputeFilesToPublish"` / `BeforeTargets="BundleFiles"` do **not** work - the SDK splits bundled/non-bundled files in `_ComputeFilesToBundle`.
 
-2. **`7z.dll` / `7z_arm64.dll` must stay real files beside the exe on Windows.** `SevenZipFallback` probes `AppContext.BaseDirectory` for the library matching the process architecture (`SharpSevenZipBase.SetLibraryPath`); bundling them into the exe makes the fallback silently unavailable. Both ship in every Windows package so one zip works on x64 and ARM64. Linux/macOS packages do not include the 7-Zip fallback; the fallback is Windows-only.
+2. **The 7-Zip fallback binary must stay a real file beside the exe on every platform.** `SevenZipFallback` probes `AppContext.BaseDirectory` for `7za.exe` (Windows), `7zzs` (Linux) or `7zz` (macOS); the csproj copies exactly the file matching the publish `RuntimeIdentifier` and links it under its canonical name. Bundling it into the single file would make the fallback silently unavailable. On Unix the app sets the executable bit at runtime, and the release bundles preserve the bit through the `zip` CLI. The Unix binaries are committed with mode `100755` (`git update-index --chmod=+x`) so a publish from Linux/macOS keeps them executable.
+
+   `7zip-license.txt` must ship beside them: it contains the Windows (`7za.exe`) and Linux/macOS (`7zz`, `7zzs`) license texts, since the Windows and Unix packages carry different notices.
 
 3. **winfsp.net stays at 2.1.x** (`2.1.25156`). Interop 2.2.x rejects the stable native 2.1 driver (*"incorrect dll version (need 2.2, have 2.1)"*); interop 2.1 accepts both the 2.1 stable driver and 2.2+ betas. Version gates live in `WinFspMountService` (`RequiredWinFspVersion = 2.1`).
 

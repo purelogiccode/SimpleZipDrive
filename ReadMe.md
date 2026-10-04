@@ -32,14 +32,14 @@ Unlike traditional archive utilities that extract the entire archive to a tempor
     *   **Stored Entries (ZIP):** Uncompressed entries are read directly from the source archive with zero-copy, zero-cache performance - no RAM or disk overhead.
     *   **Small Files:** Cached in-memory for near-instantaneous access. Each file is decompressed only once and the buffer is shared across all open handles, so memory usage stays at approximately one copy per file regardless of how many applications access it. Decompression writes directly into the final buffer, halving the transient peak memory footprint during extraction of large entries.
     *   **Large Files (≥512 MB by default):** Automatically offloaded to a temporary disk cache to prevent RAM exhaustion. The per-file memory threshold can be adjusted via the Settings window.
-*   **Framework-Dependent Single Executable:** Ships as framework-dependent single-file binaries for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`. The Windows packages include the native `7z.dll` / `7z_arm64.dll` fallback libraries and `winfsp-msil.dll` beside the executable. Only the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) must be installed.
+*   **Framework-Dependent Single Executable:** Ships as framework-dependent single-file binaries for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`. Every package includes the platform 7-Zip fallback binary (`7za.exe` on Windows, `7zzs` on Linux, `7zz` on macOS) and its license beside the executable; Windows packages also include `winfsp-msil.dll`. Only the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) must be installed.
 *   **Streaming Architecture:** The source archive is accessed via a direct file stream, supporting archives of virtually any size.
 *   **Zero-Configuration UI:** Supports drag-and-drop functionality for automatic mounting to the first available drive letter (M-Q). The mounted drive label displays the archive filename.
 *   **Configurable Cache:** Open `Settings > RAM Limit` to adjust the per-file RAM cache limit. The value is automatically clamped to 90% of available system memory to prevent out-of-memory errors.
 *   **Configurable Mount Type:** Open `Settings` to choose the default mount type: **Drive Letter** (auto-selects M-Q) or **Folder** (browse for an NTFS directory). You can also use `File > Mount as Drive Letter` or `File > Mount as Folder` for one-time selection.
 *   **Encrypted Archive Support:** Prompts for passwords when accessing protected archives.
 *   **Cross-Integrity Mount (WinFsp):** When enabled in Settings, mounts archives to a folder path with a permissive security descriptor so that both standard and elevated (Administrator) processes can access the mounted drive. When the app runs as Administrator with the WinFsp backend, this mode is automatically enforced. Drive letter mounts remain isolated by Windows UAC — this is an OS limitation, not a WinFsp limitation.
-*   **Screenshot Capture:** Press `F8` at any time to capture the active window and save it as a PNG in the `Screenshot` folder next to the application — handy for attaching visuals to bug reports.
+*   **Screenshot Capture:** Press `F8` at any time to capture the active window and save it as a PNG in the `Screenshot` folder next to the application; if that folder is read-only, the image is saved to `%LOCALAPPDATA%\SimpleZipDrive\Screenshot` instead — handy for attaching visuals to bug reports.
 *   **Automated Maintenance:** Integrated update checker (with MessageBox prompt before opening the browser) and automatic cleanup of temporary cache files upon unmounting. Also cleans up orphaned temp directories from previous sessions on startup.
 *   **Enterprise Logging:** Comprehensive error tracking via a unified per-session log file and remote diagnostic reporting.
 
@@ -131,7 +131,7 @@ To safely unmount the drive and clean up temporary resources:
 2.  Alternatively, close the application window.
 
 ### Capturing a Screenshot
-Press `F8` at any time to capture the active window. The image is saved as a PNG in the `Screenshot` folder located next to the application executable. A status message confirms the saved file path.
+Press `F8` at any time to capture the active window. The image is saved as a PNG in the `Screenshot` folder located next to the application executable, falling back to `%LOCALAPPDATA%\SimpleZipDrive\Screenshot` when the application folder is not writable. A status message confirms the saved file path.
 
 ---
 
@@ -170,7 +170,7 @@ This project is licensed under the GPLv3 License – see the [LICENSE](LICENSE.t
 *   [WinFsp](https://github.com/winfsp/winfsp) (LGPL-3.0) - WinFsp backend on Windows
 *   [FuseSharp](https://github.com/purelogiccode/SimpleXisoDrive) (GPL-3.0) - FUSE binding used on Linux/macOS (vendored)
 *   [SharpCompress](https://github.com/adamhathcock/sharpcompress) (MIT)
-*   [SharpSevenZip](https://github.com/adoconnection/SevenZipExtractor) (MIT)
+*   [7-Zip](https://github.com/ip7z/7zip) command-line binaries, vendored under `SimpleZipDrive/7zip/` (LGPL with unRAR/BSD components — see `7zip-license.txt` in every package)
 *   [ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp) (MIT)
 *   [XISOSharp](https://github.com/purelogiccode/XISOSharp) (MIT)
 

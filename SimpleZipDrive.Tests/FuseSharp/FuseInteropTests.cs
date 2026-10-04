@@ -5,7 +5,10 @@ namespace SimpleZipDrive.Tests.FuseSharp;
 /// <summary>
 /// Tests the FUSE library resolver and availability probe. Probes use explicit candidate
 /// lists so the outcome is deterministic regardless of whether the host has FUSE 3.
+/// Serialized with the other console-redirecting tests because one test temporarily
+/// replaces <see cref="Console.Error" />.
 /// </summary>
+[Collection("Console redirection")]
 public class FuseInteropTests
 {
     /// <summary>

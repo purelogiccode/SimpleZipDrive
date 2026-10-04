@@ -4,8 +4,11 @@ namespace SimpleZipDrive.Tests.FuseSharp;
 
 /// <summary>
 ///     Tests for <see cref="FuseAvailability" />. The internal candidate-list overload keeps the
-///     probe deterministic regardless of whether the host has FUSE 3 installed.
+///     probe deterministic regardless of whether the host has FUSE 3 installed. Serialized with
+///     the other console-redirecting tests so the global <see cref="Console" /> writers are never
+///     swapped or disposed while another test (e.g. XISOSharp's static logger) is writing.
 /// </summary>
+[Collection("Console redirection")]
 public class FuseAvailabilityTests
 {
     [Fact]

@@ -34,6 +34,7 @@ Everything lives under one root — `%LOCALAPPDATA%\SimpleZipDrive`:
 | `Temp\Logs\debug_<timestamp>_<guid>.log` | Current session log | Previous session logs deleted at startup |
 | `Temp\Logs\winfsp_debug_<timestamp>.log` | Native WinFsp driver log, one per mount attempt | Kept until the next session's cleanup |
 | `Mounts\<ArchiveName>\` | Cross-integrity mount-point folders (WinFsp) | Not auto-deleted; safe to remove when unmounted |
+| `Screenshot\` | F8 screenshots, used when the application folder is not writable | Until you delete them |
 
 The startup sweep only deletes `Temp\<pid>_<guid>`-shaped directories whose PID is dead **and** whose process name no longer matches (guards against PID reuse) — live sessions and `settings.dat` are never touched.
 

@@ -96,22 +96,33 @@ public sealed class FuseFileSystem
     /// </summary>
     public void Stop()
     {
+        if (RequestExit())
+            WakeUpLoop();
+    }
+
+    /// <summary>
+    ///     Requests a clean session exit without waking the FUSE loop with a mount-point
+    ///     request. Safe to call from the FUSE callback thread (for example inside the
+    ///     <c>init</c> callback): the loop re-checks the exited flag once the callback
+    ///     returns, so poking the mount point there would deadlock.
+    /// </summary>
+    /// <returns><see langword="true" /> when the exit request was issued.</returns>
+    public bool RequestExit()
+    {
         var fuse = _fuseHandle;
         if (fuse == IntPtr.Zero)
-        {
-            return;
-        }
+            return false;
 
         try
         {
             FuseInterop.FuseExit(fuse);
+            return true;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "fuse_exit failed");
+            return false;
         }
-
-        WakeUpLoop();
     }
 
     private int RunCore(string mountPoint, bool debug, Action? onMounted)

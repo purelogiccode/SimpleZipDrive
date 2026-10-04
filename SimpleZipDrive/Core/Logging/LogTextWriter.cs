@@ -14,7 +14,7 @@ public sealed class LogTextWriter : TextWriter
     private readonly TextWriter? _fallbackWriter;
     private readonly ILoggingService? _loggingService;
     private readonly Task _processingTask;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>Creates a new writer that forwards console output to the logging service.</summary>
     /// <param name="fallbackWriter">Writer used when the logging service is unavailable (e.g. during shutdown).</param>
@@ -139,9 +139,8 @@ public sealed class LogTextWriter : TextWriter
     {
         // TextWriter.Dispose is expected to be idempotent; completing an already-completed
         // channel throws ChannelClosedException, so guard the cleanup.
-        if (disposing && !_disposed)
+        if (disposing && Interlocked.Exchange(ref _disposed, 1) == 0)
         {
-            _disposed = true;
             _channel.Writer.Complete();
 
             try
@@ -157,7 +156,11 @@ public sealed class LogTextWriter : TextWriter
                 ErrorLoggerStatic.ReportSilentException(ex, "LogTextWriter.Dispose: Processing task wait failed", true);
             }
 
-            _cts.Dispose();
+            // Only dispose the token source once the processing task has stopped using it;
+            // disposing it while ReadAllAsync is still running would fault that task with
+            // an ObjectDisposedException. If the task did not stop, the finalizer reclaims it.
+            if (_processingTask.IsCompleted)
+                _cts.Dispose();
         }
 
         base.Dispose(disposing);

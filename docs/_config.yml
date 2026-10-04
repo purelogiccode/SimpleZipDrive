@@ -1,5 +1,6 @@
 title: SimpleZipDrive
-description: Mount ZIP, 7Z, RAR, TAR, ZArchive and Xbox XISO archives as virtual Windows drives
+description: Mount ZIP, 7Z, RAR, TAR, ZArchive and Xbox XISO archives as virtual drives or folders on Windows, Linux and macOS
+
 remote_theme: just-the-docs/just-the-docs
 url: https://purelogiccode.github.io
 baseurl: /SimpleZipDrive
@@ -17,9 +18,12 @@ mermaid: true
 aux_links:
   "SimpleZipDrive on GitHub":
     - "https://github.com/purelogiccode/SimpleZipDrive"
+  "Changelog":
+    - "https://github.com/purelogiccode/SimpleZipDrive/blob/master/WhatsNew.md"
+
 aux_links_new_tab: true
 
-footer_content: "SimpleZipDrive is open source under the <a href=\"https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt\">GPL v3 license</a>."
+footer_content: "SimpleZipDrive is open source under the <a href=\"https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt\">GPL v3 license</a>. Bundled 7-Zip binaries &copy; Igor Pavlov (LGPL / unRAR restriction)."
 
 gh_edit_link: true
 gh_edit_link_text: "Edit this page on GitHub"

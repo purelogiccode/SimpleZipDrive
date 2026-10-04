@@ -1,4 +1,4 @@
-**[Home](index)**
+**[Home](Home)**
 
 **[Installation](installation)**
 
@@ -6,7 +6,7 @@
 
 **[Usage Guide](usage)**
 
-**[Variants](variants)**
+**[Mount Backends](variants)**
 
 **Deep Dives**
 

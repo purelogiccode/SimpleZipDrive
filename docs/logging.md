@@ -34,7 +34,7 @@ Warnings and errors are forwarded automatically to the project's bug-report serv
 
 - **Payload:** error message (≤ 4000 chars), application name + version, context (`userInfo`), environment summary (OS + bitness, ≤ 50 chars), stack trace. No archive paths or contents.
 - **Filtering:** expected user errors are suppressed — cancellations, wrong passwords, corrupt archives, missing/incompatible drivers, occupied mount points, IO/file-not-found errors, etc. Only genuine defects are reported.
-- Unhandled exceptions on any thread (WPF dispatcher, `AppDomain`, unobserved tasks) are captured, logged as fatal, and reported synchronously before shutdown.
+- Unhandled exceptions on any thread (Avalonia dispatcher, `AppDomain`, unobserved tasks) are captured, logged as fatal, and reported synchronously before shutdown.
 
 See [Security & Privacy](security#automatic-bug-reporting) for exactly what is sent and how to opt out.
 

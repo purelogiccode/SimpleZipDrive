@@ -19,7 +19,8 @@ internal static class FuseInterop
     /// </summary>
     private const string LibraryName = "fuse3";
 
-    private static int _resolverRegistered;
+    private static readonly Lock ResolverLock = new();
+    private static bool _resolverRegistered;
 
     /// <summary>
     /// Registers the DLL import resolver that maps <see cref="LibraryName"/> to the
@@ -29,12 +30,20 @@ internal static class FuseInterop
     {
         try
         {
-            if (Interlocked.Exchange(ref _resolverRegistered, 1) != 0)
+            // Serialized: NativeLibrary.SetDllImportResolver throws if a resolver is
+            // already registered for the assembly, so two concurrent callers must not
+            // both attempt it. The flag is set only after success, so a transient
+            // failure can be retried instead of disabling resolution permanently.
+            lock (ResolverLock)
             {
-                return;
-            }
+                if (_resolverRegistered)
+                {
+                    return;
+                }
 
-            NativeLibrary.SetDllImportResolver(typeof(FuseInterop).Assembly, Resolve);
+                NativeLibrary.SetDllImportResolver(typeof(FuseInterop).Assembly, Resolve);
+                _resolverRegistered = true;
+            }
         }
         catch (Exception ex)
         {

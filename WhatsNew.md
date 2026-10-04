@@ -1,5 +1,29 @@
 # What's New
 
+## 3.1.0
+
+### Added
+- **Linux and macOS support - one application, three filesystem backends.** The former Dokan and WinFsp executables are merged into a single cross-platform Avalonia app: **WinFsp** or **Dokan** on Windows (selected in Settings; Auto prefers WinFsp) and **FUSE** (libfuse3 on Linux, macFUSE on macOS) everywhere else. Folder mounts work on every platform; drive-letter and cross-integrity mounts remain Windows-only. Six release bundles are produced: `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`.
+- **The 7-Zip extraction fallback now works on every platform.** Instead of loading a native `7z.dll`, the app runs a bundled 7-Zip command-line binary - `7za.exe` on Windows, statically linked `7zzs` on Linux, universal `7zz` on macOS - streamed straight into the cache. Entry names are mapped through `7z l -slt`, so backslash-separated and wildcard-containing names (`[`, `]`) extract correctly; standard input is closed so a missing password can never hang a prompt.
+- **Screenshot fallback location.** Pressing `F8` saves to the `Screenshot` folder next to the app; when that folder is read-only (e.g. Program Files), the image is saved to `%LOCALAPPDATA%\SimpleZipDrive\Screenshot` and the actual error is reported if both fail.
+
+### Fixed
+- **FUSE: unmounting while the session was still starting could deadlock the mount permanently.** The mount callback runs on the FUSE loop thread; it now requests a clean exit without waking the loop with a mount-point request (which could only be served by that same blocked thread). Unmount also no longer freezes the UI while waking the session, no longer reports success when the session is still alive, and a failed unmount says so instead of pretending the drive is gone.
+- **Mount lifecycle races and leaks.** A mount aborted during startup now always disposes the archive core and file handle; `Dispose` no longer races a starting mount; failed mounts no longer leave stale `IsMounted`/`CurrentMountPoint`/`CurrentArchivePath` state; and a transiently failing FUSE loop can no longer be disposed underneath live callbacks.
+- **Disk-cache extraction.** Extraction of a shared archive stream is now fully serialized, the 7-Zip fallback is attempted for *any* extraction exception (including corrupt data surfaced through a BCL frame), fallback results are cached under the same key every other path uses (no duplicate extraction per handle), a deleted temp directory is no longer recreated after shutdown, and a failed instance can no longer unregister another instance's protected temp directory.
+- **Dialogs answer the keyboard again.** Message boxes now honour Enter (default button) and Escape (Cancel/No), exactly like the WPF `MessageBox` they replaced; concurrent password prompts are serialized instead of nesting dispatcher loops, and dialogs are owned by the active window (so a prompt opened from Settings is not stacked behind the main window).
+- **Shutdown hardening.** The update prompt can no longer appear after shutdown began, the log writer's token source is no longer disposed while its background task is still using it, and the screenshot file-name helper no longer overwrites the 1000th same-millisecond capture.
+- **Error reporting is narrower where it should be.** Only WinFsp assembly-load failures and missing *application* data/temp paths are treated as environment conditions; missing unrelated assemblies or paths are reported again instead of being silently suppressed.
+- **Packaging.** Linux/macOS bundles no longer contain the Windows-only `winfsp-msil.dll`; every bundle ships a combined `7zip-license.txt` covering both the Windows and Unix binaries; the Unix 7-Zip binaries are committed executable; local packaging on a Windows host skips Linux/macOS targets (with a warning) instead of producing bundles that lose the Unix executable bit.
+
+### Changed
+- The 7-Zip fallback no longer depends on the `SharpSevenZip` package; the vendored 7-Zip 26.03 binaries live under `SimpleZipDrive/7zip/` and ship one per runtime identifier. Note: the Windows `7za.exe` does not read RAR (SharpCompress remains the primary RAR reader; Linux/macOS `7zz` can also read RAR).
+- Passwords for fallback extraction are passed as a command-line argument to the short-lived 7-Zip process (see [Security & Privacy](docs/security.md)); the process runs headless and exits as soon as the entry is extracted.
+
+### Internal
+- All 37 findings from the deep review in `Todo.md` are fixed; the suite grew to **1,430 tests** and stays analyzer-warning-clean.
+- Documentation (`docs/`) is published both as the repository wiki (side menu in `docs/_Sidebar.md`) and as a GitHub Pages site (just-the-docs navigation via `docs/_config.yml`).
+
 ## 3.0.1
 
 ### Fixed

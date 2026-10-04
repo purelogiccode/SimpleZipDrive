@@ -10,7 +10,7 @@ nav_order: 4
 
 ### Drag-and-drop
 
-Drag an archive file from Explorer onto the executable. One archive is detected and mounted automatically on the first free drive letter from **M–Q**.
+Drag an archive file from your file manager onto the executable. One archive is detected and mounted automatically: on Windows on the first free drive letter from **M–Q**, on Linux/macOS on a temporary folder under the system temp directory.
 
 ### From the menu
 
@@ -24,10 +24,10 @@ Drag an archive file from Explorer onto the executable. One archive is detected 
 
 ```text
 Usage 1 (Explicit Mount):  SimpleZipDrive.exe <PathToArchiveFile> <MountPoint>
-Usage 2 (Drag-and-Drop):   drag a supported archive onto the .exe icon
+Usage 2 (Drag-and-Drop):   drag a supported archive onto the executable
 ```
 
-Examples:
+Examples (Windows):
 
 ```text
 SimpleZipDrive.exe "C:\Data\backup.zip" M        → drive M:
@@ -40,7 +40,14 @@ SimpleZipDrive.exe "C:\Data\docs.zip" "C:\mount\zip"   → folder mount
 SimpleZipDrive.exe "C:\Data\docs.zip"            → auto-mount on M:–Q:
 ```
 
-- The **mount point** may be a bare drive letter (`M`), a drive with colon (`M:`), or a path to a folder. The Dokan variant also accepts `M:\`.
+Examples (Linux/macOS):
+
+```text
+./SimpleZipDrive ~/data/backup.zip ~/mount/zip   → folder mount
+./SimpleZipDrive ~/data/backup.zip               → auto-mount on a temp folder
+```
+
+- The **mount point** may be a bare drive letter (`M`), a drive with colon (`M:`), or a path to a folder (the only form on Linux/macOS). The Dokan backend also accepts `M:\`.
 - With **one argument** the app behaves exactly like drag-and-drop.
 - With **no arguments** the app starts idle; mount via the menu.
 - Errors are shown in the log pane; there are no distinct shell exit codes (the app is a GUI).
@@ -48,7 +55,7 @@ SimpleZipDrive.exe "C:\Data\docs.zip"            → auto-mount on M:–Q:
 ## Mount points in detail
 
 - **Drive letters M–Q** are tried in order; occupied letters are skipped with a log line. A letter outside the pool can be requested explicitly via the command line.
-- **Folder mounts** use the folder you provide. The WinFsp variant verifies the folder is writable with a probe file before mounting; the folder is created if it does not exist.
+- **Folder mounts** use the folder you provide. The WinFsp backend verifies the folder is writable with a probe file before mounting; the folder is created if it does not exist (the FUSE backend also creates it).
 - **One mount at a time.** Mounting while a drive is already mounted shows *"A drive is already mounted. Please unmount it first."* Unmount first, then mount something else.
 
 ## Encrypted archives
@@ -71,7 +78,7 @@ See [Archive Support](archive-support#password-protected-archives) for format-sp
 
 | Feature | Where | What it does |
 |---|---|---|
-| **Open drive in Explorer** | Automatically after mount (optional setting) or menu | Opens the mounted drive rooted in a new Explorer window |
+| **Open mount location** | Automatically after mount (optional setting) or menu | Opens the mounted drive/folder in Explorer (Windows), Finder (macOS) or the default file manager (Linux) |
 | **Clean Temp Files** | Menu | Deletes orphaned temporary cache directories left behind by crashed sessions (normally automatic at startup) |
 | **Screenshot (F8)** | Global hotkey while the app runs | Captures the app window to a file — handy for bug reports |
 | **Open Config Path** | Menu | Opens `%LOCALAPPDATA%\SimpleZipDrive` in Explorer |
@@ -82,4 +89,4 @@ See [Archive Support](archive-support#password-protected-archives) for format-sp
 - Mount the same archive again later — the second mount re-parses the central directory but files still in the OS file cache open instantly.
 - Keep the app window open while using the drive; closing it unmounts the drive.
 - The log pane is your friend: every decision (stored-entry fast path, disk-cache offload, memory limits, retries) is logged.
-- For heavy repeated access to huge files, prefer the **Dokan** variant's zero-copy stored-entry path or ensure entries fit within the memory limit — see [Performance](performance).
+- For heavy repeated access to huge files, use archives with stored (uncompressed) entries — they take the engine's zero-copy path on every backend — or ensure entries fit within the memory limit; see [Performance](performance).

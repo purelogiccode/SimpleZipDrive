@@ -17,9 +17,9 @@ The mounted volume is **strictly read-only**:
 
 ## UAC and elevation
 
-- Both executables run with **`asInvoker`** — they never request elevation and never relaunch themselves as admin.
-- The **Dokan** variant logs a warning when not elevated; mounting may still work depending on your system configuration.
-- The **WinFsp** variant detects elevation and reacts: when running as Administrator it **forces a cross-integrity folder mount** so that standard-user processes can also access the mount ([Mounting](mounting#cross-integrity-folder-mounts-winfsp)).
+- The application runs with **`asInvoker`** — it never requests elevation and never relaunches itself as admin.
+- The **Dokan** backend logs a warning when not elevated; mounting may still work depending on your system configuration.
+- The **WinFsp** backend detects elevation and reacts: when running as Administrator it **forces a cross-integrity folder mount** so that standard-user processes can also access the mount ([Mounting](mounting#cross-integrity-folder-mounts-winfsp)).
 
 ## Cross-integrity mounts
 
@@ -37,6 +37,7 @@ When cross-integrity mode is active, the mounted volume carries the security des
 | `%LOCALAPPDATA%\SimpleZipDrive\Temp\<pid>_<guid>\` | Disk-cached entries extracted from the archive | Deleted on unmount/exit; orphan-swept at next startup |
 | `%LOCALAPPDATA%\SimpleZipDrive\Temp\Logs\` | Session + driver debug logs | Old logs deleted at startup; current session kept |
 | `%LOCALAPPDATA%\SimpleZipDrive\Mounts\<name>\` | Empty mount-point folders (cross-integrity) | Not auto-deleted |
+| `%LOCALAPPDATA%\SimpleZipDrive\Screenshot\` | F8 screenshots when the application folder is read-only | Until you delete them |
 
 Temp files are created with an ACL restricted to the current user.
 
@@ -63,3 +64,5 @@ If you prefer no telemetry, a firewall rule blocking `www.purelogiccode.com` for
 ## Sensitive material
 
 Because disk-cache files contain the *decrypted* content of archive entries, avoid mounting confidential encrypted archives on shared machines, or unmount promptly (which deletes the temp files immediately).
+
+When an encrypted entry cannot be decompressed by the primary library, the 7-Zip fallback process receives the password **as a command-line argument** for the lifetime of that short-lived process (a few milliseconds to seconds). On multi-user systems another local user may be able to read process arguments while the fallback runs. The fallback is only used for entries SharpCompress failed on, and the process exits as soon as the entry has been extracted.

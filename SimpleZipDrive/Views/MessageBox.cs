@@ -1,8 +1,3 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Threading;
-
 namespace SimpleZipDrive.Views;
 
 /// <summary>
@@ -45,33 +40,8 @@ public static class MessageBox
     public static MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button,
         MessageBoxImage icon)
     {
-        if (Dispatcher.UIThread.CheckAccess()) return ShowCore(messageBoxText, caption, button, icon);
-
-        return Dispatcher.UIThread.Invoke(() => ShowCore(messageBoxText, caption, button, icon));
-    }
-
-    private static MessageBoxResult ShowCore(string messageBoxText, string caption, MessageBoxButton button,
-        MessageBoxImage icon)
-    {
-        var window = new MessageBoxWindow(messageBoxText, caption, button, icon);
-        var owner = GetOwnerWindow();
-
-        using var closed = new CancellationTokenSource();
-        window.Closed += (_, _) => closed.Cancel();
-
-        if (owner != null && owner != window)
-            _ = window.ShowDialog(owner);
-        else
-            window.Show();
-
-        // Nested dispatcher loop: keeps the modal dialog responsive while the calling
-        // (possibly background) thread blocks until the user closes it.
-        Dispatcher.UIThread.MainLoop(closed.Token);
-        return window.Result;
-    }
-
-    internal static Window? GetOwnerWindow()
-    {
-        return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        return ModalDialogHost.Show(
+            () => new MessageBoxWindow(messageBoxText, caption, button, icon),
+            static window => ((MessageBoxWindow)window).Result);
     }
 }

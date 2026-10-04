@@ -56,14 +56,17 @@ Everything else is rejected with *"The file 'X' is not a supported archive"* and
 
 ## The 7-Zip fallback
 
-When SharpCompress (the primary extraction library) fails to decompress an entry, SimpleZipDrive retries with the **7-Zip** engine via `SharpSevenZip`:
+When SharpCompress (the primary extraction library) fails to decompress an entry, SimpleZipDrive retries with the **7-Zip** engine by running the bundled command-line executable:
 
-- Requires the native `7z.dll` (x64) or `7z_arm64.dll` (ARM64) **beside the executable** — both ship in every release package, one process-appropriate library is selected automatically.
-- Only available when the archive is a real file (not a pipe) so the library can open it by path.
+- The platform binary ships beside the executable and is selected by `RuntimeIdentifier`: `7za.exe` on Windows, statically linked `7zzs` on Linux, universal `7zz` on macOS. No native library is loaded into the process, so architecture mismatches cannot occur; on Unix the app sets the executable bit at startup if the archive tool dropped it.
+- Only available when the archive is a real file (not a pipe) so the extractor can open it by path.
+- The extractor runs headless (`-bd -y`), with standard input closed so a missing password can never hang a prompt, exact-name matching (`-spd`), and stdout streaming (`-so`) straight into the cache — the entry is never written to an intermediate folder.
+- Entry names are mapped through `7z l -slt`, so names stored with backslashes or wildcard characters (`[`, `]`) are extracted correctly.
 - The fallback receives the same password (if any) as the primary path.
 - If the fallback also fails: *"SevenZip fallback also failed for '…'"* and the entry is marked failed.
+- The bundled `7za.exe` supports 7z, xz, lzma, cab, zip, gzip, bzip2, Z, and tar but **not RAR**; Linux/macOS use the full `7zz` build, which can also read RAR. RAR archives normally extract through SharpCompress, so this only matters for an entry SharpCompress failed on.
 
-> Packaging note: the fallback libraries must stay next to the `.exe`. Bundling them *inside* a single-file executable made them invisible to the library-path probe in older releases — fixed in 2.9.0 ([Building & Packaging](building-and-packaging#packaging-internals)).
+> Packaging note: the 7-Zip binary must stay next to the executable. The exact file name and the `7zip-license.txt` notice are documented in [Building & Packaging](building-and-packaging#packaging-internals).
 
 ## Practical notes
 

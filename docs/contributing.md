@@ -36,10 +36,9 @@ Good first contributions: documentation fixes, additional test coverage for `Zip
   - [DokanNet](https://github.com/dokan-dev/dokany) — MIT (Dokan driver LGPL/BSD terms per its repository)
   - [WinFsp](https://github.com/winfsp/winfsp) — LGPL-3.0 (GPLv3 with FLOSS exception for the driver)
   - [SharpCompress](https://github.com/adamhathcock/sharpcompress) — MIT
-  - [SharpSevenZip](https://github.com/adoconnection/sevenzipsystem) — MIT
   - [ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp) — MIT
   - [XISOSharp](https://github.com/purelogiccode/XISOSharp) — MIT
   - [Serilog](https://serilog.net) — Apache-2.0
-  - 7-Zip (`7z.dll`) — LGPL / unRAR restrictions, per 7-Zip licensing
+  - 7-Zip command-line binaries (`7za.exe`, `7zz`, `7zzs`, vendored under `SimpleZipDrive/7zip/`) — LGPL with unRAR/BSD components, per the bundled `7zip-license.txt`
 
 By contributing you confirm your changes are your own work and may be licensed under GPL v3 as part of this project.

@@ -41,13 +41,14 @@ Administrator rights are **not** required to run SimpleZipDrive (see [Security &
 1. Download the `.zip` for your platform and architecture from the [Releases page](https://github.com/purelogiccode/SimpleZipDrive/releases).
 2. Extract **all files** into a dedicated folder. The package contains:
    - the executable (`SimpleZipDrive.exe` on Windows, `SimpleZipDrive` on Linux/macOS),
-   - `7z.dll` and `7z_arm64.dll` (Windows only) — the native fallback extraction libraries (required),
+   - the bundled 7-Zip fallback extractor — `7za.exe` on Windows, `7zzs` on Linux, `7zz` on macOS (required for the fallback; mark it executable if your archive tool dropped the permission),
+   - `7zip-license.txt` — the license for the bundled 7-Zip binaries,
    - `winfsp-msil.dll` (Windows only) — the WinFsp .NET interop (required when using the WinFsp backend),
    - Avalonia native libraries (`libSkiaSharp`, `libHarfBuzzSharp`, and on Windows `av_libglesv2`),
    - `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md`.
 3. Run the executable. No installer, no registry changes.
 
-> **Do not** separate the native libraries from the executable. The 7z fallback libraries, the WinFsp interop, and the Avalonia native libraries are probed next to the executable; if they are missing, the app will not start or archives that need the fallback will fail to open.
+> **Do not** separate the support files from the executable. The 7-Zip fallback binary, the WinFsp interop, and the Avalonia native libraries are probed next to the executable; if they are missing, the app will not start or archives that need the fallback will fail to open.
 
 ## 4. Verify
 

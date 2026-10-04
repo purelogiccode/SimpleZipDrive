@@ -359,8 +359,6 @@ public class ErrorLoggerAdditionalTests
     [InlineData("WinFsp native DLL could not be loaded. The DLL may be missing.")]
     [InlineData(
         @"Error: Failed to mount 'D:\Games\game.rar'. Could not load file or assembly 'winfsp-msil, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b099876d8fa9b1f3'.")]
-    [InlineData(
-        "Error unmounting drive: Could not load file or assembly 'SharpSevenZip, Version=2.0.128.0, Culture=neutral, PublicKeyToken=null'. The system cannot find the file specified.")]
     [InlineData("WinFsp mount failed with status 0xC0000035: Mount failed with status 0xC0000035.")]
     [InlineData(
         "WinFsp mount failed with status 0xC0000033: Mount failed with status 0xC0000033. This may be caused by an outdated WinFsp driver.")]
@@ -471,5 +469,26 @@ public class ErrorLoggerAdditionalTests
         var ex = new InvalidOperationException("Unexpected failure in ZipFs.InitializeEntries.");
         var result = ErrorLogger.IsUserError(ex);
         Assert.False(result);
+    }
+
+    [Fact]
+    public void IsUserError_AssemblyLoadFailureOutsideWinFsp_ReturnsFalse()
+    {
+        // The environment filter only covers the WinFsp interop assembly; a missing
+        // unrelated assembly may be a real packaging regression and must stay reportable.
+        var ex = new InvalidOperationException(
+            "Error unmounting drive: Could not load file or assembly 'Contoso.Widgets, Version=1.0.0.0, " +
+            "Culture=neutral, PublicKeyToken=null'. The system cannot find the file specified.");
+        Assert.False(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_MissingPathOutsideAppData_ReturnsFalse()
+    {
+        // Only missing application data/temp paths are environment conditions; a missing
+        // unrelated path may indicate a real application defect.
+        var ex = new InvalidOperationException(
+            @"Could not find a part of the path 'D:\Games\game\data.bin'.");
+        Assert.False(ErrorLogger.IsUserError(ex));
     }
 }

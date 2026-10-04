@@ -88,6 +88,10 @@ public partial class UpdateService : IUpdateService
 
             if (latest <= current) return;
 
+            // The application may have started shutting down while the request was in
+            // flight; do not touch UI or services that are being disposed.
+            if (cancellationToken.IsCancellationRequested) return;
+
             _userNotificationService.ShowUpdateAvailable(current, latest, htmlUrl);
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)

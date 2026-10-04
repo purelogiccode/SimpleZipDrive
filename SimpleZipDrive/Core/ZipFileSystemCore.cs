@@ -133,7 +133,7 @@ public class ZipFileSystemCore : IDisposable
                     $"Failed to remove temp directory '{TempDirectoryPath}' after a failed construction.");
             }
 
-            ZipFsHelpers.ClearCurrentTempDirectory();
+            ZipFsHelpers.ClearCurrentTempDirectory(tempDirName);
             _logErrorAction(ex, $"Error during ZipFs construction for mount point '{mountPoint}'.");
             throw;
         }
@@ -831,6 +831,10 @@ public class ZipFileSystemCore : IDisposable
     {
         if (IsFailedEntry(normalizedPath)) return null;
 
+        // A filesystem callback can arrive after shutdown began; fail gracefully instead of
+        // recreating temp files or touching the disposed archive.
+        if (IsDisposed) return null;
+
         var entrySize = entry.Size;
 
         // Stored (uncompressed) entry fast path.
@@ -883,7 +887,8 @@ public class ZipFileSystemCore : IDisposable
         {
             if (_sevenZipFallback != null)
             {
-                var fallback = TryFallbackExtraction(GetFallbackLookupPath(entry, normalizedPath), entrySize, false);
+                var fallback = TryFallbackExtraction(GetFallbackLookupPath(entry, normalizedPath), normalizedPath,
+                    entrySize, false);
                 if (fallback != null)
                     return fallback;
             }
@@ -1156,6 +1161,7 @@ public class ZipFileSystemCore : IDisposable
                     // must hold the archive lock even though the per-entry lock is already held;
                     // otherwise concurrent extractions interleave seeks and corrupt the cache.
                     var extractionSucceeded = false;
+                    Exception? extractionFailure = null;
                     try
                     {
                         lock (_archiveLock)
@@ -1165,10 +1171,19 @@ public class ZipFileSystemCore : IDisposable
 
                         extractionSucceeded = true;
                     }
-                    catch (Exception ex) when (IsExtractionFailure(ex))
+                    catch (Exception ex)
+                    {
+                        // Any exception raised by the extraction itself can be data corruption
+                        // surfaced through a BCL frame (e.g. an InvalidOperationException thrown
+                        // while slicing the decompressed stream), so always offer the 7-Zip
+                        // fallback before giving up on the entry.
+                        extractionFailure = ex;
+                    }
+
+                    if (extractionFailure != null)
                     {
                         LogMessage(
-                            $"Disk-cached extraction failed for '{normalizedPath}' ({ex.GetType().Name}), trying fallback...");
+                            $"Disk-cached extraction failed for '{normalizedPath}' ({extractionFailure.GetType().Name}), trying fallback...");
                         if (_sevenZipFallback != null)
                         {
                             try
@@ -1191,21 +1206,20 @@ public class ZipFileSystemCore : IDisposable
                         if (!extractionSucceeded)
                         {
                             LogMessage(
-                                $"Extraction failed for '{normalizedPath}' ({ex.GetType().Name}), no fallback available. Entry marked as failed.");
+                                $"Extraction failed for '{normalizedPath}' ({extractionFailure.GetType().Name}), no fallback available. Entry marked as failed.");
                             AddFailedEntry(normalizedPath);
                             CleanupTempFile(newTempFilePath);
+
+                            // Unexpected exception types are still reported so a genuine
+                            // application defect is not silently masked by the fallback path.
+                            if (!IsExtractionFailure(extractionFailure))
+                            {
+                                _logErrorAction(extractionFailure,
+                                    $"ZipFs.OpenDiskCachedStream: Non-extraction exception during disk caching of '{normalizedPath}'.");
+                            }
+
                             return null;
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        LogMessage(
-                            $"Disk-cached extraction failed for '{normalizedPath}' ({ex.GetType().Name}). Entry marked as failed.");
-                        AddFailedEntry(normalizedPath);
-                        CleanupTempFile(newTempFilePath);
-                        _logErrorAction(ex,
-                            $"ZipFs.OpenDiskCachedStream: Non-extraction exception during disk caching of '{normalizedPath}'.");
-                        return null;
                     }
 
                     lock (_archiveLock)
@@ -1308,6 +1322,11 @@ public class ZipFileSystemCore : IDisposable
     /// </summary>
     public string CreateSecureTempFile()
     {
+        // A filesystem callback can race shutdown after the archive was disposed; do not
+        // resurrect the just-deleted temp directory in that case.
+        if (IsDisposed)
+            throw new ObjectDisposedException(nameof(ZipFileSystemCore));
+
         // The temp directory can be removed externally (e.g. by another instance's orphan
         // cleanup) while this instance is alive; recreate it so caching does not fail with
         // "Could not find a part of the path".
@@ -1418,7 +1437,15 @@ public class ZipFileSystemCore : IDisposable
     ///     Tries to extract an entry using the SevenZip fallback to a memory or disk cached stream.
     ///     Returns the stream if successful, null otherwise.
     /// </summary>
-    private Stream? TryFallbackExtraction(string normalizedPath, long entrySize, bool isLargeFile)
+    /// <param name="fallbackLookupPath">Exact archive-internal path passed to the 7-Zip executable.</param>
+    /// <param name="cacheKey">
+    ///     Normalized path used as the cache key, matching the key every other code path uses so
+    ///     fallback results are reused instead of extracted again on the next open.
+    /// </param>
+    /// <param name="entrySize">Declared uncompressed size of the entry.</param>
+    /// <param name="isLargeFile">Forces the disk-cache path (used by the large-entry caller).</param>
+    private Stream? TryFallbackExtraction(string fallbackLookupPath, string cacheKey, long entrySize,
+        bool isLargeFile)
     {
         if (_sevenZipFallback == null)
             return null;
@@ -1432,7 +1459,7 @@ public class ZipFileSystemCore : IDisposable
                 using (var outputStream =
                        new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
-                    if (!_sevenZipFallback.TryExtractEntry(normalizedPath, outputStream))
+                    if (!_sevenZipFallback.TryExtractEntry(fallbackLookupPath, outputStream))
                     {
                         CleanupTempFile(tempFilePath);
                         return null;
@@ -1441,18 +1468,18 @@ public class ZipFileSystemCore : IDisposable
 
                 lock (_archiveLock)
                 {
-                    LargeFileCache[normalizedPath] = tempFilePath;
+                    LargeFileCache[cacheKey] = tempFilePath;
                 }
 
                 return new FileStream(tempFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             }
 
             // Small file: use the shared memory cache.
-            return AcquireSharedMemoryStream(normalizedPath, entrySize, () =>
+            return AcquireSharedMemoryStream(cacheKey, entrySize, () =>
                 DecompressEntryToBuffer(entrySize,
                     output =>
                     {
-                        if (!_sevenZipFallback.TryExtractEntry(normalizedPath, output))
+                        if (!_sevenZipFallback.TryExtractEntry(fallbackLookupPath, output))
                             throw new InvalidOperationException("SevenZip fallback extraction failed.");
                     }));
         }

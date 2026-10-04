@@ -10,8 +10,8 @@
         <DebugSymbols>true</DebugSymbols>
         <ApplicationIcon>icon\zip.ico</ApplicationIcon>
         <IsPackable>false</IsPackable>
-        <AssemblyVersion>3.0.1</AssemblyVersion>
-        <FileVersion>3.0.1</FileVersion>
+        <AssemblyVersion>3.1.0</AssemblyVersion>
+        <FileVersion>3.1.0</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
         <Company>PureLogicCode.com</Company>
         <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -107,14 +107,19 @@
     <!--
         winfsp-msil's static initializer calls FileVersionInfo.GetVersionInfo(Assembly.Location);
         inside a single-file bundle Assembly.Location is empty, which kills every mount with
-        "The path is empty. (Parameter 'path')". Keep the interop assembly loose beside the exe.
+        "The path is empty. (Parameter 'path')". Keep the interop assembly loose beside the exe
+        on Windows; it is Windows-only, so drop it from Linux/macOS publish output entirely.
     -->
     <Target Name="KeepWinFspInteropOutOfBundle" BeforeTargets="_ComputeFilesToBundle">
-        <ItemGroup>
+        <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('win'))">
             <ResolvedFileToPublish Update="@(ResolvedFileToPublish)"
                                    Condition="'%(Filename)' == 'winfsp-msil'">
                 <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
             </ResolvedFileToPublish>
+        </ItemGroup>
+        <ItemGroup Condition="!$(RuntimeIdentifier.StartsWith('win'))">
+            <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                                   Condition="'%(Filename)' == 'winfsp-msil'" />
         </ItemGroup>
     </Target>
 

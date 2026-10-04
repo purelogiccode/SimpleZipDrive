@@ -8,9 +8,9 @@ nav_order: 1
 
 ![SimpleZipDrive screenshot](https://github.com/purelogiccode/SimpleZipDrive/raw/master/screenshot.png)
 
-**SimpleZipDrive** is a Windows application that mounts `ZIP`, `7Z`, `RAR`, and `TAR` archives (including compressed TAR variants and comic-book archives), Zstd-seekable `.zar` containers, and Xbox XISO disc images as **virtual drives or NTFS directory mount points**. Mounted archives appear and behave exactly like a regular drive in File Explorer and every other application — files can be browsed, opened, and streamed directly from the archive without extracting it first.
+**SimpleZipDrive** is a cross-platform application for **Windows, Linux, and macOS** that mounts `ZIP`, `7Z`, `RAR`, and `TAR` archives (including compressed TAR variants and comic-book archives), Zstd-seekable `.zar` containers, and Xbox XISO disc images as **virtual drives or directory mount points**. Mounted archives appear and behave exactly like a regular drive in your file manager and every other application — files can be browsed, opened, and streamed directly from the archive without extracting it first.
 
-**Current version: 3.0.1** · License: [GPL v3](https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt) · Downloads: [Releases](https://github.com/purelogiccode/SimpleZipDrive/releases)
+**Current version: 3.1.0** · License: [GPL v3](https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt) · Downloads: [Releases](https://github.com/purelogiccode/SimpleZipDrive/releases)
 
 ---
 
@@ -45,7 +45,7 @@ See [Mount Backends](variants) for a detailed comparison and help choosing.
 - [Installation](installation) — prerequisites, which package to download, install/upgrade/uninstall
 - [Getting Started](getting-started) — your first mount in two minutes
 - [Usage Guide](usage) — every way to mount, unmount, and operate the app
-- [Variants](variants) — WinFsp vs. Dokan vs. FUSE in depth
+- [Mount Backends](variants) — WinFsp vs. Dokan vs. FUSE in depth
 
 ### Deep Dives — [overview](guides)
 - [Mounting](mounting) — mount-point resolution, drive letters, folder and cross-integrity mounts, error codes
@@ -72,8 +72,8 @@ See [Mount Backends](variants) for a detailed comparison and help choosing.
 
 | Requirement | Details |
 |---|---|
-| Operating system | Windows 10 or 11 (x64 or ARM64) |
-| Runtime | [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
-| Filesystem driver | **Dokan v2 2.3+** (Dokan variant) or **WinFsp 2.1+** (WinFsp variant) — install the matching driver for the variant you use |
-| Disk space | ~10 MB for the application; temp space equal to the largest file you open when the disk cache is used |
+| Operating system | Windows 10/11 (x64 or ARM64), Linux (x64 or ARM64), macOS (Intel or Apple silicon) |
+| Runtime | [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
+| Filesystem driver | **Windows:** Dokan v2 2.3+ or WinFsp 2.1+ (selected in Settings; Auto prefers WinFsp) · **Linux:** libfuse3 · **macOS:** macFUSE |
+| Disk space | ~15 MB for the application; temp space equal to the largest file you open when the disk cache is used |
 | Memory | The memory cache is clamped to 90 % of installed RAM; the per-entry default is 512 MB |

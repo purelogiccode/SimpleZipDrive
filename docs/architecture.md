@@ -32,7 +32,7 @@ flowchart TB
         ZFS --> SES[StoredEntryStream<br/>zero-copy + read-ahead]
         ZFS --> MEM[SharedMemoryStream<br/>+ MemoryEntryCacheEntry]
         ZFS --> DISK[Disk cache<br/>secure temp files]
-        ZFS --> SZ[SevenZipFallback<br/>SharpSevenZip]
+        ZFS --> SZ[SevenZipFallback<br/>7-Zip CLI 7za / 7zz]
         ZFS --> SC[SharpCompress<br/>ZIP / 7Z / RAR / TAR]
         ZFS --> ZAR[ZarArchive<br/>ZArchiveSharp<br/>Zstd seekable .zar]
         ZFS --> XISO[XisoArchive<br/>XISOSharp<br/>Xbox .iso / .xiso / .cso]
@@ -44,9 +44,10 @@ flowchart TB
     MS --> DRV{Driver}
     DRV -- DokanNet --> D[Dokan driver]
     DRV -- FileSystemHost --> W[WinFsp driver]
+    DRV -- FuseSharp --> F[libfuse3 / macFUSE]
 ```
 
-## Mount flow (both variants)
+## Mount flow (all backends)
 
 1. `MainWindow.ProcessCommandLineArgsAsync` classifies: 1 arg = drag-and-drop, ≥2 args = archive + mount point.
 2. `MountService.MountAsync` guards (one mount per instance, file exists, extension supported).
@@ -54,7 +55,7 @@ flowchart TB
 4. Pre-mount checks (driver presence/version/service, mount-point availability, elevation).
 5. `OpenArchiveFileStreamAsync` opens the archive with `FileShare.ReadWrite` (3 attempts, awaited backoff).
 6. `ZipFileSystemCore` opens the archive through SharpCompress (ZIP/7Z/RAR/TAR) or the dedicated `ZarArchive` / `XisoArchive` adapters (`.zar` / Xbox images), parses the entry list, builds the `EntryNode` tree (including **implicit directories** for every ancestor path), detects encryption, prompts/verifies the password if needed.
-7. The driver object (`ZipFs` — Dokan `IDokanOperations` or WinFsp `IFileSystem`) is constructed and mounted **in-process**; the lifecycle task parks until unmount.
+7. The driver object (`DokanZipFs`/`WinFspZipFs`, or `FuseVolumeAdapter` on Linux/macOS) is constructed and mounted **in-process**; the lifecycle task (or the blocking FUSE session thread) parks until unmount.
 8. Unmount: cancel → driver unmount → 500 ms grace → dispose engine (caches, temp dir).
 
 ## The archive engine (`ZipFileSystemCore`)
@@ -75,15 +76,16 @@ flowchart TB
 
 - **Dokan:** `DokanInstanceBuilder` + `DokanOptions.RemovableDrive`; version probe via `DokanVersion()` P/Invoke with a minimum-version gate (`dokan2.dll` **≥ 2.3.0** — DokanNet 2.3 requires the `DokanRegisterWaitForFileSystemClosed` export, older drivers crash with an uncatchable `EntryPointNotFoundException`); driver output piped through `DokanPrefixedLogger` (`[DokanNet] ` prefix); 2-retry loop on `DokanException` gated by `ErrorStatus` (only `Error`/`StartError` retry — deterministic failures like `MountError`/`DriverInstallError` skip it, and DokanNet messages are localized so text matching is unreliable); `MountError`/`DriveLetterError` get a dedicated *"Mount Point Unavailable"* dialog.
 - **WinFsp:** `winfsp.net 2.1.25156` **pinned deliberately** — newer 2.2.x interops reject the stable 2.1 native driver (*"incorrect dll version (need 2.2, have 2.1)"*); `RequiredWinFspVersion = 2.1`; native DLL preloaded; `winfsp-msil.dll` interop assembly probed with `Assembly.Load` before every mount; `WinFsp.Launcher` service verified; `host.Mount(mountPoint, securityDescriptor, false, DebugLog=-1)` with a per-attempt native debug log; NTSTATUS→message mapping ([Mounting](mounting#mount-error-codes-winfsp)).
-- **Packaging constraint:** winfsp-msil's static initializer calls `FileVersionInfo.GetVersionInfo(Assembly.Location)`, which is empty inside single-file bundles — hence `winfsp-msil.dll` must ship beside the exe ([Building & Packaging](building-and-packaging#packaging-internals)).
+- **FUSE (Linux/macOS):** the vendored `FuseSharp` library drives libfuse3 / macFUSE through the high-level API; the read-only volume is exposed through `IFuseVolume`/`FuseVolumeAdapter` (getattr, open, read, statfs, readdir). The session runs on a dedicated background thread started by `FuseMountService`; unmount calls `fuse_exit` and pokes the mount point to wake the blocking loop, with an external `fusermount3`/`umount` fallback. The session thread's `finally` owns core disposal, so the archive is never torn down under live callbacks.
+- **Packaging constraint:** winfsp-msil's static initializer calls `FileVersionInfo.GetVersionInfo(Assembly.Location)`, which is empty inside single-file bundles — hence `winfsp-msil.dll` must ship beside the exe ([Building & Packaging](building-and-packaging#packaging-internals)). The 7-Zip fallback binary must also ship loose on every platform.
 
 ## Services and cross-cutting concerns
 
 - **ServiceProvider:** static registry populated in `App.OnStartup` (Logging → Settings → Mount → Notifications → Screenshots → Update → Stats); disposed in reverse at exit.
 - **Settings:** `AppSettings` JSON at `%LOCALAPPDATA%\SimpleZipDrive\settings.dat`; corrupt file → reported + reset.
 - **Logging:** single Serilog pipeline (`AppLogger`): verbose → session file; Information+ → debugger; Warning+ → `BugReportSink` → bug API (filtered by `ErrorLogger.IsUserError`); UI pane via `LoggingService` (5000-entry cap, 100 ms dedupe); `DiagnosticLogger` facade with sections/headers.
-- **Global exception handling:** WPF dispatcher / AppDomain / unobserved tasks → `ErrorLoggerStatic`; fatal reports posted synchronously (30 s) before exit; pending reports drained at shutdown (5 s).
-- **Update check:** `releases/latest` GitHub API, `tag_name` regex compare, silent on failure. The "current version" is read from the Core assembly, which is version-pinned to both app executables — deliberately not `Assembly.GetEntryAssembly()`, whose version under IDE test runners is the test host's and can trigger false update notifications in tests.
+- **Global exception handling:** Avalonia dispatcher / AppDomain / unobserved tasks → `ErrorLoggerStatic`; fatal reports posted synchronously (30 s) before exit; pending reports drained at shutdown (5 s).
+- **Update check:** `releases/latest` GitHub API, `tag_name` regex compare, silent on failure; it re-checks cancellation before showing the update prompt so it cannot touch UI during shutdown. The "current version" is read from the application assembly — deliberately not `Assembly.GetEntryAssembly()`, whose version under IDE test runners is the test host's and can trigger false update notifications in tests.
 - **Stats:** startup POST `{ applicationId, version }`; HTTP 429 ignored.
 
 ## Threading and shutdown

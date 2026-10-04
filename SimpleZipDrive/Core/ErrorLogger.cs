@@ -490,10 +490,13 @@ public class ErrorLogger : IDisposable
              messageLower.Contains("not running", StringComparison.OrdinalIgnoreCase)) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("could not be loaded", StringComparison.OrdinalIgnoreCase)) ||
-            // Assembly-load failures (e.g. winfsp-msil.dll missing beside the executable,
-            // removed by antivirus or an incomplete extraction) are environment issues with
-            // their own dialogs.
-            messageLower.Contains("could not load file or assembly", StringComparison.OrdinalIgnoreCase) ||
+            // Assembly-load failures of the WinFsp interop assembly (e.g. winfsp-msil.dll
+            // missing beside the executable, removed by antivirus or an incomplete extraction)
+            // are environment issues with their own dialogs. Restricted to the WinFsp names so
+            // an unrelated assembly-load regression is still reported.
+            (messageLower.Contains("could not load file or assembly", StringComparison.OrdinalIgnoreCase) &&
+             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("fsp.interop", StringComparison.OrdinalIgnoreCase))) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("mount failed with status", StringComparison.OrdinalIgnoreCase) &&
              (messageLower.Contains("0xc0000033", StringComparison.OrdinalIgnoreCase) ||
@@ -510,7 +513,10 @@ public class ErrorLogger : IDisposable
             (messageLower.Contains("mount point", StringComparison.OrdinalIgnoreCase) &&
              (messageLower.Contains("not accessible", StringComparison.OrdinalIgnoreCase) ||
               messageLower.Contains("cannot be created", StringComparison.OrdinalIgnoreCase))) ||
-            messageLower.Contains("could not find a part of the path", StringComparison.OrdinalIgnoreCase) ||
+            // Missing application data/temp directories (the message includes the app-owned
+            // path); unrelated missing-path failures are still reported.
+            (messageLower.Contains("could not find a part of the path", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("simplezipdrive", StringComparison.OrdinalIgnoreCase)) ||
             messageLower.Contains("dokan driver not found", StringComparison.OrdinalIgnoreCase) ||
             // Produced at runtime from DokanNet's DokanException.Message ("Can't install the Dokan driver"),
             // e.g. "Dokan error: Can't install the Dokan driver" and "[Warning] ... - Can't install the Dokan driver".

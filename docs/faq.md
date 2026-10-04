@@ -22,14 +22,17 @@ Closing the window unmounts the drive. Keep the app running while you use the mo
 **Can I mount more than one archive?**
 One archive per app instance. Launch a second instance to mount another archive (each instance occupies its own mount point).
 
-**Which variant should I use?**
-Dokan for the mature driver; WinFsp if you need cross-integrity mounting or folder mounts on fresh directories. See [Variants](variants).
+**Which backend should I use?**
+On Windows: Dokan for the mature driver, WinFsp if you need cross-integrity mounting or folder mounts on fresh directories (Auto prefers WinFsp when installed). On Linux/macOS the backend is always FUSE (libfuse3/macFUSE). See [Mount Backends](variants).
+
+**Does it run on Linux and macOS?**
+Yes — one application supports Windows, Linux and macOS. Windows uses WinFsp or Dokan, Linux uses libfuse3, macOS uses macFUSE. Drive letters and cross-integrity mounts are Windows-only; Linux/macOS mount on folders.
 
 **Do I need administrator rights?**
-No. The apps run unelevated (`asInvoker`). The WinFsp variant *detects* elevation when you choose to run as admin and switches to cross-integrity folder mounts so both integrity levels can see the mount.
+No. The app runs unelevated (`asInvoker`). The WinFsp backend *detects* elevation when you choose to run as admin and switches to cross-integrity folder mounts so both integrity levels can see the mount.
 
 **Why drive letters M–Q?**
-A reserved pool that rarely collides with real drives. You can request any letter explicitly on the command line, or mount to a folder instead.
+A reserved pool (Windows) that rarely collides with real drives. You can request any letter explicitly on the command line, or mount to a folder instead.
 
 **Where does extracted data go?**
 `%LOCALAPPDATA%\SimpleZipDrive\Temp\<pid>_<guid>\` for the session's disk cache — deleted automatically on unmount/exit and orphan-swept at startup. See [Configuration](configuration#data-locations).

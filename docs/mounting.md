@@ -43,7 +43,7 @@ flowchart TD
 
 ## The mount itself
 
-- **Both variants mount in-process.** No launcher executable is involved: the Dokan variant builds a `DokanInstance` inside the app (`DokanOptions.RemovableDrive`), the WinFsp variant calls `FileSystemHost.Mount(mountPoint, securityDescriptor, …)`.
+- **Every backend mounts in-process.** No launcher executable is involved: the Dokan backend builds a `DokanInstance` inside the app (`DokanOptions.RemovableDrive`), the WinFsp backend calls `FileSystemHost.Mount(mountPoint, securityDescriptor, …)`, and the FUSE backend runs a libfuse3/macFUSE session on a dedicated background thread.
 - While mounted, the app parks the mount lifecycle task until unmount is requested. Closing the window unmounts.
 - The archive file is opened with `FileShare.ReadWrite` so antivirus scanners or download managers holding the file do not block mounting; opening retries **3 times** with an awaited backoff (500 ms, then 1000 ms).
 
@@ -86,5 +86,6 @@ When `host.Mount` fails, the NTSTATUS code is mapped to a specific message:
 ## Lifecycle and shutdown
 
 - **Unmount:** cancels the mount task → driver unmount → 500 ms grace for pending callbacks → archive, caches, and temp directory disposed ([details](caching#cleanup)).
+- **FUSE unmount:** `fuse_exit` plus a mount-point wake-up request (run off the UI thread); if the session does not exit within 5 s an external `fusermount3`/`umount` is attempted. Unmounting while the session is still starting is safe — the app detects it at mount time, exits the loop without touching the mount point from the callback thread, and cleans up. A session that genuinely refuses to exit is reported as an error instead of being reported as unmounted.
 - **Window close:** shutdown races unmount against a **5 s** timeout; a **3 s** watchdog force-exits the process if teardown hangs (exit code 0).
-- Mount folders created for cross-integrity mounts are **not** deleted on unmount (empty folders may remain — harmless).
+- Mount folders created for cross-integrity mounts are **not** deleted on unmount (empty folders may remain — harmless). Temporary FUSE mount folders are removed on unmount.
