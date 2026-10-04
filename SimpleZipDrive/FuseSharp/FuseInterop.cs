@@ -4,7 +4,7 @@ using Serilog;
 
 #pragma warning disable MA0048 // Interop declarations share this file intentionally.
 
-namespace FuseSharp;
+namespace SimpleZipDrive.FuseSharp;
 
 /// <summary>
 /// Native FUSE 3 interop shared by the Linux and macOS mount backends. Only the

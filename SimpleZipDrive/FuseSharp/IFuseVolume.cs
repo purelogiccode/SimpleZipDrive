@@ -1,4 +1,4 @@
-namespace FuseSharp;
+namespace SimpleZipDrive.FuseSharp;
 
 /// <summary>
 /// A read-only volume that can be exposed as a FUSE file system. Paths passed to the

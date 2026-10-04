@@ -33,8 +33,8 @@ public partial class MessageBoxWindow : Window
 
         switch (button)
         {
-            case MessageBoxButton.OKCancel:
-                AddButton("OK", MessageBoxResult.OK, isDefault: true);
+            case MessageBoxButton.OkCancel:
+                AddButton("OK", MessageBoxResult.Ok, isDefault: true);
                 AddButton("Cancel", MessageBoxResult.Cancel);
                 break;
             case MessageBoxButton.YesNo:
@@ -42,7 +42,7 @@ public partial class MessageBoxWindow : Window
                 AddButton("No", MessageBoxResult.No);
                 break;
             default:
-                AddButton("OK", MessageBoxResult.OK, isDefault: true);
+                AddButton("OK", MessageBoxResult.Ok, isDefault: true);
                 break;
         }
     }

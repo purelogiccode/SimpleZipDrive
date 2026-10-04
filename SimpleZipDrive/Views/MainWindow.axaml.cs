@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,6 +13,9 @@ using Avalonia.VisualTree;
 
 namespace SimpleZipDrive.Views;
 
+// Event handlers are wired from MainWindow.axaml (Click/KeyDown/Closing attributes),
+// which ReSharper does not trace; suppress its unused-member inspection for them.
+[SuppressMessage("ReSharper", "UnusedMember.Local")]
 public partial class MainWindow : Window, IDisposable
 {
     private static volatile bool _shutdownCompleted;
@@ -118,11 +122,19 @@ public partial class MainWindow : Window, IDisposable
 
     private async void MainWindow_OpenedAsync(object? sender, EventArgs e)
     {
-        Opened -= MainWindow_OpenedAsync;
         try
         {
-            var args = App.StartupArgs;
-            if (args.Length > 0) await ProcessCommandLineArgsAsync(args);
+            Opened -= MainWindow_OpenedAsync;
+            try
+            {
+                var args = App.StartupArgs;
+                if (args.Length > 0) await ProcessCommandLineArgsAsync(args);
+            }
+            catch (Exception ex)
+            {
+                const string context = "Error in method MainWindow_OpenedAsync";
+                await ErrorLoggerStatic.LogErrorAsync(ex, context);
+            }
         }
         catch (Exception ex)
         {
@@ -258,7 +270,7 @@ public partial class MainWindow : Window, IDisposable
                 StatusText.Text = "Screenshot failed.";
                 MessageBox.Show(
                     "The screenshot could not be saved due to write permission issues.",
-                    "Screenshot Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    "Screenshot Failed", MessageBoxButton.Ok, MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
@@ -266,7 +278,7 @@ public partial class MainWindow : Window, IDisposable
             ErrorLoggerStatic.ReportSilentException(ex, "MainWindow.TakeScreenshot: Failed to capture screenshot");
             MessageBox.Show(
                 "The screenshot could not be saved due to write permission issues.",
-                "Screenshot Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "Screenshot Failed", MessageBoxButton.Ok, MessageBoxImage.Warning);
         }
     }
 
@@ -277,7 +289,7 @@ public partial class MainWindow : Window, IDisposable
             if (_mountService.IsMounted)
             {
                 MessageBox.Show("A drive is already mounted. Please unmount it first.", "Drive Already Mounted",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBoxButton.Ok, MessageBoxImage.Information);
                 return;
             }
 
@@ -301,7 +313,7 @@ public partial class MainWindow : Window, IDisposable
             const string context = "Error in method Mount_ClickAsync";
             await ErrorLoggerStatic.LogErrorAsync(ex, context);
             MessageBox.Show($"Error mounting archive: {ex.Message}", "Mount Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxButton.Ok, MessageBoxImage.Error);
         }
     }
 
@@ -312,7 +324,7 @@ public partial class MainWindow : Window, IDisposable
             if (_mountService.IsMounted)
             {
                 MessageBox.Show("A drive is already mounted. Please unmount it first.", "Drive Already Mounted",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBoxButton.Ok, MessageBoxImage.Information);
                 return;
             }
 
@@ -328,7 +340,7 @@ public partial class MainWindow : Window, IDisposable
             const string context = "Error in method MountAsDrive_ClickAsync";
             await ErrorLoggerStatic.LogErrorAsync(ex, context);
             MessageBox.Show($"Error mounting archive: {ex.Message}", "Mount Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxButton.Ok, MessageBoxImage.Error);
         }
     }
 
@@ -339,7 +351,7 @@ public partial class MainWindow : Window, IDisposable
             if (_mountService.IsMounted)
             {
                 MessageBox.Show("A drive is already mounted. Please unmount it first.", "Drive Already Mounted",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBoxButton.Ok, MessageBoxImage.Information);
                 return;
             }
 
@@ -353,7 +365,7 @@ public partial class MainWindow : Window, IDisposable
             const string context = "Error in method MountAsFolder_ClickAsync";
             await ErrorLoggerStatic.LogErrorAsync(ex, context);
             MessageBox.Show($"Error mounting archive: {ex.Message}", "Mount Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxButton.Ok, MessageBoxImage.Error);
         }
     }
 
@@ -411,7 +423,7 @@ public partial class MainWindow : Window, IDisposable
                 const string context = "Error unmounting drive";
                 await ErrorLoggerStatic.LogErrorAsync(ex, context);
                 MessageBox.Show($"Error unmounting drive: {ex.Message}", "Unmount Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBoxButton.Ok, MessageBoxImage.Error);
                 StatusText.Text = "Error unmounting drive";
             }
         }

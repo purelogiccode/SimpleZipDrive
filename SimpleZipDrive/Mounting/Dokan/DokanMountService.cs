@@ -419,7 +419,7 @@ public class DokanMountService : IDisposable, IMountService
                       "as administrator.";
 
         MessageBox.Show(message, "Mount Point Unavailable",
-            MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBoxButton.Ok, MessageBoxImage.Warning);
     }
 
     private async Task MountWithAutoDriveLetterAsync(string archivePath, string archiveType, ILogger logger)

@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using FuseSharp;
+using SimpleZipDrive.FuseSharp;
 
 namespace SimpleZipDrive.Tests.FuseSharp;
 

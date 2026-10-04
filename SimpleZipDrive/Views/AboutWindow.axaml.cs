@@ -1,9 +1,13 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
 namespace SimpleZipDrive.Views;
 
+// Event handlers are wired from AboutWindow.axaml (Click attributes), which ReSharper does not
+// trace; suppress its unused-member inspection for them.
+[SuppressMessage("ReSharper", "UnusedMember.Local")]
 public partial class AboutWindow : Window
 {
     public AboutWindow()

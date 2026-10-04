@@ -519,7 +519,7 @@ public class WinFspMountService : IDisposable, IMountService
                                "same folder, and if needed add an exclusion for winfsp-msil.dll in your antivirus.";
 
         MessageBox.Show(message, "Missing Application File",
-            MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBoxButton.Ok, MessageBoxImage.Error);
     }
 
     private static void ShowWinFspDriverErrorDialog(string errorMessage)
@@ -582,7 +582,7 @@ public class WinFspMountService : IDisposable, IMountService
                       "Please unmount the conflicting drive or choose a different drive letter or folder.";
 
         MessageBox.Show(message, "Mount Point In Use",
-            MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBoxButton.Ok, MessageBoxImage.Warning);
     }
 
     private static void ShowInvalidMountPointDialog(string mountPoint)
@@ -591,7 +591,7 @@ public class WinFspMountService : IDisposable, IMountService
                       "Please choose a valid drive letter (e.g. M:) or an existing folder path.";
 
         MessageBox.Show(message, "Invalid Mount Point",
-            MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBoxButton.Ok, MessageBoxImage.Warning);
     }
 
     private static bool IsVersionMismatchError(Exception ex)

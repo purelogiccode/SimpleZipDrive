@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -9,6 +10,9 @@ namespace SimpleZipDrive.Views;
 ///     Dialog for editing application settings such as RAM cache limit, mount type, mount backend,
 ///     cross-integrity security, and auto-open behavior.
 /// </summary>
+// Event handlers are wired from SettingsWindow.axaml (Click attributes), which ReSharper does
+// not trace; suppress its unused-member inspection for them.
+[SuppressMessage("ReSharper", "UnusedMember.Local")]
 public partial class SettingsWindow : Window
 {
     private readonly ISettingsService _settingsService;
@@ -118,7 +122,7 @@ public partial class SettingsWindow : Window
             else
             {
                 MessageBox.Show("Please enter a valid positive number for the RAM limit.", "Invalid Input",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBoxButton.Ok, MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
@@ -126,7 +130,7 @@ public partial class SettingsWindow : Window
             const string context = "SettingsWindow.Save_Click: Error saving settings";
             ErrorLoggerStatic.LogErrorSync(ex, context);
             MessageBox.Show($"Error saving settings: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxButton.Ok, MessageBoxImage.Error);
         }
     }
 

@@ -1,6 +1,6 @@
 using Serilog;
 
-namespace FuseSharp;
+namespace SimpleZipDrive.FuseSharp;
 
 /// <summary>
 /// Verifies that the FUSE 3 runtime needed for mounting is present and prints

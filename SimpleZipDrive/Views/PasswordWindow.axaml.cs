@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -7,6 +8,9 @@ namespace SimpleZipDrive.Views;
 /// <summary>
 ///     Dialog that prompts the user for a password to open an encrypted archive.
 /// </summary>
+// Event handlers are wired from PasswordWindow.axaml (Click/KeyDown attributes), which ReSharper
+// does not trace; suppress its unused-member inspection for them.
+[SuppressMessage("ReSharper", "UnusedMember.Local")]
 public partial class PasswordWindow : Window
 {
     /// <summary>

@@ -107,8 +107,6 @@ public sealed class MountService : IDisposable, IMountService
         {
             ErrorLoggerStatic.ReportSilentException(ex, "MountService.Dispose: Failed to dispose the backend", true);
         }
-
-        GC.SuppressFinalize(this);
     }
 
     private IMountService? ResolveBackend()
@@ -184,7 +182,7 @@ public sealed class MountService : IDisposable, IMountService
         MessageBox.Show(
             $"{backendName} is not available on this system.\n\n{reason}\n\n" +
             "Choose a different mount backend in Settings and try again.",
-            $"{backendName} Not Available", MessageBoxButton.OK, MessageBoxImage.Warning);
+            $"{backendName} Not Available", MessageBoxButton.Ok, MessageBoxImage.Warning);
     }
 
     private void OnBackendMountStatusChanged(object? sender, MountStatusChangedEventArgs e)

@@ -9,7 +9,7 @@ using SimpleZipDrive.Core.Logging;
 
 namespace SimpleZipDrive;
 
-public partial class App : Application
+public class App : Application
 {
     private static TextWriter? _originalConsoleOut;
     private static TextWriter? _originalConsoleError;
@@ -131,7 +131,7 @@ public partial class App : Application
                 {
                     // If even error logging fails, show message box as last resort
                     MessageBox.Show($"Critical startup error: {ex.Message}\n\n{ex.StackTrace}",
-                        "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        "Startup Error", MessageBoxButton.Ok, MessageBoxImage.Error);
                 }
 
                 throw;

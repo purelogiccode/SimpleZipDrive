@@ -4,7 +4,7 @@ namespace SimpleZipDrive.Views;
 public enum MessageBoxResult
 {
     None,
-    OK,
+    Ok,
     Cancel,
     Yes,
     No

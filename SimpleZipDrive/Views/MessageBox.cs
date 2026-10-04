@@ -13,7 +13,7 @@ public static class MessageBox
 {
     public static MessageBoxResult Show(string messageBoxText, string caption)
     {
-        return Show(messageBoxText, caption, MessageBoxButton.OK, MessageBoxImage.None);
+        return Show(messageBoxText, caption, MessageBoxButton.Ok, MessageBoxImage.None);
     }
 
     public static MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button)

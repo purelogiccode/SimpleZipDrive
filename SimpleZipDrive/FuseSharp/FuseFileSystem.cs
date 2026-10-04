@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Serilog;
 
-namespace FuseSharp;
+namespace SimpleZipDrive.FuseSharp;
 
 /// <summary>
 /// Serves an <see cref="IFuseVolume"/> through the FUSE 3 high-level API on Linux

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using FuseSharp;
+using SimpleZipDrive.FuseSharp;
 
 namespace SimpleZipDrive.Mounting.Fuse;
 
@@ -90,7 +90,7 @@ public sealed class FuseMountService : IDisposable, IMountService
             MessageBox.Show(
                 $"{reason}\n\nOn Linux install libfuse3 (e.g. 'sudo apt install libfuse3-3'), " +
                 "on macOS install macFUSE from https://macfuse.github.io/.",
-                "FUSE Not Available", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "FUSE Not Available", MessageBoxButton.Ok, MessageBoxImage.Warning);
             return Task.CompletedTask;
         }
 
@@ -240,8 +240,6 @@ public sealed class FuseMountService : IDisposable, IMountService
         {
             ErrorLoggerStatic.ReportSilentException(ex, "FuseMountService.Dispose failed", true);
         }
-
-        GC.SuppressFinalize(this);
     }
 
     private void OnMounted()
@@ -300,7 +298,7 @@ public sealed class FuseMountService : IDisposable, IMountService
         }
     }
 
-    private void TryExternalUnmount(string? mountPoint)
+    private static void TryExternalUnmount(string? mountPoint)
     {
         if (string.IsNullOrEmpty(mountPoint)) return;
 

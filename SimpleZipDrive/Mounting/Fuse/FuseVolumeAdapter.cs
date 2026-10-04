@@ -1,5 +1,5 @@
 using System.Buffers;
-using FuseSharp;
+using SimpleZipDrive.FuseSharp;
 
 namespace SimpleZipDrive.Mounting.Fuse;
 
@@ -10,7 +10,6 @@ namespace SimpleZipDrive.Mounting.Fuse;
 internal sealed class FuseVolumeAdapter : IFuseVolume
 {
     private readonly ZipFileSystemCore _core;
-    private readonly DateTime _creationTime = DateTime.UtcNow;
 
     public FuseVolumeAdapter(ZipFileSystemCore core)
     {
@@ -21,7 +20,7 @@ internal sealed class FuseVolumeAdapter : IFuseVolume
     public string VolumeLabel => _core.VolumeLabel;
 
     /// <inheritdoc />
-    public DateTime VolumeCreationTime => _creationTime;
+    public DateTime VolumeCreationTime { get; } = DateTime.UtcNow;
 
     /// <inheritdoc />
     public ulong VolumeSize => (ulong)Math.Max(0, _core.TotalSize);
@@ -36,7 +35,7 @@ internal sealed class FuseVolumeAdapter : IFuseVolume
     /// <inheritdoc />
     public IEnumerable<IFuseEntry> GetFolderList(string path)
     {
-        return _core.ListDirectory(ToCorePath(path)).Select(static node => (IFuseEntry)new EntryAdapter(node));
+        return _core.ListDirectory(ToCorePath(path)).Select(static IFuseEntry (node) => new EntryAdapter(node));
     }
 
     /// <inheritdoc />
