@@ -46,7 +46,7 @@ public class FuseVolumeAdapterTests : IDisposable
         var entry = _adapter.GetEntry("/");
 
         Assert.NotNull(entry);
-        Assert.True(entry!.IsDirectory);
+        Assert.True(entry.IsDirectory);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public class FuseVolumeAdapterTests : IDisposable
         var entry = _adapter.GetEntry("/readme.txt");
 
         Assert.NotNull(entry);
-        Assert.False(entry!.IsDirectory);
+        Assert.False(entry.IsDirectory);
         Assert.Equal(11, entry.Size);
         Assert.Equal("readme.txt", entry.FileName);
     }
@@ -66,7 +66,7 @@ public class FuseVolumeAdapterTests : IDisposable
         var entry = _adapter.GetEntry("readme.txt");
 
         Assert.NotNull(entry);
-        Assert.Equal("readme.txt", entry!.FileName);
+        Assert.Equal("readme.txt", entry.FileName);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class FuseVolumeAdapterTests : IDisposable
         Assert.NotNull(entry);
 
         var buffer = new byte[5];
-        var read = _adapter.ReadFile(entry!, buffer, 6);
+        var read = _adapter.ReadFile(entry, buffer, 6);
 
         Assert.Equal(5, read);
         Assert.Equal("World", Encoding.UTF8.GetString(buffer));
@@ -113,7 +113,7 @@ public class FuseVolumeAdapterTests : IDisposable
         Assert.NotNull(entry);
 
         var buffer = new byte[5];
-        var read = _adapter.ReadFile(entry!, buffer, entry!.Size);
+        var read = _adapter.ReadFile(entry, buffer, entry.Size);
 
         Assert.Equal(0, read);
     }
