@@ -58,7 +58,15 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 .\scripts\package-release.ps1 -Version 3.1.0 -RuntimeIdentifiers win-x64,win-arm64
 ```
 
-It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Existing files in that folder are never deleted; only the bundles for the requested version are written (or overwritten). On Linux/macOS the script uses the `zip` CLI so the apphost and the 7-Zip binary keep their executable bit; **on a Windows host, Linux/macOS runtime identifiers are skipped with a warning** because `Compress-Archive` cannot record Unix permissions. Build those bundles on their own OS (as the release workflow does) - a Windows developer asking for all six targets gets the two Windows bundles plus a clear warning.
+It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. On Linux/macOS the script uses the `zip` CLI so the apphost and the 7-Zip binary keep their executable bit; on Windows it writes the zip through `System.IO.Compression` and records the Unix executable bit (external attributes) explicitly for Linux/macOS bundles - so **all six bundles can be produced from any host** (CI still builds each OS on its matching runner).
+
+> **`SimpleZipDrive\bin\Release` is append-only - never delete files in it.** It holds locally
+> produced bundles (and may hold historical ones), and they are intentionally not tracked by
+> git (`.gitignore` ignores `bin/`), so a deleted bundle is gone permanently. Never run
+> `Remove-Item -Recurse`, `git clean`, `rm -rf` or any "clear output directory" step against
+> that path. Packaging may only overwrite the exact bundle file being regenerated
+> (`release_<version>_<rid>.zip`); every other file must stay untouched. `scripts/package-release.ps1`
+> follows this rule - keep it that way when editing the script.
 
 ## Publish commands
 

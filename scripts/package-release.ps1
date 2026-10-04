@@ -12,10 +12,10 @@
     Windows bundles additionally contain the loose winfsp-msil.dll interop assembly;
     FUSE (libfuse3 / macFUSE) is resolved from the host system at runtime.
 
-    Linux and macOS bundles must be produced on Linux/macOS so the zip preserves the
-    Unix executable bit on the apphost and the 7-Zip binary (CI builds each OS on its
-    matching runner). When the script runs on a Windows host, non-Windows runtime
-    identifiers are skipped with a warning for this reason.
+    All six runtime identifiers can be produced on any host. On Windows the script
+    writes the zip through System.IO.Compression and records the Unix executable bit
+    (external attributes) on the apphost and the 7-Zip binary for Linux/macOS bundles;
+    on Linux/macOS it uses the zip CLI, which preserves permissions natively.
 
     Existing files in the output directory are never deleted; only the bundles for the
     requested version and runtime identifiers are created (or overwritten if they already
@@ -76,6 +76,9 @@ foreach ($document in $documents)
     }
 }
 
+# SAFETY - the release output directory is append-only: NEVER delete, clean or recursively
+# remove anything inside it (historical bundles live there). Only the exact bundle file being
+# generated for this version/rid may be replaced. Do not add a "clear output directory" step.
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 New-Item -ItemType Directory -Force -Path $StagingDirectory | Out-Null
 
@@ -91,17 +94,84 @@ if (-not $SkipTests)
 $isWindowsHost = $null -eq $IsWindows -or $IsWindows
 $bundles = @()
 
+# Writes a flat zip and (for Unix runtime identifiers) records the executable bit on the
+# apphost and the 7-Zip binary through the zip external attributes. Needed when packaging on
+# a Windows host, where neither Compress-Archive nor the zip CLI can preserve Unix modes.
+function New-ReleaseZip
+{
+    param(
+        [Parameter(Mandatory = $true)][string[]] $Files,
+        [Parameter(Mandatory = $true)][string] $DestinationPath,
+        [Parameter(Mandatory = $true)][bool] $UnixRid
+    )
+
+    # Only the exact destination bundle file is replaced; nothing else in the output
+    # directory is ever touched (see the append-only safety note above).
+    if (Test-Path -LiteralPath $DestinationPath) { Remove-Item -LiteralPath $DestinationPath -Force }
+
+    Add-Type -AssemblyName System.IO.Compression | Out-Null
+    Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
+
+    $archive = [System.IO.Compression.ZipFile]::Open($DestinationPath, [System.IO.Compression.ZipArchiveMode]::Create)
+    try
+    {
+        foreach ($file in $Files)
+        {
+            $name = [System.IO.Path]::GetFileName($file)
+            $entry = $archive.CreateEntry($name, [System.IO.Compression.CompressionLevel]::Optimal)
+            $entry.LastWriteTime = (Get-Item -LiteralPath $file).LastWriteTime
+
+            # Zip stores Unix permissions in the high 16 bits of the external attributes:
+            # 0100644 (0x81A4) for regular files, 0100755 (0x81ED) for executables.
+            $mode = 0x81A4
+            if ($UnixRid -and ($name -eq 'SimpleZipDrive' -or $name -eq '7zzs' -or $name -eq '7zz'))
+            {
+                $mode = 0x81ED
+            }
+
+            # Normalize the 32-bit two's-complement value explicitly (PowerShell's [int]
+            # cast would overflow on the raw 0x81xx0000 value).
+            $external = [int64]$mode * 0x10000
+            if ($external -gt [int]::MaxValue) { $external -= 0x100000000 }
+            $entry.ExternalAttributes = [int]$external
+
+            $input = [System.IO.File]::OpenRead($file)
+            try
+            {
+                $output = $entry.Open()
+                try { $input.CopyTo($output) } finally { $output.Dispose() }
+            }
+            finally { $input.Dispose() }
+        }
+    }
+    finally
+    {
+        $archive.Dispose()
+    }
+
+    if ($UnixRid)
+    {
+        # System.IO.Compression stamps every entry with "version made by = MS-DOS (0)",
+        # which makes Linux/macOS extraction tools ignore the Unix external attributes
+        # above. Patch the host byte of each central-directory header to Unix (3) so
+        # unzip/7-Zip restore the executable bit.
+        $bytes = [System.IO.File]::ReadAllBytes($DestinationPath)
+        for ($i = 0; $i -le $bytes.Length - 8; $i++)
+        {
+            if ($bytes[$i] -eq 0x50 -and $bytes[$i + 1] -eq 0x4B -and
+                $bytes[$i + 2] -eq 0x01 -and $bytes[$i + 3] -eq 0x02)
+            {
+                $bytes[$i + 5] = 3
+            }
+        }
+
+        [System.IO.File]::WriteAllBytes($DestinationPath, $bytes)
+    }
+}
+
 foreach ($rid in $RuntimeIdentifiers)
 {
     $isWindowsRid = $rid.StartsWith('win-', [System.StringComparison]::OrdinalIgnoreCase)
-
-    if ($isWindowsHost -and -not $isWindowsRid)
-    {
-        Write-Warning ("Skipping $rid - Linux/macOS bundles must be built on Linux/macOS " +
-            "(building them on Windows would lose the Unix executable bit). CI builds each OS on its matching runner.")
-        continue
-    }
-
     $publishDirectory = Join-Path $StagingDirectory $rid
 
     if (Test-Path -LiteralPath $publishDirectory) { Remove-Item -LiteralPath $publishDirectory -Recurse -Force }
@@ -136,11 +206,14 @@ foreach ($rid in $RuntimeIdentifiers)
 
     if ($isWindowsHost)
     {
-        Compress-Archive -Path $bundleFiles -DestinationPath $bundlePath -Force
+        # System.IO.Compression lets us set the Unix external attributes explicitly; neither
+        # Compress-Archive nor 7-Zip records them on Windows.
+        New-ReleaseZip -Files $bundleFiles -DestinationPath $bundlePath -UnixRid (-not $isWindowsRid)
     }
     else
     {
-        # Compress-Archive does not preserve the Unix executable bit; the zip CLI does.
+        # The zip CLI preserves the Unix executable bit natively. Only the exact bundle file
+        # being generated is replaced (append-only output directory).
         if (Test-Path -LiteralPath $bundlePath) { Remove-Item -LiteralPath $bundlePath -Force }
         & zip -j -q $bundlePath @bundleFiles
         if ($LASTEXITCODE -ne 0) { throw "zip failed for $bundleName." }
