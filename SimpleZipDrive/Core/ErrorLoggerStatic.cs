@@ -28,7 +28,7 @@ public static class ErrorLoggerStatic
     /// </summary>
     /// <param name="ex">The exception that was caught.</param>
     /// <param name="context">Description of where/why the exception occurred.</param>
-    /// <param name="silent">If true, only logs to file without showing console output.</param>
+    /// <param name="silent">Retained for backwards compatibility; no longer affects behavior.</param>
     public static void ReportSilentException(Exception ex, string context, bool silent = false)
     {
         ErrorLogger.ReportSilentException(ex, context, silent);

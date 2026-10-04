@@ -8,6 +8,12 @@ namespace SimpleZipDrive.Tests;
 ///     Tests for the sequential <see cref="SharpCompress.Readers.IReader" /> exposed by
 ///     <see cref="XisoArchive.ExtractAllEntries" />.
 /// </summary>
+/// <remarks>
+///     XISOSharp's static logger wraps <see cref="Console.Out" />, which another test class
+///     replaces process-wide; serializing through this collection prevents observing a
+///     disposed capture writer.
+/// </remarks>
+[Collection("Console redirection")]
 public class XisoEntryReaderTests : IDisposable
 {
     private readonly string _root = Path.Combine(

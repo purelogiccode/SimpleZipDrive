@@ -9,6 +9,12 @@ namespace SimpleZipDrive.Tests;
 ///     Tests for the <see cref="XisoArchive" /> adapter and Xbox XISO mounting through
 ///     <see cref="ZipFileSystemCore" />.
 /// </summary>
+/// <remarks>
+///     XISOSharp's static logger wraps <see cref="Console.Out" />, which another test class
+///     replaces process-wide; serializing through this collection prevents observing a
+///     disposed capture writer.
+/// </remarks>
+[Collection("Console redirection")]
 public class XisoArchiveTests : IDisposable
 {
     private readonly List<IDisposable> _disposables = [];

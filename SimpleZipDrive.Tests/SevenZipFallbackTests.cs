@@ -1,13 +1,14 @@
 using System.IO.Compression;
-using System.Runtime.InteropServices;
 using System.Text;
 using SimpleZipDrive.Core;
 
 namespace SimpleZipDrive.Tests;
 
 /// <summary>
-///     Tests for <see cref="SevenZipFallback" />. Extraction success is only asserted when the
-///     native 7z library is present in the test output; the failure paths are asserted always.
+///     Tests for <see cref="SevenZipFallback" />, which extracts entries by running the bundled
+///     7-Zip command-line executable (7za.exe on Windows, 7zz/7zzs on Linux and macOS).
+///     Extraction success is asserted when a matching executable is present in the test output;
+///     the failure paths are asserted always.
 /// </summary>
 public class SevenZipFallbackTests : IDisposable
 {
@@ -31,38 +32,11 @@ public class SevenZipFallbackTests : IDisposable
         }
     }
 
-    /// <summary>
-    ///     Returns true only when the native 7z library exists AND its PE architecture matches
-    ///     the test process. The repository currently ships the 32-bit 7z.dll, which cannot be
-    ///     loaded by the x64 test host, so extraction success is only asserted when usable.
-    /// </summary>
-    private static bool CanUseNativeLibrary()
+    private static string[] ExpectedExecutableNames()
     {
-        if (!SevenZipFallback.IsAvailable()) return false;
-
-        var isArm64 = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
-        var dllPath = Path.Combine(AppContext.BaseDirectory, isArm64 ? "7z_arm64.dll" : "7z.dll");
-        try
-        {
-            var bytes = File.ReadAllBytes(dllPath);
-            if (bytes.Length < 0x40) return false;
-
-            var peOffset = BitConverter.ToInt32(bytes, 0x3C);
-            if (peOffset <= 0 || peOffset + 6 > bytes.Length) return false;
-
-            var machine = BitConverter.ToUInt16(bytes, peOffset + 4);
-            return machine switch
-            {
-                0x8664 => RuntimeInformation.ProcessArchitecture == Architecture.X64,
-                0xAA64 => RuntimeInformation.ProcessArchitecture == Architecture.Arm64,
-                0x014C => RuntimeInformation.ProcessArchitecture == Architecture.X86,
-                _ => false
-            };
-        }
-        catch
-        {
-            return false;
-        }
+        return OperatingSystem.IsWindows()
+            ? ["7za.exe", "7z.exe"]
+            : ["7zz", "7zzs", "7za", "7z"];
     }
 
     [Fact]
@@ -74,10 +48,10 @@ public class SevenZipFallbackTests : IDisposable
     }
 
     [Fact]
-    public void IsAvailable_MatchesPresenceOfNativeLibrary()
+    public void IsAvailable_MatchesPresenceOfBundledExecutable()
     {
-        var isArm64 = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
-        var expected = File.Exists(Path.Combine(AppContext.BaseDirectory, isArm64 ? "7z_arm64.dll" : "7z.dll"));
+        var expected = ExpectedExecutableNames()
+            .Any(static name => File.Exists(Path.Combine(AppContext.BaseDirectory, name)));
 
         Assert.Equal(expected, SevenZipFallback.IsAvailable());
     }
@@ -125,15 +99,11 @@ public class SevenZipFallbackTests : IDisposable
     }
 
     [Fact]
-    public void TryExtractEntry_WhenLibraryUsable_ExtractsEntryContent()
+    public void TryExtractEntry_WhenExecutableAvailable_ExtractsEntryContent()
     {
-        if (!CanUseNativeLibrary()) return;
+        if (!SevenZipFallback.IsAvailable()) return;
 
-        var sourceDir = Path.Combine(_root, "source");
-        Directory.CreateDirectory(sourceDir);
-        File.WriteAllText(Path.Combine(sourceDir, "readme.txt"), "Hello World", new UTF8Encoding(false));
-        var zipPath = Path.Combine(_root, "sample.zip");
-        ZipFile.CreateFromDirectory(sourceDir, zipPath);
+        var zipPath = CreateSampleZip();
 
         using var fallback = new SevenZipFallback(zipPath, static () => null);
         using var output = new MemoryStream();
@@ -143,15 +113,11 @@ public class SevenZipFallbackTests : IDisposable
     }
 
     [Fact]
-    public void TryExtractEntry_WhenLibraryUsable_UnknownEntry_ReturnsFalse()
+    public void TryExtractEntry_WhenExecutableAvailable_UnknownEntry_ReturnsFalse()
     {
-        if (!CanUseNativeLibrary()) return;
+        if (!SevenZipFallback.IsAvailable()) return;
 
-        var sourceDir = Path.Combine(_root, "source");
-        Directory.CreateDirectory(sourceDir);
-        File.WriteAllText(Path.Combine(sourceDir, "readme.txt"), "Hello World", new UTF8Encoding(false));
-        var zipPath = Path.Combine(_root, "sample.zip");
-        ZipFile.CreateFromDirectory(sourceDir, zipPath);
+        var zipPath = CreateSampleZip();
 
         using var fallback = new SevenZipFallback(zipPath, static () => null);
         using var output = new MemoryStream();
@@ -160,21 +126,47 @@ public class SevenZipFallbackTests : IDisposable
     }
 
     [Fact]
-    public void TryExtractEntry_WhenLibraryUsable_BackslashPath_IsNormalized()
+    public void TryExtractEntry_WhenExecutableAvailable_BackslashPath_IsNormalized()
     {
-        if (!CanUseNativeLibrary()) return;
+        if (!SevenZipFallback.IsAvailable()) return;
 
-        var sourceDir = Path.Combine(_root, "source");
-        Directory.CreateDirectory(sourceDir);
-        Directory.CreateDirectory(Path.Combine(sourceDir, "data"));
-        File.WriteAllText(Path.Combine(sourceDir, "data", "info.txt"), "Nested content", new UTF8Encoding(false));
-        var zipPath = Path.Combine(_root, "sample.zip");
-        ZipFile.CreateFromDirectory(sourceDir, zipPath);
+        var zipPath = CreateSampleZip();
 
         using var fallback = new SevenZipFallback(zipPath, static () => null);
         using var output = new MemoryStream();
 
         Assert.True(fallback.TryExtractEntry(@"data\info.txt", output));
         Assert.Equal("Nested content", Encoding.UTF8.GetString(output.ToArray()));
+    }
+
+    [Fact]
+    public void TryExtractEntry_WhenExecutableAvailable_WildcardCharactersInName_AreLiteral()
+    {
+        if (!SevenZipFallback.IsAvailable()) return;
+
+        var sourceDir = Path.Combine(_root, "source");
+        Directory.CreateDirectory(sourceDir);
+        File.WriteAllText(Path.Combine(sourceDir, "ha[ha].txt"), "Bracket File", new UTF8Encoding(false));
+        var zipPath = Path.Combine(_root, "sample.zip");
+        ZipFile.CreateFromDirectory(sourceDir, zipPath);
+
+        using var fallback = new SevenZipFallback(zipPath, static () => null);
+        using var output = new MemoryStream();
+
+        Assert.True(fallback.TryExtractEntry("ha[ha].txt", output));
+        Assert.Equal("Bracket File", Encoding.UTF8.GetString(output.ToArray()));
+    }
+
+    private string CreateSampleZip()
+    {
+        var sourceDir = Path.Combine(_root, "source");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(Path.Combine(sourceDir, "data"));
+        File.WriteAllText(Path.Combine(sourceDir, "readme.txt"), "Hello World", new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(sourceDir, "data", "info.txt"), "Nested content", new UTF8Encoding(false));
+
+        var zipPath = Path.Combine(_root, "sample.zip");
+        ZipFile.CreateFromDirectory(sourceDir, zipPath);
+        return zipPath;
     }
 }

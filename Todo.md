@@ -1,260 +1,272 @@
 # TODO — Bugs & Inconsistencies
 
 Deep review of the solution, performed alongside the screenshot-fallback work and the
-coverage-driven unit-test expansion. Findings are ordered by severity and include the
-file/line reference, the problem, and the user impact. Items marked **[FIXED]** were
-corrected in the same pass.
+coverage-driven unit-test expansion. All findings below have been addressed; each item keeps
+its original analysis and records how it was fixed. Items that could not be fixed at the
+source are marked with the reason instead.
 
 Review scope: `SimpleZipDrive/Core`, `SimpleZipDrive/Mounting`, `SimpleZipDrive/Views`,
 `SimpleZipDrive/Services`, `SimpleZipDrive/App.axaml.cs`, `SimpleZipDrive/Program.cs`,
-`SimpleZipDrive/FuseSharp`, `SimpleZipDrive/7z.dll`.
+`SimpleZipDrive/FuseSharp`, `SimpleZipDrive/7zip`.
+
+Status key: **[FIXED]** implemented, **[PARTIAL]** partially implemented / documented
+limitation, **[MITIGATED]** root cause constrained, **[NOT APPLICABLE]** analysis was
+inaccurate.
 
 ---
 
 ## High
 
-1. **The 7z fallback cannot work on x64 builds — the shipped native library is 32-bit.**
-   `SimpleZipDrive/7z.dll` is an x86 PE image (`machine = 0x014C`) while the app and test
-   host build as `win-x64` (and an `7z_arm64.dll` exists for ARM). `SevenZipFallback.TrySetLibraryPath`
-   (`Core/SevenZipFallback.cs:149`) loads `AppContext.BaseDirectory\7z.dll` on every non-ARM64
-   process, so `NativeLibrary`/SharpSevenZip fails with "incorrect format" on x64.
-   `IsAvailable()` still returns `true` because the file exists, so every 7z fallback path
-   silently fails at runtime. The SharpSevenZip NuGet package ships `x64/7z.dll` and
-   `x86/7z.dll` under `build/`, but the project overrides the root-level file with the x86
-   binary (`SimpleZipDrive.csproj:65`).
+1. **[FIXED] The 7z fallback cannot work on x64 builds — the shipped native library is 32-bit.**
+   The SharpSevenZip package and the native `7z.dll`/`7z_arm64.dll` were removed entirely.
+   The fallback now runs the bundled 7-Zip command-line executable (7-Zip 26.03):
+   `7za.exe` on Windows (x64 and arm64), statically linked `7zzs` on Linux (x64 and arm64),
+   and the universal `7zz` on macOS. No native library is loaded into the process, so the
+   architecture mismatch cannot occur; the csproj selects the binary by `RuntimeIdentifier`
+   and `SevenZipFallback` locates it next to the app at runtime (setting the Unix execute bit
+   if needed). `TryExtractEntry` runs `7z x -so` with stdin closed (no password-prompt hangs),
+   `-spd` for literal names, and maps entries through `7z l -slt` so case, separator and
+   backslash-stored names are handled. The 7-Zip license ships as `7zip-license.txt`.
+   Note: the standalone `7za.exe` supports 7z/xz/lzma/cab/zip/gzip/bzip2/Z/tar but not RAR;
+   Linux/macOS use the full `7zz`, which can also read RAR.
 
-2. **Disk-cache extraction reads the shared archive stream without the archive lock.**
-   `Core/ZipFileSystemCore.cs:1115` (`ExtractEntryToDisk`, called from `:848`-area flow).
-   The in-memory path serializes SharpCompress entry streams with `_archiveLock`, but the
-   disk-cache path holds only the per-entry semaphore. SharpCompress seeks/reads the single
-   shared source stream with no internal locking, so two concurrent large-file extractions —
-   or an extraction racing a memory decompression — can interleave seeks and write silently
-   corrupted cache files.
+2. **[FIXED] Disk-cache extraction reads the shared archive stream without the archive lock.**
+   `Core/ZipFileSystemCore.cs` — the call to `ExtractEntryToDisk` in `OpenDiskCachedStream` is
+   now wrapped in `lock (_archiveLock)`, matching the in-memory path, so concurrent
+   extractions can no longer interleave seeks on the single shared source stream.
 
-3. **The SevenZip fallback for disk-cached entries is dead code.**
-   `Core/ZipFileSystemCore.cs:1130` (fallback) vs `:1361` (catch deletes `newTempFilePath`
-   before rethrowing). The fallback reopens the temp file with `FileMode.Truncate`, which
-   always throws `FileNotFoundException` because the file was already deleted; the entry is
-   then permanently blacklisted even though 7z could have read it.
+3. **[FIXED] The SevenZip fallback for disk-cached entries is dead code.**
+   `Core/ZipFileSystemCore.cs` — `ExtractEntryToDisk` deletes the temp file on failure, so the
+   fallback now opens it with `FileMode.Create` (creates/truncates) instead of
+   `FileMode.Truncate` (which threw `FileNotFoundException`). The same change was applied to
+   `TryFallbackExtraction`.
 
-4. **`MountService.MountAsync` replaces the active backend without unmounting it.**
-   `Mounting/MountService.cs:47-60`. A second `MountAsync` overwrites `_active` and subscribes
-   to the new backend's event without disposing/unsubscribing the previous backend, so the
-   first mount can stay mounted forever and its event keeps the facade alive. The backend is
-   also attached before `MountAsync` is invoked, so a synchronous throw leaves a failed
-   backend attached and subscribed.
+4. **[FIXED] `MountService.MountAsync` replaces the active backend without unmounting it.**
+   `Mounting/MountService.cs` — `MountAsync` is now async and, before attaching the new
+   backend, awaits the previous backend's `UnmountAsync`, unsubscribes from its
+   `MountStatusChanged` event and disposes it. A synchronously failing new mount is detached
+   via `DetachBackend` so a failed backend is never left attached.
 
 ---
 
 ## Medium
 
-5. **Dokan/WinFsp unmount "grace delay" never runs — the token is cancelled first.**
-   `Mounting/Dokan/DokanMountService.cs:154-174`, `Mounting/WinFsp/WinFspMountService.cs:167-190`.
-   `cts.Cancel()` runs before `await Task.Delay(500, cts.Token)`, so the delay throws
-   immediately and is swallowed. Dokan then disposes `_currentZipFs` while the driver may
-   still be invoking callbacks, creating a use-after-dispose race.
+5. **[FIXED] Dokan/WinFsp unmount "grace delay" never runs — the token is cancelled first.**
+   `Mounting/Dokan/DokanMountService.cs`, `Mounting/WinFsp/WinFspMountService.cs` — the
+   cancel-then-delay sequence was replaced with a plain `await Task.Delay(500)` for the grace
+   period, so the driver now actually gets time to drain pending callbacks before the core is
+   disposed.
 
-6. **FUSE mount leaks the archive stream and temp mount folder when the core constructor fails.**
-   `Mounting/Fuse/FuseMountService.cs:103-139`. If `new ZipFileSystemCore(...)` throws (corrupt
-   archive, cancelled password), the opened `fileStream` is never disposed (Dokan/WinFsp wrap
-   the constructor and dispose it), and `_tempMountPoint` is assigned after the `try`, so
-   `CleanupAfterUnmount()` cannot delete the created `/tmp/simplezipdrive-*` directory.
+6. **[FIXED] FUSE mount leaks the archive stream and temp mount folder when the core constructor fails.**
+   `Mounting/Fuse/FuseMountService.cs` — the mount points are registered before the core is
+   created (so `CleanupAfterUnmount` can remove the temp directory), and the opened file
+   stream is disposed in the failure path because `ZipFileSystemCore` does not take ownership
+   of it when its constructor throws.
 
-7. **FUSE unmount is a no-op while the session is starting, and cleanup can dispose the core
+7. **[FIXED] FUSE unmount is a no-op while the session is starting, and cleanup can dispose the core
    while FUSE is still running.**
-   `Mounting/Fuse/FuseMountService.cs:193-226,262-325`. `IsMounted` becomes true only in the
-   libfuse `Init` callback, so unmount requests issued after the handle is live but before
-   `Init` are ignored. When the join times out, the external unmount is fire-and-forget and
-   `CleanupAfterUnmount()` immediately disposes `_core`, so callbacks can still hit disposed
-   objects during teardown.
+   `Mounting/Fuse/FuseMountService.cs` — an `_unmountRequested` flag is set by
+   `UnmountAsync`/`Dispose`; `MountAsync` aborts cleanly if the flag is set before the thread
+   starts, and `OnMounted` stops the session immediately if it is set. `UnmountAsync`/`Dispose`
+   only call `CleanupAfterUnmount` once the session thread has actually exited; otherwise the
+   thread's own `finally` performs the cleanup, so the core is never disposed under live FUSE
+   callbacks.
 
-8. **`DecompressEntryToBuffer` uses a fixed-size `MemoryStream` despite its comment.**
-   `Core/ZipFileSystemCore.cs:897`. `new MemoryStream(buffer, 0, capacity, true, false)` is
-   non-expandable, so a decompressed length larger than the declared `entry.Size` throws
-   `NotSupportedException: Memory stream is not expandable`; the XML comment promises a
-   resize/copy fallback that does not exist, and the entry is marked failed.
+8. **[FIXED] `DecompressEntryToBuffer` uses a fixed-size `MemoryStream` despite its comment.**
+   `Core/ZipFileSystemCore.cs` — uses a growable `MemoryStream(capacity)` and returns the
+   internal buffer via `TryGetBuffer` when no growth occurred (no copy, same peak memory);
+   oversized decompression now grows the stream instead of throwing `NotSupportedException`.
 
-9. **A transient memory-cache failure permanently blacklists an entry.**
-   `Core/ZipFileSystemCore.cs:859` + `:1400-1406`. When `TryFallbackExtraction` returns null
-   because of the total-memory limit or `OutOfMemoryException`, the caller treats it as "no
-   fallback available" and calls `AddFailedEntry`, so the entry returns null forever even
-   though the disk-cache path would still work.
+9. **[FIXED] A transient memory-cache failure permanently blacklists an entry.**
+   `Core/ZipFileSystemCore.cs` — when in-memory decompression fails and the 7z fallback is
+   unavailable, the entry is now routed to the disk cache instead of being blacklisted. The
+   entry is only marked failed when both extraction paths fail.
 
-10. **The per-mount temp directory is leaked when `ZipFileSystemCore` construction fails.**
-    `Core/ZipFileSystemCore.cs:93,119-125`. The constructor creates and registers the temp
-    directory, but the catch block only logs and rethrows; the instance is never returned,
-    so `Dispose` never removes it (only the next launch's orphan cleanup does).
+10. **[FIXED] The per-mount temp directory is leaked when `ZipFileSystemCore` construction fails.**
+    `Core/ZipFileSystemCore.cs` — the constructor's catch block removes the just-created temp
+    directory and clears its registration (new `ZipFsHelpers.ClearCurrentTempDirectory`).
 
-11. **`ListDirectory` uses the raw entry key, breaking backslash-separated names on Unix.**
-    `Core/ZipFileSystemCore.cs:724`. `Path.GetFileName` treats only `/` as a separator on
-    Linux/macOS, so Windows-created RAR/TAR entries like `dir\file.txt` produce a listing
-    name that no longer resolves (and `FuseVolumeAdapter.FileName` exposes the bad name).
+11. **[FIXED] `ListDirectory` uses the raw entry key, breaking backslash-separated names on Unix.**
+    `Core/ZipFileSystemCore.cs` — a `GetFileNameOnly` helper splits on both `/` and `\` on
+    every platform.
 
-12. **`StatsService.ReportStatsAsync` never disposes the `HttpResponseMessage`.**
-    `Core/Services/StatsService.cs:60`. The response is not wrapped in `using`, so neither
-    the HTTP 429 early-return nor the success path releases the content/connection;
-    `ErrorLogger` does this correctly, making the two services inconsistent.
+12. **[FIXED] `StatsService.ReportStatsAsync` never disposes the `HttpResponseMessage`.**
+    `Core/Services/StatsService.cs` — the response is now disposed with `using`.
 
-13. **`IsExtractionFailure` bypasses the compression-library guard it documents.**
-    `Core/ZipFileSystemCore.cs:1315` vs `:1331-1344`. `NullReferenceException`,
-    `ArgumentOutOfRangeException` and `InvalidOperationException` are treated as extraction
-    failures before `IsCompressionLibraryException` can check whether they came from the
-    compression library, so genuine application bugs are retried via 7z and hidden.
+13. **[FIXED] `IsExtractionFailure` bypasses the compression-library guard it documents.**
+    `Core/ZipFileSystemCore.cs` — only data-format exceptions (`ZlibException`,
+    `ZstdException`, `DataError`) are unconditionally extraction failures; broad exception
+    types (`ArgumentException`, `NullReferenceException`, `InvalidOperationException`, ...)
+    count only when `IsCompressionLibraryException` confirms they originated inside a
+    compression library.
 
-14. **`UserNotificationService`'s browser-failure handling is unreachable.**
-    `Core/Services/UserNotificationService.cs:42-54`. `ShellHelper.OpenUrl` swallows every
-    exception internally (`Services/ShellHelper.cs:25-30`), so the catch never runs, the
-    "Could not open browser" fallback dialog is dead code, and the log claims the browser
-    was opened even when nothing happened.
+14. **[FIXED] `UserNotificationService`'s browser-failure handling is unreachable.**
+    `Services/ShellHelper.cs` now returns `true`/`false` from `OpenUrl`/`OpenFolder` instead of
+    swallowing the outcome, and `Core/Services/UserNotificationService.cs` branches on the
+    returned value to show the "Could not open browser" fallback dialog and log accurately.
 
-15. **`UpdateService`'s quiet timeout handling does not match reality.**
-    `Core/Services/UpdateService.cs:94-99`. `HttpClient.Timeout` expiry surfaces as
-    `TaskCanceledException` (not `TimeoutException`), so timeouts and shutdown cancellation
-    fall into the generic catch and are logged at Error via `ErrorLoggerStatic.LogErrorAsync`.
-    `BugReportSink` happens to filter `TaskCanceledException`, so the API is not spammed,
-    but the intended "log quietly" path never executes and the `TimeoutException` clause is
-    dead.
+15. **[FIXED] `UpdateService`'s quiet timeout handling does not match reality.**
+    `Core/Services/UpdateService.cs` — a `TaskCanceledException` (which is how
+    `HttpClient.Timeout` expiry surfaces) that is not caller cancellation is now logged quietly;
+    explicit caller cancellation during shutdown is handled separately.
 
-16. **`MainWindow` screenshot failure message always claimed a write-permission problem.**
-    `Views/MainWindow.axaml.cs:260-284`. Both failure branches showed "due to write permission
-    issues" regardless of the real cause (no active window, rendering failure, disk full) and
-    ignored `ScreenshotResult.ErrorMessage`. **[FIXED]** — the actual error is now shown.
+16. **[FIXED] `MainWindow` screenshot failure message always claimed a write-permission problem.**
+    `Views/MainWindow.axaml.cs` — the actual `ScreenshotResult.ErrorMessage`/exception message
+    is shown.
 
-17. **`ScreenshotService` had no writable-location fallback and returned a misleading result.**
-    `Core/Services/ScreenshotService.cs`. Saving under `Program Files` failed permanently
-    with the hardcoded message "write permission issues", and the failed result still carried
-    a non-null `FilePath`, contradicting `ScreenshotResult`'s contract. **[FIXED]** — the
-    service now falls back to `%LOCALAPPDATA%\SimpleZipDrive\Screenshot`, returns the real
-    exception message, returns `null` for `FilePath` on failure, and disposes the
-    `RenderTargetBitmap` when rendering throws.
+17. **[FIXED] `ScreenshotService` had no writable-location fallback and returned a misleading result.**
+    `Core/Services/ScreenshotService.cs` — falls back to
+    `%LOCALAPPDATA%\SimpleZipDrive\Screenshot`, returns the real exception message, returns a
+    null `FilePath` on failure and disposes the render bitmap when rendering throws.
 
 ---
 
 ## Low
 
-18. **`LogTextWriter.WriteLine()` logged the literal string `System.Char[]`.**
-    `Core/Logging/LogTextWriter.cs:61`. `CoreNewLine` is a `char[]`; `.ToString()` returns the
-    type name (the `?? Environment.NewLine` fallback could never trigger), so every bare
-    `Console.WriteLine()` produced a bogus log entry. **[FIXED]** — uses `new string(CoreNewLine)`.
+18. **[FIXED] `LogTextWriter.WriteLine()` logged the literal string `System.Char[]`.**
+    `Core/Logging/LogTextWriter.cs` — uses `new string(CoreNewLine)`.
 
-19. **`LogTextWriter.Dispose` threw `ChannelClosedException` when called twice.**
-    `Core/Logging/LogTextWriter.cs:130-153`. Completing an already-completed channel throws,
-    violating `TextWriter`'s expected idempotent `Dispose`. **[FIXED]** — guarded with a
-    `_disposed` flag.
+19. **[FIXED] `LogTextWriter.Dispose` threw `ChannelClosedException` when called twice.**
+    `Core/Logging/LogTextWriter.cs` — guarded with a `_disposed` flag.
 
-20. **Each bug-report POST leaks its `HttpRequestMessage`/`StringContent`.**
-    `Core/ErrorLogger.cs:656`. Only the response is disposed; the request and its multi-KB
-    JSON content are left to the GC on every report.
+20. **[FIXED] Each bug-report POST leaks its `HttpRequestMessage`/`StringContent`.**
+    `Core/ErrorLogger.cs` — both are now disposed with `using`.
 
-21. **The bug-report payload is never truncated despite the documented 4000-char API limit.**
-    `Core/ErrorLogger.cs:597`. `fullMessage` concatenates environment details, error details
-    and a full stack trace with no length check, so oversized reports are rejected and the
-    failure is only written to the console.
+21. **[FIXED] The bug-report payload is never truncated despite the documented 4000-char API limit.**
+    `Core/ErrorLogger.cs` — `PostBugReportAsync` truncates the message field to 4000 characters
+    (ending with `...`) before serializing.
 
-22. **`ErrorLogger.ErrorLogFilePath` is dead and `WriteToCriticalLog` reports a write it
+22. **[FIXED] `ErrorLogger.ErrorLogFilePath` is dead and `WriteToCriticalLog` reports a write it
     never performs.**
-    `Core/ErrorLogger.cs:45,674`. Nothing ever writes `error.log`, yet the fatal message
-    interpolates the path and `DiagnosticLogger.CleanupOldLogs` deletes an `error.log` that
-    never exists.
+    `Core/ErrorLogger.cs` — `WriteToCriticalLog` now appends the fatal entry to
+    `ErrorLogFilePath` best-effort (and still writes to console), so the property is used and
+    the message is accurate.
 
-23. **`XisoArchive`/`ZarArchive` report `ArchiveType.Tar`, and `ZarArchiveEntry.CompressedSize`
+23. **[PARTIAL] `XisoArchive`/`ZarArchive` report `ArchiveType.Tar`, and `ZarArchiveEntry.CompressedSize`
     reports the uncompressed size.**
-    `Core/XisoArchive.cs:90`, `Core/ZarArchive.cs:51`, `Core/ZarArchiveEntry.cs` (`CompressedSize => Size`).
-    Any consumer branching on `IArchive.Type` or using `CompressedSize` gets wrong metadata
-    for these formats.
+    `ZarArchiveEntry.CompressedSize` now returns 0 (unknown), which is the documented
+    SharpCompress convention; ZArchiveSharp exposes no per-entry compressed size. The
+    `ArchiveType.Tar` mapping cannot be fixed: SharpCompress' `ArchiveType` enum has no XISO or
+    ZAR values, and nothing in the application branches on `IArchive.Type` (archives are
+    identified by the extension-based `ZipFileSystemCore.ArchiveType` string). Both properties
+    now carry XML remarks documenting this.
 
-24. **A transient `SevenZipFallback` initialization failure disables the fallback for the whole
-    mount.**
-    `Core/SevenZipFallback.cs:144`. Any exception during initialization replaces
-    `_entryIndexMap` with an empty dictionary, and the non-null guard prevents retrying, so a
-    one-off lock or cancelled password prompt silently removes fallback extraction for every
-    subsequent entry.
+24. **[FIXED] A transient `SevenZipFallback` initialization failure disables the fallback for the
+    whole mount.**
+    `Core/SevenZipFallback.cs` — a failed initialization leaves the entry map unset and retries
+    on the next call, up to three attempts, before giving up.
 
-25. **`ErrorLoggerStatic.ReportSilentException`'s `silent` parameter documentation contradicts
+25. **[FIXED] `ErrorLoggerStatic.ReportSilentException`'s `silent` parameter documentation contradicts
     the implementation.**
-    `Core/ErrorLoggerStatic.cs:31` says "only logs to file without showing console output", but
-    `ErrorLogger.ReportSilentException` discards the value (`_ = silent;` at `ErrorLogger.cs:121`)
-    and always routes through `DiagnosticLogger`/Serilog.
+    `Core/ErrorLoggerStatic.cs` — the parameter is documented as retained for backwards
+    compatibility with no behavioral effect.
 
-26. **Stale `UpdateService` XML doc about a "Core assembly"; `StatsService` uses the entry
+26. **[FIXED] Stale `UpdateService` XML doc about a "Core assembly"; `StatsService` uses the entry
     assembly instead.**
-    `Core/Services/UpdateService.cs:36-45` claims the version is read from a version-pinned
-    Core assembly that does not exist (the class is in `SimpleZipDrive.dll`), while
-    `StatsService.cs:56-57` reports `Assembly.GetEntryAssembly()` — the exact inconsistency
-    the UpdateService comment says was avoided (under tests it reports the test host).
+    `Core/Services/UpdateService.cs` — the doc now describes the containing assembly correctly.
+    `Core/Services/StatsService.cs` now uses `typeof(StatsService).Assembly`, so the reported
+    application id/version are the application's even under a test runner (matching
+    UpdateService).
 
-27. **`WinFspMountService.IsAvailable` reports "not installed" for load failures.**
-    `Mounting/WinFsp/WinFspMountService.cs:215-278`. A corrupt install or architecture
-    mismatch returns the same "The WinFsp driver is not installed." reason as a genuinely
-    absent driver, so the user is told to install something that is already present.
+27. **[FIXED] `WinFspMountService.IsAvailable` reports "not installed" for load failures.**
+    `Mounting/WinFsp/WinFspMountService.cs` — a genuine "not installed" is only reported when no
+    install directory can be found; otherwise the reason explains that the installed native DLL
+    could not be loaded (corrupted installation or architecture mismatch).
 
-28. **`CurrentArchivePath` is left stale after failed mounts.**
-    `Mounting/WinFsp/WinFspMountService.cs:129,704-753`,
-    `Mounting/Dokan/DokanMountService.cs:134,444-486`. Several early-return failure paths
-    assign `CurrentArchivePath` up front but never reset it, so the facade reports an archive
-    for a mount that does not exist.
+28. **[FIXED] `CurrentArchivePath` is left stale after failed mounts.**
+    `Mounting/WinFsp/WinFspMountService.cs`, `Mounting/Dokan/DokanMountService.cs` — the early
+    assignment in `MountAsync` was removed; both backends now set `CurrentArchivePath` only when
+    the mount succeeds.
 
-29. **Unreachable `catch (OperationCanceledException)` in `WinFspMountService.UnmountAsync`.**
-    `Mounting/WinFsp/WinFspMountService.cs:198-200`. The only awaited operation already has
-    its own cancellation catch, so the outer clause is dead (Dokan has no such clause —
-    another backend inconsistency).
+29. **[FIXED] Unreachable `catch (OperationCanceledException)` in `WinFspMountService.UnmountAsync`.**
+    `Mounting/WinFsp/WinFspMountService.cs` — the dead clause was removed.
 
-30. **`Dispose` leaves `IsMounted`/`CurrentMountPoint` stale in Dokan and WinFsp.**
-    `Mounting/Dokan/DokanMountService.cs:47-64`, `Mounting/WinFsp/WinFspMountService.cs:57-76`.
-    A backend disposed while mounted continues to report `IsMounted == true`; FUSE resets all
-    three properties in `CleanupAfterUnmount`, so the backends behave differently.
+30. **[FIXED] `Dispose` leaves `IsMounted`/`CurrentMountPoint` stale in Dokan and WinFsp.**
+    Both `Dispose` implementations now reset `IsMounted`, `CurrentMountPoint` and
+    `CurrentArchivePath`, matching FUSE's `CleanupAfterUnmount`.
 
-31. **FUSE's archive-open retry blocks the UI thread.**
-    `Mounting/Fuse/FuseMountService.cs:335-350`. `Thread.Sleep(500 * attempt)` is called
-    directly from `MountAsync` on the caller's thread, freezing the UI for up to 1.5 s;
-    Dokan/WinFsp use `await Task.Delay` specifically to keep the UI responsive.
+31. **[FIXED] FUSE's archive-open retry blocks the UI thread.**
+    `Mounting/Fuse/FuseMountService.cs` — `OpenArchiveFileStreamAsync` awaits `Task.Delay`
+    instead of `Thread.Sleep`, so the UI stays responsive.
 
-32. **Dead catch around `ShellHelper.OpenFolder` in `MainWindow.UpdateMountStatus`.**
-    `Views/MainWindow.axaml.cs:572-579`. `ShellHelper` swallows all exceptions, so the catch
-    that logs "Failed to open the mounted location" can never execute.
+32. **[FIXED] Dead catch around `ShellHelper.OpenFolder` in `MainWindow.UpdateMountStatus`.**
+    `Views/MainWindow.axaml.cs` — the return value of `ShellHelper.OpenFolder` is checked and
+    logged when it fails.
 
-33. **Screenshot file names can collide within the same millisecond.**
-    `Core/Services/ScreenshotService.cs` — `Screenshot_yyyyMMdd_HHmmss_fff.png`; two captures
-    in the same millisecond overwrite each other. A counter/`FileMode.CreateNew` retry loop
-    would make the save collision-proof.
+33. **[FIXED] Screenshot file names can collide within the same millisecond.**
+    `Core/Services/ScreenshotService.cs` — `GetUniqueFilePath` appends a numeric suffix when a
+    file with the same timestamp already exists.
 
 ---
 
 ## Test-infrastructure inconsistencies
 
-34. **Tests share the static `ServiceProvider` across parallel collections.**
-    `Core/ZipFileSystemCore.cs:1248` resolves `ILoggingService` from the static provider, so
-    any test that registers a logging service (e.g. `LogTextWriterTests`) receives unrelated
-    cache log messages from concurrently running `ZipFileSystemCore` tests. The new
-    `LogTextWriterTests` were written content-based and thread-safe to tolerate this, but the
-    underlying design makes exact-count assertions unsafe.
+34. **[MITIGATED] Tests share the static `ServiceProvider` across parallel collections.**
+    `LogTextWriter` now accepts an optional `ILoggingService` and the
+    `LogTextWriterTests` pass a recording service directly instead of registering it globally,
+    eliminating the concrete cross-talk with `ZipFileSystemCore`'s static `LogMessage` lookup.
+    `ZipFileSystemCore.LogMessage` remains a static `ServiceProvider` lookup by design (it is
+    called from static backend helpers); nothing in the suite depends on a globally registered
+    logger any more.
 
-35. **Several tests write to the developer's real settings file.**
-    `SimpleZipDrive.Tests/AppSettingsAdditionalTests.cs:80-111` (`Save_WritesValidJson`) and
-    `SettingsServiceTests` call `AppSettings.Save()`, which writes
-    `%LOCALAPPDATA%\SimpleZipDrive\settings.dat` and can clobber a developer's actual
-    settings. The settings path is hardcoded, so tests cannot redirect it to a temp folder.
+35. **[FIXED] Several tests write to the developer's real settings file.**
+    `AppSettings` exposes `SettingsFilePath` (and a `SIMPLEZIPDRIVE_SETTINGS_DIR` environment
+    override for the directory). The "Settings file" test collection now uses a new
+    `SettingsFileFixture` that redirects `AppSettings.SettingsFilePath` to a per-run temporary
+    file; `Save_WritesValidJson` asserts against that redirected path. Only the file is
+    redirected so `ZipFsHelpers.BaseTempPath` (a static snapshot of the directory) keeps its
+    expected shape.
 
-36. **The 7z extraction tests are conditional by necessity.**
-    Because the repository ships the 32-bit `7z.dll` (finding 1), the new
-    `SevenZipFallbackTests` verify real extraction only when the native library's PE
-    architecture matches the test process; on the x64 test host they currently skip the
-    positive assertions. Once a matching x64 `7z.dll` is shipped, those assertions will run.
+36. **[FIXED] The 7z extraction tests are conditional by necessity.**
+    The per-RID 7-Zip CLI binary is copied into the test output, so the positive
+    `SevenZipFallbackTests` assertions run for real on every supported platform/RID (Windows,
+    Linux and macOS). The tests assert availability of the bundled executable and cover
+    content extraction, backslash-separated names, wildcard characters in names (`[`/`]`),
+    unknown entries and disposed instances.
 
-37. **Leftover build-artifact directories for removed projects.**
-    `SimpleZipDrive.Core/obj` and `SimpleZipDrive_WinFsp/obj` remain from projects that are no
-    longer in the solution; `TestResults/` is not covered by `.gitignore` and was created by
-    the coverage run.
+37. **[FIXED] Leftover build-artifact directories and unignored test output.**
+    `SimpleZipDrive.Core/obj` and `SimpleZipDrive_WinFsp/obj` were deleted; `TestResults/` was
+    added to `.gitignore`.
+
+### Additional test-stability fixes discovered while running the suite
+
+- **[FIXED] Console redirection race.** `DokanPrefixedLoggerTests.CustomPrefix_IsApplied` left a
+  disposed `StringWriter` as `Console.Out`, which broke `XISOSharp`'s static logger and other
+  concurrent tests (`Cannot write to a closed TextWriter`). The test now restores the console in
+  a `finally`, and `DokanPrefixedLoggerTests`, `XisoArchiveTests` and `XisoEntryReaderTests`
+  share a serialized `[Collection("Console redirection")]`.
+- **[FIXED] `WinFspDiagnosticLoggerTests` negative assertions.** The two
+  "no `[]`/`[null]`" tests asserted over the whole shared diagnostic file, which concurrent
+  tests append to through the static Serilog pipeline; they now locate their own operation line
+  with a helper and assert on that.
+
+---
+
+## Vendored 7-Zip binaries
+
+`SimpleZipDrive/7zip/` contains the 7-Zip 26.03 console binaries
+(<https://github.com/ip7z/7zip/releases/tag/26.03>); the csproj ships exactly one per
+`RuntimeIdentifier` and copies `License.txt` as `7zip-license.txt`.
+
+| File | SHA-256 |
+| --- | --- |
+| `win-x64/7za.exe` | `edbee35370e14030e4c785cf88200f42dc651c1eb4217c1e3963c38a12f099b0` |
+| `win-arm64/7za.exe` | `c26764813a01b9714687f29c94412401f2041852634e291c59d48484432e834b` |
+| `linux-x64/7zzs` | `eab4c8d7f193e3d6d3237370bbcaa879a160a3f1dc82202207e27baeab79b6ac` |
+| `linux-arm64/7zzs` | `277907bc627633ec344757fe47699856cbb6e37f75cbc310d37d62cfacdd73b2` |
+| `osx/7zz` (universal) | `74b0910e50ea44d9760a57fada2192cfd530ba8bffbe7b47c412a464b796cabf` |
+| `License.txt` | `1790374e5352329cedb46ee3808930a88e9ca2f08b82b10fcf5cf605d2c301b1` |
+
+To update: download the new release packages from the 7-Zip GitHub releases, replace the
+five binaries, refresh `License.txt` and the hashes above, and re-run the test suite.
 
 ---
 
 ## Notes
 
-- The 1327 pre-existing tests plus the 101 tests added in this pass (1428 total) all pass;
-  the new tests cover `ScreenshotService`, `LogTextWriter`, `UserNotificationService`,
-  `ErrorLogger.FireAndForgetAsync`, `Xiso`/`Zar` sequential readers, `SevenZipFallback`,
-  `FuseAvailability`, `MountService` facade basics, `AppSettings` defaults and
-  `ScreenshotResult`.
+- The suite now contains 1429 tests (101 added in the screenshot/test batch) with 0 build
+  warnings; it was run ten consecutive times green before the 7-Zip CLI change and is re-run
+  after each subsequent change.
 - The screenshot service already existed (registered at `App.axaml.cs:170`, invoked on F8 at
-  `Views/MainWindow.axaml.cs:252-284`); this pass added the AppData fallback, the real error
-  reporting and tests.
+  `Views/MainWindow.axaml.cs:252-284`); an earlier batch added the AppData fallback, the real
+  error reporting and tests.

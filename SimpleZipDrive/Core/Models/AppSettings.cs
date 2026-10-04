@@ -7,11 +7,40 @@ namespace SimpleZipDrive.Core.Models;
 /// </summary>
 public class AppSettings
 {
-    internal static readonly string SettingsDirectory = Path.Combine(
+    private static readonly string DefaultSettingsDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "SimpleZipDrive");
 
-    private static readonly string SettingsFilePath = Path.Combine(SettingsDirectory, "settings.dat");
+    private static string? _settingsFilePathOverride;
+
+    /// <summary>
+    ///     Gets the directory that stores settings and temporary files. The location can be
+    ///     redirected with the <c>SIMPLEZIPDRIVE_SETTINGS_DIR</c> environment variable (e.g.
+    ///     for a portable installation).
+    /// </summary>
+    internal static string SettingsDirectory
+    {
+        get
+        {
+            var environmentDirectory = Environment.GetEnvironmentVariable("SIMPLEZIPDRIVE_SETTINGS_DIR");
+            return string.IsNullOrEmpty(environmentDirectory) ? DefaultSettingsDirectory : environmentDirectory;
+        }
+    }
+
+    /// <summary>Gets the full path of the persisted settings file.</summary>
+    internal static string SettingsFilePath =>
+        Volatile.Read(ref _settingsFilePathOverride) ?? Path.Combine(SettingsDirectory, "settings.dat");
+
+    /// <summary>
+    ///     Gets or sets a test hook that redirects only <see cref="SettingsFilePath" /> to a
+    ///     temporary file, leaving <see cref="SettingsDirectory" /> (and the temp-file root
+    ///     derived from it) untouched.
+    /// </summary>
+    internal static string? SettingsFilePathOverride
+    {
+        get => Volatile.Read(ref _settingsFilePathOverride);
+        set => Volatile.Write(ref _settingsFilePathOverride, value);
+    }
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 

@@ -46,6 +46,19 @@ public class WinFspDiagnosticLoggerTests : IDisposable
         return reader.ReadToEnd();
     }
 
+    /// <summary>
+    ///     Finds this test's own operation log line. The diagnostic file is reached through the
+    ///     static Serilog pipeline, so concurrently running tests can append unrelated output.
+    /// </summary>
+    private static string? FindOwnOperationLine(string content, string operation, string path)
+    {
+        return content
+            .Split('\n')
+            .Select(static l => l.TrimEnd('\r'))
+            .FirstOrDefault(line =>
+                line.Contains($"{operation}: \"{path}\"", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void IsEnabled_DefaultsToTrue()
     {
@@ -233,8 +246,11 @@ public class WinFspDiagnosticLoggerTests : IDisposable
 
         DiagnosticLogger.LogOperation("Read", "file.txt", 0);
 
-        var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.DoesNotContain("[]", content, StringComparison.OrdinalIgnoreCase);
+        // Assert on this test's own log line: the file is shared through the static Serilog
+        // pipeline, so concurrent tests may append unrelated output at any time.
+        var line = FindOwnOperationLine(ReadFileText(DiagnosticLogger.LogFilePath!), "Read", "file.txt");
+        Assert.NotNull(line);
+        Assert.DoesNotContain("[]", line, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -284,8 +300,9 @@ public class WinFspDiagnosticLoggerTests : IDisposable
 
         DiagnosticLogger.LogOperation("Test", "path", 0);
 
-        var content = ReadFileText(DiagnosticLogger.LogFilePath!);
-        Assert.DoesNotContain("[null]", content, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("[]", content, StringComparison.OrdinalIgnoreCase);
+        var line = FindOwnOperationLine(ReadFileText(DiagnosticLogger.LogFilePath!), "Test", "path");
+        Assert.NotNull(line);
+        Assert.DoesNotContain("[null]", line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("[]", line, StringComparison.OrdinalIgnoreCase);
     }
 }

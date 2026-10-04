@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Reflection;
 
 namespace SimpleZipDrive.Core.Services;
 
@@ -51,13 +50,18 @@ public class StatsService : IStatsService, IDisposable
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, StatsApiUrl);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", StatsApiKey);
+
+            // Use the assembly containing this service rather than Assembly.GetEntryAssembly():
+            // under unit-test runners the entry assembly is the test host, whose name and
+            // version are unrelated to the application (and would be reported to the API).
+            var applicationAssembly = typeof(StatsService).Assembly;
             request.Content = JsonContent.Create(new
             {
-                applicationId = Assembly.GetEntryAssembly()?.GetName().Name ?? "SimpleZipDrive",
-                version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "Unknown"
+                applicationId = applicationAssembly.GetName().Name ?? "SimpleZipDrive",
+                version = applicationAssembly.GetName().Version?.ToString() ?? "Unknown"
             });
 
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             // Handle HTTP 429 (Too Many Requests) gracefully - this is expected from rate limiting
             if (response.StatusCode ==

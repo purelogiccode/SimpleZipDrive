@@ -45,7 +45,12 @@ public sealed class ZarArchiveEntry : IArchiveEntry
     public DateTime? ArchivedTime => null;
 
     /// <inheritdoc />
-    public long CompressedSize => Size;
+    /// <remarks>
+    ///     ZArchiveSharp does not expose per-entry compressed sizes (blocks are compressed
+    ///     across the archive's data area), so the value is reported as unknown (0) instead
+    ///     of incorrectly returning the uncompressed size.
+    /// </remarks>
+    public long CompressedSize => 0;
 
     /// <inheritdoc />
     public long Crc => 0;

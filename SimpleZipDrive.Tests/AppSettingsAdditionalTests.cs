@@ -88,26 +88,21 @@ public class AppSettingsAdditionalTests
     {
         var settings = new AppSettings { MaxMemoryPerFileMb = 128 };
 
-        // Save to default location
         settings.Save();
 
-        // Read the file and verify it's valid JSON
-        var settingsDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SimpleZipDrive");
-        var settingsFile = Path.Combine(settingsDir, "settings.dat");
+        // The "Settings file" collection fixture redirects AppSettings.SettingsFilePath to a
+        // per-run temporary file, so this never touches the real user settings file.
+        var settingsFile = AppSettings.SettingsFilePath;
+        Assert.True(File.Exists(settingsFile), $"Expected a settings file at '{settingsFile}'.");
 
-        if (File.Exists(settingsFile))
-        {
-            var json = File.ReadAllText(settingsFile);
-            Assert.Contains("MaxMemoryPerFileMb", json, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("128", json, StringComparison.OrdinalIgnoreCase);
+        var json = File.ReadAllText(settingsFile);
+        Assert.Contains("MaxMemoryPerFileMb", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("128", json, StringComparison.OrdinalIgnoreCase);
 
-            // Verify it can be deserialized
-            var loaded = JsonSerializer.Deserialize<AppSettings>(json);
-            Assert.NotNull(loaded);
-            Assert.Equal(128, loaded.MaxMemoryPerFileMb);
-        }
+        // Verify it can be deserialized
+        var loaded = JsonSerializer.Deserialize<AppSettings>(json);
+        Assert.NotNull(loaded);
+        Assert.Equal(128, loaded.MaxMemoryPerFileMb);
     }
 
     // ─── Load: re-validates loaded values ───

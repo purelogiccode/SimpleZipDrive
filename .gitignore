@@ -13,3 +13,6 @@ release-assets/
 # Ignore build output directories (all target frameworks)
 **/bin/
 **/obj/
+
+# Test run artifacts (e.g. XPlat Code Coverage output)
+TestResults/

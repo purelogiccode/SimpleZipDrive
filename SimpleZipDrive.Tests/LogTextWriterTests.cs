@@ -15,9 +15,10 @@ namespace SimpleZipDrive.Tests;
 ///     writer when no logging service is available.
 /// </summary>
 /// <remarks>
-///     The logging service is registered in the shared static <see cref="ServiceProvider" />,
-///     which other concurrently running tests (e.g. ZipFileSystemCore tests) also resolve, so
-///     assertions check for the expected messages instead of exact entry counts.
+///     Most tests pass a recording logging service directly to the writer instead of
+///     registering it in the shared static <see cref="ServiceProvider" />, so concurrently
+///     running tests that resolve <see cref="ILoggingService" /> globally cannot pollute the
+///     recorded output. The late-registration test still uses the shared provider.
 /// </remarks>
 [Collection("ServiceProvider")]
 public class LogTextWriterTests : IDisposable
@@ -58,8 +59,7 @@ public class LogTextWriterTests : IDisposable
     public void WriteLine_WithRegisteredService_ForwardsLine()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.WriteLine("hello world");
 
@@ -71,8 +71,7 @@ public class LogTextWriterTests : IDisposable
     public void WriteLine_StripsTrailingNewlines()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.WriteLine("line with newline\r\n");
 
@@ -85,8 +84,7 @@ public class LogTextWriterTests : IDisposable
         // Regression test: the parameterless WriteLine used to enqueue the literal
         // string "System.Char[]" (char[].ToString()) and log it as a message.
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.WriteLine();
         writer.WriteLine("after blank line");
@@ -100,8 +98,7 @@ public class LogTextWriterTests : IDisposable
     public void WriteLine_ReadOnlySpan_ForwardsLine()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.WriteLine("span line".AsSpan());
 
@@ -112,8 +109,7 @@ public class LogTextWriterTests : IDisposable
     public void WriteLine_MultipleLines_AreForwardedInOrder()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.WriteLine("first");
         writer.WriteLine("second");
@@ -137,8 +133,7 @@ public class LogTextWriterTests : IDisposable
     public void Write_Strings_AreBufferedUntilLineEnd()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.Write("part1");
         writer.Write("part2");
@@ -151,8 +146,7 @@ public class LogTextWriterTests : IDisposable
     public void Write_Char_IsBufferedUntilLineEnd()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.Write('a');
         writer.Write('b');
@@ -165,8 +159,7 @@ public class LogTextWriterTests : IDisposable
     public void Write_CharArray_IsBufferedUntilLineEnd()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         var buffer = "xxHELLOyy".ToCharArray();
         writer.Write(buffer, 2, 5);
@@ -179,8 +172,7 @@ public class LogTextWriterTests : IDisposable
     public void Write_NullOrEmptyString_IsIgnored()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.Write((string?)null);
         writer.Write(string.Empty);
@@ -195,8 +187,7 @@ public class LogTextWriterTests : IDisposable
     public void Write_CharArrayWithZeroCount_IsIgnored()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.Write(new[] { 'a', 'b', 'c' }, 0, 0);
         writer.WriteLine("content");
@@ -210,8 +201,7 @@ public class LogTextWriterTests : IDisposable
     public void WriteLine_WhitespaceOnlyLine_IsNotLogged()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        using var writer = new LogTextWriter();
+        using var writer = new LogTextWriter(loggingService: loggingService);
 
         writer.WriteLine("   ");
         writer.WriteLine("real content");
@@ -264,8 +254,7 @@ public class LogTextWriterTests : IDisposable
     public void Dispose_FlushesBufferedContentWithoutLineEnding()
     {
         var loggingService = new RecordingLoggingService();
-        ServiceProvider.Register<ILoggingService>(loggingService);
-        var writer = new LogTextWriter();
+        var writer = new LogTextWriter(null, loggingService);
 
         writer.Write("buffered without newline");
         writer.Dispose();
@@ -300,8 +289,8 @@ public class LogTextWriterTests : IDisposable
     }
 
     /// <summary>
-    ///     Thread-safe <see cref="ILoggingService" /> fake; concurrent tests may also resolve
-    ///     this instance through the static service provider, so all access is synchronized.
+    ///     Thread-safe <see cref="ILoggingService" /> fake that records every message; the
+    ///     writer calls it from its background processing task, so all access is synchronized.
     /// </summary>
     private sealed class RecordingLoggingService : ILoggingService
     {

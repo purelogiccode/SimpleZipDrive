@@ -2,6 +2,9 @@ using SimpleZipDrive.Mounting.Dokan;
 
 namespace SimpleZipDrive.Tests;
 
+// Console.Out is replaced process-wide; serialize with other tests that must not observe a
+// disposed capture writer (e.g. XISOSharp's static logger, which wraps Console.Out).
+[Collection("Console redirection")]
 public class DokanPrefixedLoggerTests : IDisposable
 {
     private readonly StringWriter _consoleOutCapture;
@@ -140,9 +143,18 @@ public class DokanPrefixedLoggerTests : IDisposable
         using var capture = new StringWriter();
         Console.SetOut(capture);
 
-        var logger = new DokanPrefixedLogger("[Custom] ");
+        try
+        {
+            var logger = new DokanPrefixedLogger("[Custom] ");
 
-        logger.Info("hello");
-        Assert.Contains("[Custom] [INFO] hello", capture.ToString(), StringComparison.OrdinalIgnoreCase);
+            logger.Info("hello");
+            Assert.Contains("[Custom] [INFO] hello", capture.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            // Restore the class-level capture; leaving a disposed StringWriter as Console.Out
+            // makes concurrent tests (e.g. XISOSharp's static logger) fail on a closed writer.
+            Console.SetOut(_consoleOutCapture);
+        }
     }
 }

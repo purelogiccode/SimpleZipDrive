@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -119,8 +120,9 @@ public class ScreenshotService : IScreenshotService
     internal ScreenshotResult SaveScreenshotCore(Action<string> saveToFile, string primaryDirectory,
         string fallbackDirectory)
     {
-        var fileName = $"Screenshot_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png";
-        var primaryPath = Path.Combine(primaryDirectory, fileName);
+        // Two captures within the same millisecond would otherwise overwrite each other.
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff", CultureInfo.InvariantCulture);
+        var primaryPath = GetUniqueFilePath(primaryDirectory, timestamp);
 
         try
         {
@@ -139,7 +141,7 @@ public class ScreenshotService : IScreenshotService
                 $"Trying fallback location '{fallbackDirectory}'.");
         }
 
-        var fallbackPath = Path.Combine(fallbackDirectory, fileName);
+        var fallbackPath = GetUniqueFilePath(fallbackDirectory, timestamp);
         try
         {
             Directory.CreateDirectory(fallbackDirectory);
@@ -155,5 +157,19 @@ public class ScreenshotService : IScreenshotService
             _loggingService.LogError($"Failed to save screenshot to '{fallbackDirectory}': {ex.Message}");
             return new ScreenshotResult(false, null, ex.Message);
         }
+    }
+
+    /// <summary>
+    ///     Builds a screenshot path, appending a numeric suffix when a file with the same
+    ///     timestamp already exists so rapid consecutive captures never overwrite each other.
+    /// </summary>
+    private static string GetUniqueFilePath(string directory, string timestamp)
+    {
+        var path = Path.Combine(directory, $"Screenshot_{timestamp}.png");
+
+        for (var suffix = 1; suffix < 1000 && File.Exists(path); suffix++)
+            path = Path.Combine(directory, $"Screenshot_{timestamp}_{suffix}.png");
+
+        return path;
     }
 }

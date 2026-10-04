@@ -39,16 +39,16 @@ public class UserNotificationService : IUserNotificationService
 
             if (result == MessageBoxResult.Yes)
             {
-                try
+                // ShellHelper reports launch failures via its return value (it logs and
+                // swallows the exception internally), so the fallback dialog must be driven
+                // by the returned result rather than by a catch that can never run.
+                if (ShellHelper.OpenUrl(downloadUrl))
                 {
-                    ShellHelper.OpenUrl(downloadUrl);
                     _loggingService.Log("Browser opened to latest release page.");
                 }
-                catch (Exception ex)
+                else
                 {
-                    ErrorLoggerStatic.ReportSilentException(ex,
-                        "UserNotificationService: Failed to launch browser for update download", true);
-                    _loggingService.Log($"Could not launch browser: {ex.Message}");
+                    _loggingService.Log($"Could not launch browser. Please visit: {downloadUrl}");
                     MessageBox.Show($"Could not open browser automatically.\n\nPlease visit:\n{downloadUrl}",
                         "Browser Error", MessageBoxButton.Ok, MessageBoxImage.Warning);
                 }

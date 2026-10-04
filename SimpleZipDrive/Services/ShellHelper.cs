@@ -11,7 +11,8 @@ internal static class ShellHelper
     ///     Opens the supplied URL with the platform's default handler.
     /// </summary>
     /// <param name="url">The URL to open.</param>
-    public static void OpenUrl(string url)
+    /// <returns><see langword="true" /> when the handler was launched; otherwise <see langword="false" />.</returns>
+    public static bool OpenUrl(string url)
     {
         try
         {
@@ -21,12 +22,15 @@ internal static class ShellHelper
                 Process.Start("open", url);
             else
                 Process.Start("xdg-open", url);
+
+            return true;
         }
         catch (Exception ex)
         {
             var context = $"ShellHelper.OpenUrl: Could not open URL '{url}'";
             ErrorLoggerStatic.ReportSilentException(ex, context, true);
             ServiceProvider.TryGet<ILoggingService>()?.LogError($"Could not open URL: {ex.Message}");
+            return false;
         }
     }
 
@@ -34,7 +38,8 @@ internal static class ShellHelper
     ///     Opens the supplied folder in the platform's file manager.
     /// </summary>
     /// <param name="path">The folder path to open.</param>
-    public static void OpenFolder(string path)
+    /// <returns><see langword="true" /> when the handler was launched; otherwise <see langword="false" />.</returns>
+    public static bool OpenFolder(string path)
     {
         try
         {
@@ -44,12 +49,15 @@ internal static class ShellHelper
                 Process.Start("open", path);
             else
                 Process.Start("xdg-open", path);
+
+            return true;
         }
         catch (Exception ex)
         {
             var context = $"ShellHelper.OpenFolder: Could not open folder '{path}'";
             ErrorLoggerStatic.ReportSilentException(ex, context, true);
             ServiceProvider.TryGet<ILoggingService>()?.LogError($"Could not open folder: {ex.Message}");
+            return false;
         }
     }
 }

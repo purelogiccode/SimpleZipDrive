@@ -87,6 +87,11 @@ public sealed class XisoArchive : IArchive
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     SharpCompress' <see cref="ArchiveType" /> enum has no XISO value; the closest generic
+    ///     value is used because the application identifies archives by file extension
+    ///     (<see cref="ZipFileSystemCore.ArchiveType" />) and never branches on this property.
+    /// </remarks>
     public ArchiveType Type => ArchiveType.Tar;
 
     /// <inheritdoc />

@@ -21,6 +21,8 @@ public sealed class FuseMountService : IDisposable, IMountService
     private string? _mountPoint;
     private string? _tempMountPoint;
     private int _cleanedUp;
+    private int _mounting;
+    private int _unmountRequested;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="FuseMountService" /> class.
@@ -70,7 +72,7 @@ public sealed class FuseMountService : IDisposable, IMountService
 
     /// <inheritdoc />
     [RequiresAssemblyFiles]
-    public Task MountAsync(string archivePath, string? mountPoint = null)
+    public async Task MountAsync(string archivePath, string? mountPoint = null)
     {
         if (IsMounted) throw new InvalidOperationException("A drive is already mounted. Please unmount it first.");
 
@@ -96,7 +98,7 @@ public sealed class FuseMountService : IDisposable, IMountService
                 $"{reason}\n\nOn Linux install libfuse3 (e.g. 'sudo apt install libfuse3-3'), " +
                 "on macOS install macFUSE from https://macfuse.github.io/.",
                 "FUSE Not Available", MessageBoxButton.Ok, MessageBoxImage.Warning);
-            return Task.CompletedTask;
+            return;
         }
 
         var archiveType = GetArchiveType(archivePath);
@@ -114,14 +116,25 @@ public sealed class FuseMountService : IDisposable, IMountService
         }
 
         Interlocked.Exchange(ref _cleanedUp, 0);
+        Interlocked.Exchange(ref _unmountRequested, 0);
+        Interlocked.Exchange(ref _mounting, 1);
+
+        // Register the mount points before the core is created so a constructor failure can
+        // still remove a temporary mount point.
+        lock (_sync)
+        {
+            _mountPoint = resolvedMountPoint;
+            _tempMountPoint = isTempMountPoint ? resolvedMountPoint : null;
+        }
 
         var effectiveMaxMemoryBytes = _settingsService.Settings.MaxMemoryPerFileBytes;
         var volumeLabel =
             ZipFsHelpers.SanitizeVolumeLabel(ZipFsHelpers.GetArchiveFileNameWithoutExtension(archivePath));
 
+        FileStream? fileStream = null;
         try
         {
-            var fileStream = OpenArchiveFileStream(archivePath);
+            fileStream = await OpenArchiveFileStreamAsync(archivePath).ConfigureAwait(false);
             _core = new ZipFileSystemCore(
                 fileStream,
                 resolvedMountPoint,
@@ -134,14 +147,20 @@ public sealed class FuseMountService : IDisposable, IMountService
         }
         catch
         {
+            // ZipFileSystemCore takes ownership of the stream only when its constructor
+            // succeeds; dispose it here so a failed mount does not leak the file handle.
+            fileStream?.Dispose();
+            Interlocked.Exchange(ref _mounting, 0);
             CleanupAfterUnmount();
             throw;
         }
 
-        lock (_sync)
+        if (Volatile.Read(ref _unmountRequested) != 0)
         {
-            _mountPoint = resolvedMountPoint;
-            _tempMountPoint = isTempMountPoint ? resolvedMountPoint : null;
+            // Unmount was requested while the mount was still starting; abort cleanly.
+            Interlocked.Exchange(ref _mounting, 0);
+            CleanupAfterUnmount();
+            return;
         }
 
         CurrentArchivePath = archivePath;
@@ -186,33 +205,49 @@ public sealed class FuseMountService : IDisposable, IMountService
         }
 
         thread.Start();
-        return completion.Task;
+        Interlocked.Exchange(ref _mounting, 0);
+        await completion.Task.ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task UnmountAsync()
     {
-        if (!IsMounted) return;
+        var thread = _mountThread;
+        var mountInProgress = Volatile.Read(ref _mounting) != 0;
+
+        // Unmount must also work while the session is still starting, not only once
+        // IsMounted has been set by the libfuse Init callback.
+        if (!IsMounted && !mountInProgress && thread is not { IsAlive: true }) return;
+
+        Interlocked.Exchange(ref _unmountRequested, 1);
 
         try
         {
             _loggingService.Log("Unmounting drive...");
             IsMounted = false;
 
-            _fileSystem?.Stop();
-
-            var thread = _mountThread;
-            if (thread is { IsAlive: true })
+            if (thread is not { IsAlive: true })
             {
-                var exited = await Task.Run(() => thread.Join(TimeSpan.FromSeconds(5)));
-                if (!exited)
-                {
-                    _loggingService.Log("FUSE session did not exit in time; requesting an external unmount...");
-                    TryExternalUnmount(CurrentMountPoint ?? _mountPoint);
-                }
+                // The mount has not reached its session thread yet; MountAsync will observe
+                // the unmount request and clean up once it does.
+                CurrentArchivePath = null;
+                return;
             }
 
-            CleanupAfterUnmount();
+            _fileSystem?.Stop();
+
+            var exited = await Task.Run(() => thread.Join(TimeSpan.FromSeconds(5)));
+            if (!exited)
+            {
+                _loggingService.Log("FUSE session did not exit in time; requesting an external unmount...");
+                TryExternalUnmount(CurrentMountPoint ?? _mountPoint);
+            }
+            else
+            {
+                // When the thread did not exit, it still owns the core and will clean up in
+                // its finally block; disposing the core here would race with FUSE callbacks.
+                CleanupAfterUnmount();
+            }
 
             _loggingService.Log("Drive unmounted successfully.");
             OnMountStatusChanged();
@@ -236,10 +271,26 @@ public sealed class FuseMountService : IDisposable, IMountService
     {
         try
         {
+            Interlocked.Exchange(ref _unmountRequested, 1);
             _fileSystem?.Stop();
+
             var thread = _mountThread;
-            if (thread is { IsAlive: true }) thread.Join(TimeSpan.FromSeconds(2));
-            CleanupAfterUnmount();
+            var exited = true;
+            if (thread is { IsAlive: true })
+                exited = thread.Join(TimeSpan.FromSeconds(2));
+
+            if (exited)
+            {
+                CleanupAfterUnmount();
+            }
+            else
+            {
+                // The FUSE thread may still be executing callbacks; its finally block will
+                // dispose the core when it exits, so do not tear it down underneath it.
+                IsMounted = false;
+                CurrentMountPoint = null;
+                CurrentArchivePath = null;
+            }
         }
         catch (Exception ex)
         {
@@ -249,6 +300,14 @@ public sealed class FuseMountService : IDisposable, IMountService
 
     private void OnMounted()
     {
+        if (Volatile.Read(ref _unmountRequested) != 0)
+        {
+            // Unmount was requested while the session was starting; stop it as soon as the
+            // session reports itself mounted.
+            _fileSystem?.Stop();
+            return;
+        }
+
         IsMounted = true;
         CurrentMountPoint = _mountPoint;
 
@@ -263,6 +322,7 @@ public sealed class FuseMountService : IDisposable, IMountService
     {
         if (Interlocked.Exchange(ref _cleanedUp, 1) != 0) return;
 
+        Interlocked.Exchange(ref _mounting, 0);
         IsMounted = false;
         CurrentMountPoint = null;
         CurrentArchivePath = null;
@@ -332,7 +392,7 @@ public sealed class FuseMountService : IDisposable, IMountService
         return path;
     }
 
-    private static FileStream OpenArchiveFileStream(string archivePath)
+    private static async Task<FileStream> OpenArchiveFileStreamAsync(string archivePath)
     {
         const int maxAttempts = 3;
 
@@ -344,7 +404,9 @@ public sealed class FuseMountService : IDisposable, IMountService
             }
             catch (IOException) when (attempt < maxAttempts)
             {
-                Thread.Sleep(500 * attempt);
+                // Awaited so the UI thread stays responsive while waiting for a transiently
+                // locked file to become available.
+                await Task.Delay(500 * attempt).ConfigureAwait(false);
             }
         }
     }

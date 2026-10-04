@@ -34,12 +34,11 @@ public partial class UpdateService : IUpdateService
 
     /// <summary>
     ///     The version used as the "current" application version in update comparisons.
-    ///     Read from the Core assembly, which is version-pinned to both app executables in
-    ///     the project files. <see cref="M:System.Reflection.Assembly.GetEntryAssembly" />
-    ///     is deliberately not used here: under unit-test runners the entry assembly is the
-    ///     test host, whose version is unrelated to the application version and can be lower
-    ///     than the latest release, producing false "update available" notifications in
-    ///     tests.
+    ///     Read from the assembly containing this service (<c>SimpleZipDrive.dll</c>), which is
+    ///     version-pinned in the project file. <c>Assembly.GetEntryAssembly()</c> is deliberately
+    ///     not used here: under unit-test runners the entry assembly is the test host, whose
+    ///     version is unrelated to the application version and can be lower than the latest
+    ///     release, producing false "update available" notifications in tests.
     /// </summary>
     private static Version CurrentAppVersion =>
         typeof(UpdateService).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
@@ -90,6 +89,17 @@ public partial class UpdateService : IUpdateService
             if (latest <= current) return;
 
             _userNotificationService.ShowUpdateAvailable(current, latest, htmlUrl);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // HttpClient.Timeout expiry surfaces as TaskCanceledException, not TimeoutException.
+            // No internet / a slow connection is an expected environment condition, not a bug;
+            // log quietly without forwarding to the bug report API.
+            DiagnosticLogger.Log("Update check skipped: the request timed out.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Caller cancellation (application shutdown) - expected, nothing to report.
         }
         catch (Exception ex) when (ex is HttpRequestException or SocketException or TimeoutException)
         {

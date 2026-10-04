@@ -44,19 +44,59 @@ public sealed class MountService : IDisposable, IMountService
 
     /// <inheritdoc />
     [RequiresAssemblyFiles]
-    public Task MountAsync(string archivePath, string? mountPoint = null)
+    public async Task MountAsync(string archivePath, string? mountPoint = null)
     {
         var backend = ResolveBackend();
-        if (backend is null) return Task.CompletedTask;
+        if (backend is null) return;
 
+        IMountService? previous;
         lock (_sync)
         {
+            previous = _active;
             _active = backend;
             ActiveBackendName = backend.GetType().Name;
         }
 
+        if (previous is not null)
+        {
+            // Replace the previous backend cleanly: unmount it and release its event
+            // subscription and resources before starting the new mount. Otherwise the old
+            // mount stays active forever and its event keeps the facade alive.
+            try
+            {
+                await previous.UnmountAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                ErrorLoggerStatic.ReportSilentException(ex,
+                    "MountService.MountAsync: Failed to unmount the previous backend", true);
+            }
+
+            previous.MountStatusChanged -= OnBackendMountStatusChanged;
+
+            try
+            {
+                (previous as IDisposable)?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                ErrorLoggerStatic.ReportSilentException(ex,
+                    "MountService.MountAsync: Failed to dispose the previous backend", true);
+            }
+        }
+
         backend.MountStatusChanged += OnBackendMountStatusChanged;
-        return backend.MountAsync(archivePath, mountPoint);
+
+        try
+        {
+            await backend.MountAsync(archivePath, mountPoint).ConfigureAwait(false);
+        }
+        catch
+        {
+            // A synchronously failing mount must not leave a failed backend attached.
+            DetachBackend(backend);
+            throw;
+        }
     }
 
     /// <inheritdoc />

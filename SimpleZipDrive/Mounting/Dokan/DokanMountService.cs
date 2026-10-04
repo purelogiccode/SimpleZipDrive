@@ -60,6 +60,8 @@ public class DokanMountService : IDisposable, IMountService
         _mountCancellation?.Dispose();
         _currentZipFs?.Dispose();
         _currentZipFs = null;
+        IsMounted = false;
+        CurrentMountPoint = null;
         CurrentArchivePath = null;
     }
 
@@ -131,7 +133,6 @@ public class DokanMountService : IDisposable, IMountService
         }
 
         ILogger logger = new DokanPrefixedLogger(AppTheme.DokanLogPrefix);
-        CurrentArchivePath = archivePath;
 
         if (string.IsNullOrEmpty(mountPoint))
         {
@@ -162,14 +163,10 @@ public class DokanMountService : IDisposable, IMountService
 
             IsMounted = false;
 
-            try
-            {
-                if (cts != null) await Task.Delay(500, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected if cancellation completes before delay
-            }
+            // Wait for the driver to drain pending callbacks before disposing the core. The
+            // delay must not use the (already cancelled) mount token, otherwise it completes
+            // immediately and the grace period never happens.
+            await Task.Delay(500);
 
             _currentZipFs?.Dispose();
             _currentZipFs = null;

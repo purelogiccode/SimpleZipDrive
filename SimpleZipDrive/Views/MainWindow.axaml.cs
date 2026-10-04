@@ -567,16 +567,10 @@ public partial class MainWindow : Window, IDisposable
             MountButton.IsEnabled = false;
 
             if (ServiceProvider.Get<ISettingsService>().Settings.AutoOpenMountedDrive
-                && _mountService.CurrentMountPoint is { } mountPoint)
+                && _mountService.CurrentMountPoint is { } mountPoint
+                && !ShellHelper.OpenFolder(mountPoint))
             {
-                try
-                {
-                    ShellHelper.OpenFolder(mountPoint);
-                }
-                catch (Exception ex)
-                {
-                    _loggingService.LogError($"Failed to open the mounted location: {ex.Message}");
-                }
+                _loggingService.LogError($"Failed to open the mounted location: {mountPoint}");
             }
         }
         else

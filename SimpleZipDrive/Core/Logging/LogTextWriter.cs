@@ -12,14 +12,21 @@ public sealed class LogTextWriter : TextWriter
     private readonly Channel<string> _channel;
     private readonly CancellationTokenSource _cts = new();
     private readonly TextWriter? _fallbackWriter;
+    private readonly ILoggingService? _loggingService;
     private readonly Task _processingTask;
     private bool _disposed;
 
     /// <summary>Creates a new writer that forwards console output to the logging service.</summary>
     /// <param name="fallbackWriter">Writer used when the logging service is unavailable (e.g. during shutdown).</param>
-    public LogTextWriter(TextWriter? fallbackWriter = null)
+    /// <param name="loggingService">
+    ///     Optional fixed logging target. When null, the logging service is resolved from the
+    ///     static <see cref="ServiceProvider" /> at write time (which also supports services
+    ///     registered after this writer is constructed).
+    /// </param>
+    public LogTextWriter(TextWriter? fallbackWriter = null, ILoggingService? loggingService = null)
     {
         _fallbackWriter = fallbackWriter;
+        _loggingService = loggingService;
 
         // Unbounded channel for maximum throughput - messages are processed asynchronously.
         _channel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
@@ -114,7 +121,7 @@ public sealed class LogTextWriter : TextWriter
         var message = buffer.ToString().TrimEnd('\r', '\n');
         if (string.IsNullOrWhiteSpace(message)) return;
 
-        var loggingService = ServiceProvider.TryGet<ILoggingService>();
+        var loggingService = _loggingService ?? ServiceProvider.TryGet<ILoggingService>();
         if (loggingService != null)
         {
             // The logging service mirrors into the single Serilog pipeline (and the session log file).

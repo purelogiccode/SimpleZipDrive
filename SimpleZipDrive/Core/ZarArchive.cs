@@ -48,6 +48,11 @@ public sealed class ZarArchive : IArchive
     internal ZArchiveReader Reader { get; }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     SharpCompress' <see cref="ArchiveType" /> enum has no ZArchive value; the closest
+    ///     generic value is used because the application identifies archives by file extension
+    ///     (<see cref="ZipFileSystemCore.ArchiveType" />) and never branches on this property.
+    /// </remarks>
     public ArchiveType Type => ArchiveType.Tar;
 
     /// <inheritdoc />

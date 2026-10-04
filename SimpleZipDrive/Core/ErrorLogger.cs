@@ -490,9 +490,9 @@ public class ErrorLogger : IDisposable
              messageLower.Contains("not running", StringComparison.OrdinalIgnoreCase)) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("could not be loaded", StringComparison.OrdinalIgnoreCase)) ||
-            // Assembly-load failures (e.g. winfsp-msil.dll or SharpSevenZip.dll missing beside
-            // the executable, removed by antivirus or an incomplete extraction) are environment
-            // issues with their own dialogs.
+            // Assembly-load failures (e.g. winfsp-msil.dll missing beside the executable,
+            // removed by antivirus or an incomplete extraction) are environment issues with
+            // their own dialogs.
             messageLower.Contains("could not load file or assembly", StringComparison.OrdinalIgnoreCase) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("mount failed with status", StringComparison.OrdinalIgnoreCase) &&
@@ -636,6 +636,12 @@ public class ErrorLogger : IDisposable
     private async Task<bool> PostBugReportAsync(string messageText, string userInfo, string stackTrace,
         CancellationToken cancellationToken)
     {
+        // The bug report API rejects message fields longer than 4000 characters; truncate
+        // explicitly so an oversized report is still delivered instead of being rejected.
+        const int maxMessageLength = 4000;
+        if (messageText.Length > maxMessageLength)
+            messageText = string.Concat(messageText.AsSpan(0, maxMessageLength - 3), "...");
+
         var (version, osDescription, _) = GetBasicEnvironmentInfo();
 
         // Short environment summary for the environment field (API max 50 chars)
@@ -653,9 +659,9 @@ public class ErrorLogger : IDisposable
             stackTrace
         };
         var jsonPayload = JsonSerializer.Serialize(payload);
-        var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+        using var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-        var request = new HttpRequestMessage(HttpMethod.Post, BugReportApiUrl);
+        using var request = new HttpRequestMessage(HttpMethod.Post, BugReportApiUrl);
         request.Headers.Add("X-API-KEY", ApiKey);
         request.Content = httpContent;
 
@@ -673,11 +679,21 @@ public class ErrorLogger : IDisposable
 
     internal void WriteToCriticalLog(Exception ex, string contextMessage)
     {
-        // Only write to console - do not attempt to write to file as it will fail
-        // if the application is in a protected directory (e.g., C:\Program Files)
-        // and running as non-admin. Console output is always available.
-        Console.Error.WriteLine($"FATAL: Could not write to error log '{ErrorLogFilePath}'.");
-        Console.Error.WriteLine($"Context: {contextMessage}");
+        Console.Error.WriteLine($"FATAL: {contextMessage}");
         Console.Error.WriteLine($"Exception: {ex.GetType().Name} - {ex.Message}");
+
+        // Also append to the dedicated critical log, best-effort: writing may fail when the
+        // application sits in a protected directory (e.g. Program Files) and runs non-admin.
+        // Console output above is always available, so failures are intentionally ignored.
+        try
+        {
+            File.AppendAllText(ErrorLogFilePath,
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [FATAL] {contextMessage}{Environment.NewLine}" +
+                $"{ex}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Ignored - see comment above.
+        }
     }
 }

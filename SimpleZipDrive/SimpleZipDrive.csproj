@@ -39,7 +39,6 @@
         <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="SharpCompress" Version="0.50.4" />
-        <PackageReference Include="SharpSevenZip" Version="2.0.128" />
         <PackageReference Include="XISOSharp" Version="1.4.2" />
         <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
         <PackageReference Include="Meziantou.Analyzer" Version="3.0.294">
@@ -62,11 +61,41 @@
 
     <ItemGroup>
         <None Remove="References\**" />
-        <None Update="7z.dll">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </ItemGroup>
+
+    <!--
+        The 7-Zip fallback extractor runs a command-line executable instead of loading a native
+        library, so the shipped binary must match the target platform. Each publish/build drops
+        exactly the binary for its RuntimeIdentifier next to the app:
+        - Windows: 7za.exe (standalone console build)
+        - Linux:   7zzs (statically linked console build, maximum distro portability)
+        - macOS:   7zz (universal x86-64/arm64 console build)
+        Sources: https://github.com/ip7z/7zip (26.03). See 7zip/License.txt.
+    -->
+    <ItemGroup>
+        <None Update="7zip\win-x64\7za.exe" Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+            <Link>7za.exe</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="7z_arm64.dll">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        <None Update="7zip\win-arm64\7za.exe" Condition="'$(RuntimeIdentifier)' == 'win-arm64'">
+            <Link>7za.exe</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="7zip\linux-x64\7zzs" Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+            <Link>7zzs</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="7zip\linux-arm64\7zzs" Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">
+            <Link>7zzs</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="7zip\osx\7zz" Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
+            <Link>7zz</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="7zip\License.txt">
+            <Link>7zip-license.txt</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
 

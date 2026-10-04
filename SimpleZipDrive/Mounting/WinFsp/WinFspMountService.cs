@@ -72,6 +72,8 @@ public class WinFspMountService : IDisposable, IMountService
         host?.Dispose();
         _currentZipFs?.Dispose();
         _currentZipFs = null;
+        IsMounted = false;
+        CurrentMountPoint = null;
         CurrentArchivePath = null;
     }
 
@@ -126,8 +128,6 @@ public class WinFspMountService : IDisposable, IMountService
             return Task.CompletedTask;
         }
 
-        CurrentArchivePath = archivePath;
-
         var crossIntegrity = _settingsService.Settings.CrossIntegrityMount;
 
         if (!crossIntegrity && IsRunningAsAdministrator())
@@ -175,14 +175,10 @@ public class WinFspMountService : IDisposable, IMountService
 
             IsMounted = false;
 
-            try
-            {
-                if (cts != null) await Task.Delay(500, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected if cancellation completes before delay
-            }
+            // Wait for the driver to drain pending callbacks before disposing the core. The
+            // delay must not use the (already cancelled) mount token, otherwise it completes
+            // immediately and the grace period never happens.
+            await Task.Delay(500);
 
             var host = Interlocked.Exchange(ref _currentHost, null);
             host?.Dispose();
@@ -194,9 +190,6 @@ public class WinFspMountService : IDisposable, IMountService
 
             _loggingService.Log("Drive unmounted successfully.");
             OnMountStatusChanged();
-        }
-        catch (OperationCanceledException)
-        {
         }
         catch (Exception ex)
         {
@@ -255,7 +248,12 @@ public class WinFspMountService : IDisposable, IMountService
 
         if (!IsWinFspInstalled())
         {
-            reason = "The WinFsp driver is not installed.";
+            // Distinguish a genuinely absent driver from an installation whose native DLL
+            // cannot be loaded (corrupt install, architecture mismatch), so the user is not
+            // told to install something that is already present.
+            reason = GetWinFspInstallDir() is null && FindWinFspBinDir() is null
+                ? "The WinFsp driver is not installed."
+                : "The WinFsp driver is installed but its native DLL could not be loaded (corrupted installation or architecture mismatch).";
             return false;
         }
 

@@ -58,6 +58,15 @@ public static class ZipFsHelpers
     }
 
     /// <summary>
+    ///     Clears the current instance's temp directory registration, e.g. after construction
+    ///     failed and the directory was removed.
+    /// </summary>
+    internal static void ClearCurrentTempDirectory()
+    {
+        _currentInstanceDirName = null;
+    }
+
+    /// <summary>
     ///     Generates a unique temporary directory name using the current process ID and a GUID.
     /// </summary>
     /// <returns>A string in the format <c>{pid}_{guid}</c> suitable for use as a directory name.</returns>
