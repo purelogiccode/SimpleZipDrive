@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using SharpCompress.Archives;
 using SharpCompress.Common;
-using XISOSharp;
+using XISOSharp.Models;
 
 namespace SimpleZipDrive.Core;
 

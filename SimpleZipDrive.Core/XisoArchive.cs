@@ -2,6 +2,7 @@ using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Readers;
 using XISOSharp;
+using XISOSharp.Models;
 
 namespace SimpleZipDrive.Core;
 

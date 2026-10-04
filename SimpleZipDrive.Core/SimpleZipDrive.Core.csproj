@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Meziantou.Analyzer" Version="3.0.259">
+        <PackageReference Include="Meziantou.Analyzer" Version="3.0.294">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
@@ -42,8 +42,8 @@
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="SharpCompress" Version="0.50.4" />
         <PackageReference Include="SharpSevenZip" Version="2.0.128" />
-        <PackageReference Include="XISOSharp" Version="1.2.0" />
-        <PackageReference Include="ZArchiveSharp" Version="1.3.0" />
+        <PackageReference Include="XISOSharp" Version="1.4.2" />
+        <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
     </ItemGroup>
 
 </Project>
