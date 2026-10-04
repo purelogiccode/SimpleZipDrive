@@ -134,7 +134,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async void BrowseMountFolder_Click(object? sender, RoutedEventArgs e)
+    private async void BrowseMountFolder_ClickAsync(object? sender, RoutedEventArgs e)
     {
         try
         {

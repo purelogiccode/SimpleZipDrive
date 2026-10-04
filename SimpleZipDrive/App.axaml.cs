@@ -9,6 +9,10 @@ using SimpleZipDrive.Core.Logging;
 
 namespace SimpleZipDrive;
 
+/// <summary>
+///     Application entry point that owns the Avalonia lifetime, initializes the Serilog pipeline,
+///     registers the application services, and starts background update and statistics checks.
+/// </summary>
 public class App : Application
 {
     private static TextWriter? _originalConsoleOut;

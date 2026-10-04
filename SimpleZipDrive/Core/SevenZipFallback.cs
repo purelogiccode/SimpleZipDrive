@@ -16,12 +16,20 @@ internal sealed class SevenZipFallback : IDisposable
     private Dictionary<string, int>? _entryIndexMap;
     private SharpSevenZipExtractor? _extractor;
 
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="SevenZipFallback" /> class.
+    /// </summary>
+    /// <param name="archivePath">Full path of the archive to extract from.</param>
+    /// <param name="passwordProvider">Callback that supplies the archive password when one is required.</param>
     public SevenZipFallback(string archivePath, Func<string?> passwordProvider)
     {
         _archivePath = archivePath;
         _passwordProvider = passwordProvider;
     }
 
+    /// <summary>
+    ///     Releases the underlying native extractor.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed)
@@ -94,8 +102,9 @@ internal sealed class SevenZipFallback : IDisposable
 
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLogger.Log(ex, "SevenZipFallback.TryExtractEntry failed");
             return false;
         }
     }
@@ -129,8 +138,9 @@ internal sealed class SevenZipFallback : IDisposable
                         _entryIndexMap[entry.FileName] = entry.Index;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                DiagnosticLogger.Log(ex, "SevenZipFallback.EnsureInitialized failed");
                 _entryIndexMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             }
         }
@@ -151,8 +161,9 @@ internal sealed class SevenZipFallback : IDisposable
             SharpSevenZipBase.SetLibraryPath(dllPath);
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLogger.Log(ex, "SevenZipFallback.TrySetLibraryPath failed");
             return false;
         }
     }
@@ -169,8 +180,9 @@ internal sealed class SevenZipFallback : IDisposable
             var dllName = isArm64 ? "7z_arm64.dll" : "7z.dll";
             return File.Exists(Path.Combine(baseDir, dllName));
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLogger.Log(ex, "SevenZipFallback.IsAvailable failed");
             return false;
         }
     }

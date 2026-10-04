@@ -40,7 +40,6 @@ public class StatsService : IStatsService, IDisposable
 
         _httpClient.Dispose();
         _disposed = true;
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />

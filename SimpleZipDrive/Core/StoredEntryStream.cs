@@ -23,6 +23,13 @@ internal sealed class StoredEntryStream : Stream
     private long _readAheadFileOffset = -1;
     private int _readAheadLength;
 
+    /// <summary>
+    ///     Initializes a new read-only stream over a stored (uncompressed) region of the source stream.
+    /// </summary>
+    /// <param name="sourceStream">The underlying archive stream.</param>
+    /// <param name="dataOffset">Offset of the entry data within the source stream.</param>
+    /// <param name="dataLength">Length of the entry data in bytes.</param>
+    /// <param name="sourceLock">Lock that serializes access to the shared source stream.</param>
     public StoredEntryStream(Stream sourceStream, long dataOffset, long dataLength, Lock sourceLock)
     {
         if (dataOffset < 0 || dataOffset > sourceStream.Length)
@@ -111,6 +118,15 @@ internal sealed class StoredEntryStream : Stream
         }
     }
 
+    /// <summary>
+    ///     Reads up to <paramref name="count" /> bytes from the given offset within the entry without
+    ///     changing the stream position.
+    /// </summary>
+    /// <param name="fileOffset">Offset within the entry data to read from.</param>
+    /// <param name="buffer">Destination buffer.</param>
+    /// <param name="bufferOffset">Offset within <paramref name="buffer" /> to write to.</param>
+    /// <param name="count">Maximum number of bytes to read.</param>
+    /// <returns>The number of bytes actually read.</returns>
     public int ReadAt(long fileOffset, byte[] buffer, int bufferOffset, int count)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

@@ -13,6 +13,10 @@ using Avalonia.VisualTree;
 
 namespace SimpleZipDrive.Views;
 
+/// <summary>
+///     Main application window: shows the mount toolbar and application log, and handles mounting,
+///     unmounting, screenshots, and graceful shutdown.
+/// </summary>
 // Event handlers are wired from MainWindow.axaml (Click/KeyDown/Closing attributes),
 // which ReSharper does not trace; suppress its unused-member inspection for them.
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
@@ -25,6 +29,10 @@ public partial class MainWindow : Window, IDisposable
     private readonly IScreenshotService _screenshotService;
     private int _isShuttingDown;
 
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="MainWindow" /> class and wires it to the
+    ///     registered mount, logging, and screenshot services.
+    /// </summary>
     public MainWindow()
     {
         InitializeComponent();
@@ -45,6 +53,9 @@ public partial class MainWindow : Window, IDisposable
         Opened += MainWindow_OpenedAsync;
     }
 
+    /// <summary>
+    ///     Unsubscribes from service events and disposes the mount service.
+    /// </summary>
     public void Dispose()
     {
         try
@@ -63,8 +74,6 @@ public partial class MainWindow : Window, IDisposable
         {
             ErrorLoggerStatic.ReportSilentException(ex, "MainWindow.Dispose: Error during disposal", true);
         }
-
-        GC.SuppressFinalize(this);
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -125,16 +134,8 @@ public partial class MainWindow : Window, IDisposable
         try
         {
             Opened -= MainWindow_OpenedAsync;
-            try
-            {
-                var args = App.StartupArgs;
-                if (args.Length > 0) await ProcessCommandLineArgsAsync(args);
-            }
-            catch (Exception ex)
-            {
-                const string context = "Error in method MainWindow_OpenedAsync";
-                await ErrorLoggerStatic.LogErrorAsync(ex, context);
-            }
+            var args = App.StartupArgs;
+            if (args.Length > 0) await ProcessCommandLineArgsAsync(args);
         }
         catch (Exception ex)
         {

@@ -14,6 +14,11 @@ internal sealed class SharedMemoryStream : Stream
     private readonly Action _onDispose;
     private bool _disposed;
 
+    /// <summary>
+    ///     Initializes a new read-only stream over the supplied shared buffer.
+    /// </summary>
+    /// <param name="buffer">The shared buffer to expose.</param>
+    /// <param name="onDispose">Callback invoked once when the stream is disposed.</param>
     public SharedMemoryStream(byte[] buffer, Action onDispose)
     {
         _inner = new MemoryStream(buffer, false);

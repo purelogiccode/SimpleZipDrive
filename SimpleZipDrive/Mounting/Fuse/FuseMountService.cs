@@ -22,6 +22,11 @@ public sealed class FuseMountService : IDisposable, IMountService
     private string? _tempMountPoint;
     private int _cleanedUp;
 
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="FuseMountService" /> class.
+    /// </summary>
+    /// <param name="loggingService">The logging service used to record mount activity.</param>
+    /// <param name="settingsService">The settings service that supplies mount preferences.</param>
     public FuseMountService(ILoggingService loggingService, ISettingsService settingsService)
     {
         _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));

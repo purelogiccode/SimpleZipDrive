@@ -8,6 +8,7 @@ namespace SimpleZipDrive.Services;
 /// </summary>
 internal sealed class PasswordPromptService : IPasswordPromptService
 {
+    /// <inheritdoc />
     public string? Prompt(string archivePath, string archiveType)
     {
         if (Dispatcher.UIThread.CheckAccess()) return PromptCore(archivePath, archiveType);

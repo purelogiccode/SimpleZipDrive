@@ -61,7 +61,6 @@ public class DokanMountService : IDisposable, IMountService
         _currentZipFs?.Dispose();
         _currentZipFs = null;
         CurrentArchivePath = null;
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />

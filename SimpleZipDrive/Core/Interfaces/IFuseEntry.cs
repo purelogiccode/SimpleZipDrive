@@ -1,4 +1,4 @@
-namespace SimpleZipDrive.FuseSharp;
+namespace SimpleZipDrive.Core.Interfaces;
 
 /// <summary>
 /// Represents a single file or directory entry exposed by an <see cref="IFuseVolume"/>.

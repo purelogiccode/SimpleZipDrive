@@ -56,7 +56,6 @@ public class DokanZipFs : IDokanOperations, IDisposable
     public void Dispose()
     {
         Core.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc cref="IDokanOperations.CreateFile" />

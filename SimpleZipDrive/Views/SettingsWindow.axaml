@@ -8,7 +8,7 @@
         VerticalContentAlignment="Stretch"
         WindowStartupLocation="CenterScreen"
         CanResize="True">
-    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ToolTip.Tip="Settings window layout">
         <!-- Header -->
         <TextBlock Grid.Row="0"
                    Text="Settings"
@@ -25,11 +25,12 @@
                 Padding="15"
                 Margin="0,0,0,10"
                 ToolTip.Tip="Memory configuration settings">
-            <StackPanel>
+            <StackPanel ToolTip.Tip="Memory settings controls">
                 <TextBlock Text="Memory Settings"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,10" />
-                <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                           Margin="0,0,0,10"
+                           ToolTip.Tip="Maximum RAM cache settings" />
+                <Grid ColumnDefinitions="Auto,Auto,Auto,*" ToolTip.Tip="RAM limit controls">
                     <Label Grid.Column="0"
                            Content="Max RAM per file:"
                            VerticalAlignment="Center"
@@ -65,11 +66,12 @@
                 Padding="15"
                 Margin="0,0,0,15"
                 ToolTip.Tip="Mount configuration settings">
-            <StackPanel>
+            <StackPanel ToolTip.Tip="Mount settings controls">
                 <TextBlock Text="Mount Settings"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,10" />
-                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                           Margin="0,0,0,10"
+                           ToolTip.Tip="Default mount behavior settings" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ToolTip.Tip="Mount type and backend controls">
                     <Label Grid.Row="0"
                            Grid.Column="0"
                            Content="Default mount type:"
@@ -103,7 +105,8 @@
                            Classes="hint"
                            TextWrapping="Wrap"
                            Margin="0,8,0,0"
-                           Text="Auto picks WinFsp, then Dokan on Windows; FUSE on Linux/macOS." />
+                           Text="Auto picks WinFsp, then Dokan on Windows; FUSE on Linux/macOS."
+                           ToolTip.Tip="Explains which driver the Auto option selects on this system" />
             </StackPanel>
         </Border>
 
@@ -116,19 +119,21 @@
                 Padding="15"
                 Margin="0,0,0,15"
                 ToolTip.Tip="Security settings for cross-process visibility">
-            <StackPanel>
+            <StackPanel ToolTip.Tip="Security settings controls">
                 <TextBlock Text="Security Settings (WinFsp, Windows)"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,10" />
+                           Margin="0,0,0,10"
+                           ToolTip.Tip="Cross-integrity mount security settings" />
                 <CheckBox x:Name="CrossIntegrityCheckBox"
                           Content="Cross-integrity mount (visible to elevated/Admin processes)"
                           VerticalAlignment="Center"
                           ToolTip.Tip="Forces folder-based mount with a permissive security descriptor so both standard and elevated processes can access the mounted drive. Drive letter mounts cannot bypass UAC isolation." />
                 <TextBlock Classes="hint"
                            Text="Requires folder mount. Drive letters are isolated by Windows UAC."
-                           Margin="24,4,0,10" />
+                           Margin="24,4,0,10"
+                           ToolTip.Tip="Explains the requirement for cross-integrity mounts" />
 
-                <Grid ColumnDefinitions="Auto,*,Auto">
+                <Grid ColumnDefinitions="Auto,*,Auto" ToolTip.Tip="Cross-integrity mount folder controls">
                     <Label Grid.Column="0"
                            Content="Mount folder:"
                            VerticalAlignment="Center"
@@ -140,7 +145,7 @@
                              ToolTip.Tip="Leave empty to use default: %LOCALAPPDATA%\SimpleZipDrive\Mounts" />
                     <Button Grid.Column="2"
                             Content="Browse..."
-                            Click="BrowseMountFolder_Click"
+                            Click="BrowseMountFolder_ClickAsync"
                             Width="85"
                             Height="32"
                             Margin="8,0,0,0"
@@ -149,7 +154,8 @@
                 </Grid>
                 <TextBlock Classes="hint"
                            Text="Leave empty for default: %LOCALAPPDATA%\SimpleZipDrive\Mounts"
-                           Margin="37,4,0,0" />
+                           Margin="37,4,0,0"
+                           ToolTip.Tip="Default location used when the mount folder is left empty" />
             </StackPanel>
         </Border>
 
@@ -162,10 +168,11 @@
                 Padding="15"
                 Margin="0,0,0,15"
                 ToolTip.Tip="Automation settings">
-            <StackPanel>
+            <StackPanel ToolTip.Tip="Automation settings controls">
                 <TextBlock Text="Automation Settings"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,10" />
+                           Margin="0,0,0,10"
+                           ToolTip.Tip="Automatic behavior after mounting" />
                 <CheckBox x:Name="AutoOpenCheckBox"
                           Content="Automatically open the mounted drive"
                           VerticalAlignment="Center"
@@ -177,7 +184,8 @@
         <StackPanel Grid.Row="6"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Spacing="10">
+                    Spacing="10"
+                    ToolTip.Tip="Dialog actions">
             <Button Content="Save"
                     Click="Save_Click"
                     Width="85"

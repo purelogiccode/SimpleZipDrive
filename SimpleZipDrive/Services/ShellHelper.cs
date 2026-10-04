@@ -7,6 +7,10 @@ namespace SimpleZipDrive.Services;
 /// </summary>
 internal static class ShellHelper
 {
+    /// <summary>
+    ///     Opens the supplied URL with the platform's default handler.
+    /// </summary>
+    /// <param name="url">The URL to open.</param>
     public static void OpenUrl(string url)
     {
         try
@@ -26,6 +30,10 @@ internal static class ShellHelper
         }
     }
 
+    /// <summary>
+    ///     Opens the supplied folder in the platform's file manager.
+    /// </summary>
+    /// <param name="path">The folder path to open.</param>
     public static void OpenFolder(string path)
     {
         try

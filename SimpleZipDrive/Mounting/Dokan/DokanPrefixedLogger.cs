@@ -11,37 +11,48 @@ internal sealed class DokanPrefixedLogger : ILogger, IDisposable
 {
     private readonly string _prefix;
 
+    /// <summary>
+    ///     Initializes a new logger that prefixes every message with <paramref name="prefix" />.
+    /// </summary>
+    /// <param name="prefix">Prefix prepended to each log line.</param>
     public DokanPrefixedLogger(string prefix)
     {
         _prefix = prefix;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
     }
 
+    /// <inheritdoc />
     public bool DebugEnabled => true;
 
+    /// <inheritdoc />
     public void Debug(string message, params object[] args)
     {
         Log("DEBUG", message, args);
     }
 
+    /// <inheritdoc />
     public void Info(string message, params object[] args)
     {
         Log("INFO", message, args);
     }
 
+    /// <inheritdoc />
     public void Warn(string message, params object[] args)
     {
         Log("WARN", message, args);
     }
 
+    /// <inheritdoc />
     public void Error(string message, params object[] args)
     {
         Log("ERROR", message, args);
     }
 
+    /// <inheritdoc />
     public void Fatal(string message, params object[] args)
     {
         Log("FATAL", message, args);

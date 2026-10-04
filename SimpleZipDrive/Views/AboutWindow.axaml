@@ -8,7 +8,7 @@
         HorizontalContentAlignment="Stretch"
         VerticalContentAlignment="Stretch"
         WindowStartupLocation="CenterOwner">
-    <Grid Margin="25" RowDefinitions="Auto,Auto,Auto,*,Auto">
+    <Grid Margin="25" RowDefinitions="Auto,Auto,Auto,*,Auto" ToolTip.Tip="About window layout">
         <TextBlock Grid.Row="0"
                    Text="Simple Zip Drive"
                    Classes="title"
@@ -38,8 +38,8 @@
             </TextBlock>
         </Border>
 
-        <StackPanel Grid.Row="3" Margin="0,0,0,15" Spacing="8">
-            <TextBlock TextWrapping="Wrap">
+        <StackPanel Grid.Row="3" Margin="0,0,0,15" Spacing="8" ToolTip.Tip="Credits, license and links">
+            <TextBlock TextWrapping="Wrap" ToolTip.Tip="Third-party libraries used by this application">
                 <Run Text="Built on " Foreground="{StaticResource TextMutedBrush}" />
                 <HyperlinkButton x:Name="WinFspLink" Content="WinFsp"
                                  Click="WinFspLink_Click" Padding="0"
@@ -63,7 +63,7 @@
                 <Run Text="." Foreground="{StaticResource TextMutedBrush}" />
             </TextBlock>
 
-            <TextBlock TextWrapping="Wrap">
+            <TextBlock TextWrapping="Wrap" ToolTip.Tip="License information">
                 <Run Text="Licensed under " Foreground="{StaticResource TextMutedBrush}" />
                 <Run Text="GPLv3" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
                 <Run Text="." Foreground="{StaticResource TextMutedBrush}" />

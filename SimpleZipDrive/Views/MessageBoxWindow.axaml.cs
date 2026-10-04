@@ -10,11 +10,22 @@ namespace SimpleZipDrive.Views;
 /// </summary>
 public partial class MessageBoxWindow : Window
 {
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="MessageBoxWindow" /> class for the XAML loader.
+    /// </summary>
     public MessageBoxWindow()
     {
         InitializeComponent();
     }
 
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="MessageBoxWindow" /> class with the message,
+    ///     caption, buttons, and icon to display.
+    /// </summary>
+    /// <param name="message">The message to display.</param>
+    /// <param name="caption">The window title.</param>
+    /// <param name="button">The buttons to show.</param>
+    /// <param name="icon">The icon to show.</param>
     public MessageBoxWindow(string message, string caption, MessageBoxButton button, MessageBoxImage icon)
     {
         InitializeComponent();
@@ -47,6 +58,7 @@ public partial class MessageBoxWindow : Window
         }
     }
 
+    /// <summary>Gets the button the user clicked, or <see cref="MessageBoxResult.None" /> before a choice is made.</summary>
     public MessageBoxResult Result { get; private set; } = MessageBoxResult.None;
 
     private void AddButton(string content, MessageBoxResult result, bool isDefault = false)

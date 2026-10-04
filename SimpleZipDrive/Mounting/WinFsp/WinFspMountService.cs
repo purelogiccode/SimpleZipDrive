@@ -11,6 +11,9 @@ using Microsoft.Win32;
 
 namespace SimpleZipDrive.Mounting.WinFsp;
 
+/// <summary>
+///     Mount service implementation backed by the WinFsp file-system driver (Windows only).
+/// </summary>
 [SupportedOSPlatform("windows")]
 public class WinFspMountService : IDisposable, IMountService
 {
@@ -37,12 +40,20 @@ public class WinFspMountService : IDisposable, IMountService
     private WinFspZipFs? _currentZipFs;
     private CancellationTokenSource? _mountCancellation;
 
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="WinFspMountService" /> class.
+    /// </summary>
+    /// <param name="loggingService">The logging service used to record mount activity.</param>
+    /// <param name="settingsService">The settings service that supplies mount preferences.</param>
     public WinFspMountService(ILoggingService loggingService, ISettingsService settingsService)
     {
         _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
     }
 
+    /// <summary>
+    ///     Releases the WinFsp host, file system, and cancellation resources.
+    /// </summary>
     public void Dispose()
     {
         try
@@ -62,17 +73,21 @@ public class WinFspMountService : IDisposable, IMountService
         _currentZipFs?.Dispose();
         _currentZipFs = null;
         CurrentArchivePath = null;
-        GC.SuppressFinalize(this);
     }
 
+    /// <inheritdoc />
     public event EventHandler<MountStatusChangedEventArgs>? MountStatusChanged;
 
+    /// <inheritdoc />
     public bool IsMounted { get; private set; }
 
+    /// <inheritdoc />
     public string? CurrentMountPoint { get; private set; }
 
+    /// <inheritdoc />
     public string? CurrentArchivePath { get; private set; }
 
+    /// <inheritdoc />
     [RequiresAssemblyFiles]
     public Task MountAsync(string archivePath, string? mountPoint = null)
     {
@@ -140,6 +155,7 @@ public class WinFspMountService : IDisposable, IMountService
         return MountWithSpecifiedPointAsync(archivePath, mountPoint, archiveType);
     }
 
+    /// <inheritdoc />
     public async Task UnmountAsync()
     {
         DiagnosticLogger.LogSection($"UNMOUNT REQUESTED: {CurrentMountPoint}");
@@ -190,6 +206,7 @@ public class WinFspMountService : IDisposable, IMountService
         }
     }
 
+    /// <inheritdoc />
     public string GetArchiveType(string filePath)
     {
         return ArchiveFormats.GetArchiveType(filePath);
@@ -295,16 +312,18 @@ public class WinFspMountService : IDisposable, IMountService
                     return output.Contains("RUNNING", StringComparison.OrdinalIgnoreCase);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Fallback: assume driver is running if DLL exists
+                DiagnosticLogger.Log(ex, "WinFspMountService: driver status probe failed");
                 return true;
             }
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLogger.Log(ex, "WinFspMountService: WinFsp availability check failed");
             return false;
         }
     }
@@ -317,8 +336,9 @@ public class WinFspMountService : IDisposable, IMountService
                             ?? Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WinFsp");
             return key?.GetValue("InstallDir") as string;
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLogger.Log(ex, "WinFspMountService: registry read failed");
             return null;
         }
     }
@@ -478,9 +498,10 @@ public class WinFspMountService : IDisposable, IMountService
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Best-effort; version detection failure is non-fatal
+            DiagnosticLogger.Log(ex, "WinFspMountService: version detection failed");
         }
 
         return null;
@@ -613,9 +634,10 @@ public class WinFspMountService : IDisposable, IMountService
                     return version;
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Best-effort parsing
+            DiagnosticLogger.Log(ex, "WinFspMountService: version mismatch parse failed");
         }
 
         return null;

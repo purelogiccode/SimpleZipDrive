@@ -214,7 +214,6 @@ public class ZipFileSystemCore : IDisposable
         }
 
         DiagnosticLogger.LogHeader("ZipFs DISPOSE complete");
-        GC.SuppressFinalize(this);
     }
 
     private IArchive OpenArchive(Stream stream)
@@ -416,9 +415,10 @@ public class ZipFileSystemCore : IDisposable
             // Enumerating entries itself requires password (e.g., RAR encrypted headers)
             return ArchiveUsability.Encrypted;
         }
-        catch
+        catch (Exception ex)
         {
             // Parse failure - not necessarily encrypted
+            DiagnosticLogger.Log(ex, "GetArchiveUsability: entry enumeration failed");
             return ArchiveUsability.Indeterminate;
         }
 
@@ -458,9 +458,10 @@ public class ZipFileSystemCore : IDisposable
             // Password-related or crypto exception confirms encryption
             return ArchiveUsability.Encrypted;
         }
-        catch
+        catch (Exception ex)
         {
             // Other errors - trust the encryption flag
+            DiagnosticLogger.Log(ex, "GetArchiveUsability: test read failed");
             return ArchiveUsability.Encrypted;
         }
     }
@@ -1404,8 +1405,9 @@ public class ZipFileSystemCore : IDisposable
                             throw new InvalidOperationException("SevenZip fallback extraction failed.");
                     }));
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLogger.Log(ex, "SevenZip fallback extraction failed");
             return null;
         }
     }
@@ -1495,6 +1497,9 @@ public class ZipFileSystemCore : IDisposable
         }
     }
 
+    /// <summary>
+    ///     Describes whether an archive can be opened without a password, requires one, or is unusable.
+    /// </summary>
     private enum ArchiveUsability
     {
         /// <summary>The archive can be used without a password.</summary>

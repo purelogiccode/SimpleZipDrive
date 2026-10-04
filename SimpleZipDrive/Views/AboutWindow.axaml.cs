@@ -5,11 +5,19 @@ using Avalonia.Interactivity;
 
 namespace SimpleZipDrive.Views;
 
+/// <summary>
+///     About dialog showing the application version, description, license, and links to the
+///     third-party components used by the application.
+/// </summary>
 // Event handlers are wired from AboutWindow.axaml (Click attributes), which ReSharper does not
 // trace; suppress its unused-member inspection for them.
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
 public partial class AboutWindow : Window
 {
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="AboutWindow" /> class and displays the
+    ///     current application version.
+    /// </summary>
     public AboutWindow()
     {
         InitializeComponent();

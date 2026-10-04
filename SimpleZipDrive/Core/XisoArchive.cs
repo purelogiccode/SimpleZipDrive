@@ -226,10 +226,13 @@ public sealed class XisoArchive : IArchive
         private IEnumerator<XisoArchiveEntry>? _enumerator;
         private bool _completed;
 
+        /// <inheritdoc />
         public ArchiveType Type => _archive.Type;
 
+        /// <inheritdoc />
         public IEntry Entry => Current ?? throw new InvalidOperationException("No current entry.");
 
+        /// <inheritdoc />
         public bool Cancelled { get; private set; }
 
         private XisoArchiveEntry? Current
@@ -243,8 +246,10 @@ public sealed class XisoArchive : IArchive
             }
         }
 
+        /// <inheritdoc />
         public void Cancel() => Cancelled = true;
 
+        /// <inheritdoc />
         public bool MoveToNextEntry()
         {
             if (Cancelled || _completed) return false;
@@ -262,6 +267,7 @@ public sealed class XisoArchive : IArchive
             return true;
         }
 
+        /// <inheritdoc />
         public void WriteEntryTo(Stream writableStream)
         {
             using var entryStream =
@@ -269,6 +275,7 @@ public sealed class XisoArchive : IArchive
             entryStream.CopyTo(writableStream);
         }
 
+        /// <inheritdoc />
         public EntryStream OpenEntryStream()
         {
             throw new NotSupportedException("Sequential entry streams are not supported for XISO images.");
@@ -285,8 +292,10 @@ public sealed class XisoArchive : IArchive
     /// <summary>Single <see cref="IVolume" /> for a single-file Xbox disc image.</summary>
     private sealed class XisoVolume(string fileName) : IVolume
     {
+        /// <inheritdoc />
         public int Index => 0;
 
+        /// <inheritdoc />
         public string FileName { get; } = fileName;
 
         /// <inheritdoc />

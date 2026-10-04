@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using SimpleZipDrive.Core;
-using SimpleZipDrive.FuseSharp;
+using SimpleZipDrive.Core.Interfaces;
 using SimpleZipDrive.Mounting.Fuse;
 
 namespace SimpleZipDrive.Tests;

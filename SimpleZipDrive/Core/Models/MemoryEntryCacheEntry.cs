@@ -11,7 +11,9 @@ internal sealed class MemoryEntryCacheEntry
     public long LastUsed;
 
     public int RefCount;
+    /// <summary>Gets the cached entry payload.</summary>
     public required byte[] Buffer { get; init; }
 
+    /// <summary>Gets the number of valid bytes in <see cref="Buffer" />.</summary>
     public required int Size { get; init; }
 }

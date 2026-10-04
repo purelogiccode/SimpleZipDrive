@@ -12,22 +12,22 @@
         Closing="MainWindow_Closing"
         KeyDown="Window_KeyDown">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*,Auto" ToolTip.Tip="Main window layout">
         <!-- Top Menu -->
-        <Menu Grid.Row="0">
+        <Menu Grid.Row="0" ToolTip.Tip="Main menu">
             <MenuItem Header="File" ToolTip.Tip="File operations">
                 <MenuItem Header="Mount as Drive Letter..." Click="MountAsDrive_ClickAsync"
                           ToolTip.Tip="Select an archive and mount as a virtual drive letter" />
                 <MenuItem Header="Mount as Folder..." Click="MountAsFolder_ClickAsync"
                           ToolTip.Tip="Select an archive and mount as a folder" />
-                <Separator />
+                <Separator ToolTip.Tip="Separator" />
                 <MenuItem Header="Exit" Click="Exit_Click" InputGesture="Alt+F4"
                           ToolTip.Tip="Close the application" />
             </MenuItem>
             <MenuItem Header="Settings" ToolTip.Tip="Application settings">
                 <MenuItem Header="Settings..." Click="SettingsRamLimit_Click" InputGesture="Ctrl+R"
                           ToolTip.Tip="Application settings" />
-                <Separator />
+                <Separator ToolTip.Tip="Separator" />
                 <MenuItem Header="Open Configuration Path" Click="OpenConfigPath_Click"
                           ToolTip.Tip="Open the folder where settings are stored" />
                 <MenuItem Header="Clean Temp Files" Click="CleanTempFiles_Click"
@@ -40,7 +40,7 @@
         </Menu>
 
         <!-- Main Content -->
-        <Grid Grid.Row="1" Margin="15" RowDefinitions="Auto,*">
+        <Grid Grid.Row="1" Margin="15" RowDefinitions="Auto,*" ToolTip.Tip="Mount controls and application log">
             <!-- Toolbar -->
             <Border Grid.Row="0"
                     Background="{StaticResource BgSecondaryBrush}"
@@ -50,7 +50,7 @@
                     Padding="10,8"
                     Margin="0,0,0,-1"
                     ToolTip.Tip="Toolbar with mount controls and log actions">
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="8" ToolTip.Tip="Mount and log action buttons">
                     <Button x:Name="MountButton"
                             Content="Mount"
                             Click="Mount_ClickAsync"
@@ -91,11 +91,14 @@
                          Classes="log"
                          ToolTip.Tip="Application log output. Right-click for options.">
                     <TextBox.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="Copy" Click="CopySelection_Click" />
-                            <MenuItem Header="Copy All" Click="CopyLog_Click" />
-                            <Separator />
-                            <MenuItem Header="Clear Log" Click="ClearLog_Click" />
+                        <ContextMenu ToolTip.Tip="Log actions">
+                            <MenuItem Header="Copy" Click="CopySelection_Click"
+                                      ToolTip.Tip="Copy the selected log text to clipboard" />
+                            <MenuItem Header="Copy All" Click="CopyLog_Click"
+                                      ToolTip.Tip="Copy all log entries to clipboard" />
+                            <Separator ToolTip.Tip="Separator" />
+                            <MenuItem Header="Clear Log" Click="ClearLog_Click"
+                                      ToolTip.Tip="Clear all log entries" />
                         </ContextMenu>
                     </TextBox.ContextMenu>
                 </TextBox>
@@ -106,7 +109,7 @@
         <Border Grid.Row="2"
                 Background="{StaticResource AccentPrimaryBrush}"
                 ToolTip.Tip="Application status bar">
-            <Grid Margin="10,4" ColumnDefinitions="Auto,*,Auto">
+            <Grid Margin="10,4" ColumnDefinitions="Auto,*,Auto" ToolTip.Tip="Status bar layout">
                 <TextBlock x:Name="StatusText"
                            Grid.Column="0"
                            Text="Ready"

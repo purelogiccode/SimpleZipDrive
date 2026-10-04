@@ -154,10 +154,13 @@ public sealed class ZarArchive : IArchive
         private readonly ZarArchive _archive = archive;
         private bool _completed;
 
+        /// <inheritdoc />
         public ArchiveType Type => _archive.Type;
 
+        /// <inheritdoc />
         public IEntry Entry => Current ?? throw new InvalidOperationException("No current entry.");
 
+        /// <inheritdoc />
         public bool Cancelled { get; private set; }
 
         private ZarArchiveEntry? Current
@@ -171,8 +174,10 @@ public sealed class ZarArchive : IArchive
             }
         }
 
+        /// <inheritdoc />
         public void Cancel() => Cancelled = true;
 
+        /// <inheritdoc />
         public bool MoveToNextEntry()
         {
             if (Cancelled || _completed) return false;
@@ -190,6 +195,7 @@ public sealed class ZarArchive : IArchive
             return true;
         }
 
+        /// <inheritdoc />
         public void WriteEntryTo(Stream writableStream)
         {
             using var entryStream =
@@ -197,6 +203,7 @@ public sealed class ZarArchive : IArchive
             entryStream.CopyTo(writableStream);
         }
 
+        /// <inheritdoc />
         public EntryStream OpenEntryStream()
         {
             throw new NotSupportedException("Sequential entry streams are not supported for ZAR archives.");
@@ -213,8 +220,10 @@ public sealed class ZarArchive : IArchive
     /// <summary>Single <see cref="IVolume" /> for a single-file .zar archive.</summary>
     private sealed class ZarVolume(string fileName) : IVolume
     {
+        /// <inheritdoc />
         public int Index => 0;
 
+        /// <inheritdoc />
         public string FileName { get; } = fileName;
 
         /// <inheritdoc />

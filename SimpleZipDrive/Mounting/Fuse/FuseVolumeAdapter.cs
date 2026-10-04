@@ -11,6 +11,10 @@ internal sealed class FuseVolumeAdapter : IFuseVolume
 {
     private readonly ZipFileSystemCore _core;
 
+    /// <summary>
+    ///     Initializes a new adapter over the supplied core file system.
+    /// </summary>
+    /// <param name="core">The core file system that serves the archive.</param>
     public FuseVolumeAdapter(ZipFileSystemCore core)
     {
         _core = core ?? throw new ArgumentNullException(nameof(core));
@@ -74,14 +78,21 @@ internal sealed class FuseVolumeAdapter : IFuseVolume
         return ZipFsHelpers.NormalizePath(path);
     }
 
+    /// <summary>
+    ///     Adapts a core <see cref="EntryNode" /> to the <see cref="IFuseEntry" /> contract.
+    /// </summary>
     private sealed class EntryAdapter(EntryNode node) : IFuseEntry
     {
+        /// <summary>Gets the core entry node exposed by this adapter.</summary>
         public EntryNode Node { get; } = node;
 
+        /// <inheritdoc />
         public string FileName => Path.GetFileName(Node.NormalizedPath);
 
+        /// <inheritdoc />
         public bool IsDirectory => Node.IsDir;
 
+        /// <inheritdoc />
         public long Size => Node.IsDir ? 0 : Node.FileSize;
     }
 }

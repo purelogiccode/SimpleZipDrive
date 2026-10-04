@@ -70,7 +70,6 @@ public class ErrorLogger : IDisposable
     public void Dispose()
     {
         _httpClient.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -233,9 +232,10 @@ public class ErrorLogger : IDisposable
         {
             await task;
         }
-        catch
+        catch (Exception ex)
         {
             // Task failures are silently ignored — the task's own error handling should cover this
+            DiagnosticLogger.Log(ex, "ErrorLogger.FireAndForgetAsync: task failed");
         }
     }
 
@@ -543,9 +543,10 @@ public class ErrorLogger : IDisposable
                 else
                     await SendMessageToApiAsync(level, message, context, cts.Token);
             }
-            catch
+            catch (Exception ex)
             {
                 // Forwarding is best-effort.
+                DiagnosticLogger.Log(ex, "ErrorLogger.ForwardLogEventToApi: forwarding failed");
             }
         });
 
