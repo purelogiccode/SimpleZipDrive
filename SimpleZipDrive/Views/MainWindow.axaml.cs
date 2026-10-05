@@ -303,6 +303,19 @@ public partial class MainWindow : Window, IDisposable
         _ = dialog.ShowDialog(this);
     }
 
+    private void Donate_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ShellHelper.OpenUrl("https://www.purelogiccode.com/donate"))
+        {
+            _loggingService.Log("Opened the donation page.");
+            return;
+        }
+
+        MessageBox.Show(
+            "Could not open the browser automatically.\n\nPlease visit:\nhttps://www.purelogiccode.com/donate",
+            "Donate", MessageBoxButton.Ok, MessageBoxImage.Information);
+    }
+
     private void Exit_Click(object? sender, RoutedEventArgs e)
     {
         // Trigger the closing event which will handle proper cleanup

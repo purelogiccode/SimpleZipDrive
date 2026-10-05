@@ -22,8 +22,17 @@ public partial class AboutWindow : Window
     {
         InitializeComponent();
 
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-        VersionTextBlock.Text = $"Version {version}";
+        // Show the three-part release version (e.g. 3.1.0), not the four-part assembly
+        // version (3.1.0.0) used everywhere else in the app and release notes.
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        VersionTextBlock.Text = version is null
+            ? "Version Unknown"
+            : $"Version {version.Major}.{version.Minor}.{version.Build}";
+
+        // The credits are platform-specific: WinFsp/DokanNet are Windows-only, FUSE is
+        // used on Linux/macOS, and SharpCompress everywhere.
+        CreditsWindows.IsVisible = OperatingSystem.IsWindows();
+        CreditsUnix.IsVisible = !OperatingSystem.IsWindows();
     }
 
     private void Close_Click(object? sender, RoutedEventArgs e)
@@ -54,5 +63,10 @@ public partial class AboutWindow : Window
     private void GitHubLink_Click(object? sender, RoutedEventArgs e)
     {
         ShellHelper.OpenUrl("https://github.com/purelogiccode/SimpleZipDrive");
+    }
+
+    private void WebsiteLink_Click(object? sender, RoutedEventArgs e)
+    {
+        ShellHelper.OpenUrl("https://www.purelogiccode.com");
     }
 }

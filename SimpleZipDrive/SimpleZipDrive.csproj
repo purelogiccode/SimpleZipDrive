@@ -63,6 +63,11 @@
         <None Remove="References\**" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Shown in the About window; embedded so it works from the single-file bundle. -->
+        <AvaloniaResource Include="icon\zip.png" />
+    </ItemGroup>
+
     <!--
         The 7-Zip fallback extractor runs a command-line executable instead of loading a native
         library, so the shipped binary must match the target platform. Each publish/build drops

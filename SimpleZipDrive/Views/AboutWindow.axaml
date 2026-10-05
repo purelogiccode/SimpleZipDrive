@@ -2,32 +2,46 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="SimpleZipDrive.Views.AboutWindow"
         Title="About Simple Zip Drive"
-        Height="440"
         Width="520"
+        SizeToContent="Height"
         CanResize="False"
         HorizontalContentAlignment="Stretch"
         VerticalContentAlignment="Stretch"
         WindowStartupLocation="CenterOwner">
-    <Grid Margin="25" RowDefinitions="Auto,Auto,Auto,*,Auto" ToolTip.Tip="About window layout">
-        <TextBlock Grid.Row="0"
-                   Text="Simple Zip Drive"
-                   Classes="title"
-                   Margin="0,0,0,5"
-                   ToolTip.Tip="Application name" />
+    <Grid Margin="25" RowDefinitions="Auto,Auto,Auto,Auto" ToolTip.Tip="About window layout">
+        <!-- Header: application icon, name and version -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="Auto,*"
+              Margin="0,0,0,16"
+              ToolTip.Tip="Application identity">
+            <Image Grid.Column="0"
+                   Source="avares://SimpleZipDrive/icon/zip.png"
+                   Width="56"
+                   Height="56"
+                   Margin="0,0,16,0"
+                   VerticalAlignment="Center"
+                   ToolTip.Tip="Simple Zip Drive icon" />
+            <StackPanel Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Spacing="3"
+                        ToolTip.Tip="Application name and version">
+                <TextBlock Text="Simple Zip Drive"
+                           Classes="title"
+                           ToolTip.Tip="Application name" />
+                <TextBlock x:Name="VersionTextBlock"
+                           Classes="accent"
+                           ToolTip.Tip="Current application version" />
+            </StackPanel>
+        </Grid>
 
-        <TextBlock Grid.Row="1"
-                   x:Name="VersionTextBlock"
-                   Classes="accent"
-                   Margin="0,0,0,20"
-                   ToolTip.Tip="Current application version" />
-
-        <Border Grid.Row="2"
+        <!-- Description -->
+        <Border Grid.Row="1"
                 Background="{StaticResource BgSecondaryBrush}"
                 BorderBrush="{StaticResource BorderPrimaryBrush}"
                 BorderThickness="1"
                 CornerRadius="4"
                 Padding="15"
-                Margin="0,0,0,15"
+                Margin="0,0,0,16"
                 ToolTip.Tip="Application description">
             <TextBlock TextWrapping="Wrap"
                        Classes="body"
@@ -38,51 +52,83 @@
             </TextBlock>
         </Border>
 
-        <StackPanel Grid.Row="3" Margin="0,0,0,15" Spacing="8" ToolTip.Tip="Credits, license and links">
-            <TextBlock TextWrapping="Wrap" ToolTip.Tip="Third-party libraries used by this application">
-                <Run Text="Built on " Foreground="{StaticResource TextMutedBrush}" />
-                <HyperlinkButton x:Name="WinFspLink" Content="WinFsp"
-                                 Click="WinFspLink_Click" Padding="0"
+        <StackPanel Grid.Row="2" Margin="0,0,0,20" Spacing="8" ToolTip.Tip="Credits, license and links">
+            <TextBlock Text="Built on"
+                       Classes="muted"
+                       ToolTip.Tip="Third-party libraries used by this application" />
+
+            <!-- Links are separate controls rather than inline elements inside a TextBlock:
+                 inline controls made Avalonia invalidate a visual during the render pass
+                 (crash "Visual was invalidated during the render pass"). -->
+            <WrapPanel x:Name="CreditsWindows"
+                       IsVisible="False"
+                       ToolTip.Tip="Third-party libraries used by this application">
+                <HyperlinkButton x:Name="WinFspLink"
+                                 Content="WinFsp"
+                                 Click="WinFspLink_Click"
+                                 Padding="0"
+                                 Margin="0,0,14,2"
                                  Foreground="{StaticResource AccentSecondaryBrush}"
                                  ToolTip.Tip="Open WinFsp website (Windows file system driver)" />
-                <Run Text=", " Foreground="{StaticResource TextMutedBrush}" />
-                <HyperlinkButton x:Name="DokanLink" Content="DokanNet"
-                                 Click="DokanLink_Click" Padding="0"
+                <HyperlinkButton x:Name="DokanLink"
+                                 Content="DokanNet"
+                                 Click="DokanLink_Click"
+                                 Padding="0"
+                                 Margin="0,0,14,2"
                                  Foreground="{StaticResource AccentSecondaryBrush}"
                                  ToolTip.Tip="Open DokanNet website (user-mode file system library for Windows)" />
-                <Run Text=", " Foreground="{StaticResource TextMutedBrush}" />
-                <HyperlinkButton x:Name="FuseLink" Content="FUSE (FuseSharp)"
-                                 Click="FuseLink_Click" Padding="0"
-                                 Foreground="{StaticResource AccentSecondaryBrush}"
-                                 ToolTip.Tip="FUSE support for Linux and macOS via the bundled FuseSharp library" />
-                <Run Text=" and " Foreground="{StaticResource TextMutedBrush}" />
-                <HyperlinkButton x:Name="SharpCompressLink" Content="SharpCompress"
-                                 Click="SharpCompressLink_Click" Padding="0"
+                <HyperlinkButton x:Name="SharpCompressLink"
+                                 Content="SharpCompress"
+                                 Click="SharpCompressLink_Click"
+                                 Padding="0"
+                                 Margin="0,0,0,2"
                                  Foreground="{StaticResource AccentSecondaryBrush}"
                                  ToolTip.Tip="Open SharpCompress website (archive compression library)" />
-                <Run Text="." Foreground="{StaticResource TextMutedBrush}" />
-            </TextBlock>
+            </WrapPanel>
 
-            <TextBlock TextWrapping="Wrap" ToolTip.Tip="License information">
-                <Run Text="Licensed under " Foreground="{StaticResource TextMutedBrush}" />
-                <Run Text="GPLv3" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
-                <Run Text="." Foreground="{StaticResource TextMutedBrush}" />
-            </TextBlock>
+            <WrapPanel x:Name="CreditsUnix"
+                       IsVisible="False"
+                       ToolTip.Tip="Third-party libraries used by this application">
+                <HyperlinkButton x:Name="FuseLink"
+                                 Content="FUSE (FuseSharp)"
+                                 Click="FuseLink_Click"
+                                 Padding="0"
+                                 Margin="0,0,14,2"
+                                 Foreground="{StaticResource AccentSecondaryBrush}"
+                                 ToolTip.Tip="FUSE support for Linux and macOS via the bundled FuseSharp library" />
+                <HyperlinkButton x:Name="SharpCompressLinkUnix"
+                                 Content="SharpCompress"
+                                 Click="SharpCompressLink_Click"
+                                 Padding="0"
+                                 Margin="0,0,0,2"
+                                 Foreground="{StaticResource AccentSecondaryBrush}"
+                                 ToolTip.Tip="Open SharpCompress website (archive compression library)" />
+            </WrapPanel>
+
+            <!-- Runs must stay adjacent: whitespace between inline elements renders as a
+                 space (which produced "GPLv3 ."). -->
+            <TextBlock TextWrapping="Wrap" ToolTip.Tip="License information"><Run Text="Licensed under " Foreground="{StaticResource TextMutedBrush}" /><Run Text="GPLv3" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" /><Run Text="." Foreground="{StaticResource TextMutedBrush}" /></TextBlock>
 
             <HyperlinkButton x:Name="GitHubLink"
                              Content="https://github.com/purelogiccode/SimpleZipDrive"
-                             Click="GitHubLink_Click" Padding="0"
+                             Click="GitHubLink_Click"
+                             Padding="0"
+                             HorizontalAlignment="Left"
                              Foreground="{StaticResource AccentSecondaryBrush}"
                              ToolTip.Tip="Open project GitHub repository" />
 
-            <TextBlock TextWrapping="Wrap"
-                       Classes="muteditalic"
-                       ToolTip.Tip="Developer website">
-                www.purelogiccode.com
-            </TextBlock>
+            <HyperlinkButton x:Name="WebsiteLink"
+                             Content="www.purelogiccode.com"
+                             Click="WebsiteLink_Click"
+                             Padding="0"
+                             HorizontalAlignment="Left"
+                             FontStyle="Italic"
+                             Foreground="{StaticResource AccentSecondaryBrush}"
+                             ToolTip.Tip="Open the developer website" />
         </StackPanel>
 
-        <Button Grid.Row="4"
+        <!-- Actions -->
+        <Button Grid.Row="3"
                 Content="Close"
                 Click="Close_Click"
                 Width="85"

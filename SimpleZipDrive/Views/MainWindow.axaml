@@ -34,7 +34,7 @@
                           ToolTip.Tip="Clean temporary cache files from previous sessions" />
             </MenuItem>
             <MenuItem Header="Help" ToolTip.Tip="Help and information">
-                <MenuItem Header="About" Click="About_Click" InputGesture="F1"
+                <MenuItem Header="About" Click="About_Click" HotKey="F1"
                           ToolTip.Tip="View application information and credits" />
             </MenuItem>
         </Menu>
@@ -50,34 +50,47 @@
                     Padding="10,8"
                     Margin="0,0,0,-1"
                     ToolTip.Tip="Toolbar with mount controls and log actions">
-                <StackPanel Orientation="Horizontal" Spacing="8" ToolTip.Tip="Mount and log action buttons">
-                    <Button x:Name="MountButton"
-                            Content="Mount"
-                            Click="Mount_ClickAsync"
+                <Grid ColumnDefinitions="*,Auto" ToolTip.Tip="Mount and log action buttons">
+                    <StackPanel Grid.Column="0"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                ToolTip.Tip="Mount and log action buttons">
+                        <Button x:Name="MountButton"
+                                Content="Mount"
+                                Click="Mount_ClickAsync"
+                                Width="90"
+                                Theme="{StaticResource PrimaryButton}"
+                                ToolTip.Tip="Select a ZIP, 7Z, RAR, TAR, ZAR, or XISO file to mount" />
+
+                        <Button x:Name="UnmountButton"
+                                Content="Unmount"
+                                Click="Unmount_ClickAsync"
+                                Width="90"
+                                IsEnabled="False"
+                                Theme="{StaticResource PrimaryButton}"
+                                ToolTip.Tip="Unmount the currently mounted drive" />
+
+                        <Rectangle Width="1"
+                                   Fill="{StaticResource BorderPrimaryBrush}"
+                                   Margin="8,2,8,2"
+                                   ToolTip.Tip="Separates mount actions from log actions" />
+
+                        <Button Content="Copy All" Click="CopyLog_Click" Width="90"
+                                Theme="{StaticResource SecondaryButton}"
+                                ToolTip.Tip="Copy all log entries to clipboard" />
+                        <Button Content="Clear Log" Click="ClearLog_Click" Width="90"
+                                Theme="{StaticResource SecondaryButton}"
+                                ToolTip.Tip="Clear all log entries" />
+                    </StackPanel>
+
+                    <!-- Donate: same toolbar row, far right -->
+                    <Button Grid.Column="1"
+                            Content="Donate"
+                            Click="Donate_Click"
                             Width="90"
-                            Theme="{StaticResource PrimaryButton}"
-                            ToolTip.Tip="Select a ZIP, 7Z, RAR, TAR, ZAR, or XISO file to mount" />
-
-                    <Button x:Name="UnmountButton"
-                            Content="Unmount"
-                            Click="Unmount_ClickAsync"
-                            Width="90"
-                            IsEnabled="False"
-                            Theme="{StaticResource PrimaryButton}"
-                            ToolTip.Tip="Unmount the currently mounted drive" />
-
-                    <Rectangle Width="1"
-                               Fill="{StaticResource BorderPrimaryBrush}"
-                               Margin="8,2,8,2"
-                               ToolTip.Tip="Separates mount actions from log actions" />
-
-                    <Button Content="Copy All" Click="CopyLog_Click" Width="90"
                             Theme="{StaticResource SecondaryButton}"
-                            ToolTip.Tip="Copy all log entries to clipboard" />
-                    <Button Content="Clear Log" Click="ClearLog_Click" Width="90"
-                            Theme="{StaticResource SecondaryButton}"
-                            ToolTip.Tip="Clear all log entries" />
-                </StackPanel>
+                            ToolTip.Tip="Support the developer (opens the donation page)" />
+                </Grid>
             </Border>
 
             <!-- Log Section -->
