@@ -16,3 +16,6 @@ release-assets/
 
 # Test run artifacts (e.g. XPlat Code Coverage output)
 TestResults/
+
+# Local release/social media notes (not part of the repository)
+SocialMedia.md
