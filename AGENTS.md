@@ -22,7 +22,7 @@ ones). Treat this folder and everything inside it as append-only:
   `dotnet build "CSharp_SimpleZipDrive.sln" -c Release --nologo -t:Rebuild`
 - Tests:
   `dotnet test "SimpleZipDrive.Tests\SimpleZipDrive.Tests.csproj" -c Release --no-build --nologo`
-  (1430 tests, 0 warnings expected)
+  (1454 tests, 0 warnings expected)
 - Framework-dependent publish for a bundle (never self-contained):
   `dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r <rid> --self-contained false -o <dir>`
 

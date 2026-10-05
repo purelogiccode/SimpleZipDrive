@@ -8,7 +8,7 @@
 
 **[Mount Backends](variants)**
 
-**Deep Dives**
+**[Deep Dives](guides)**
 
 - [Mounting](mounting)
 - [Caching](caching)
@@ -16,14 +16,14 @@
 - [Archive Support](archive-support)
 - [Security & Privacy](security)
 
-**Operations**
+**[Operations](operations)**
 
 - [Configuration](configuration)
 - [Logging](logging)
 - [Troubleshooting](troubleshooting)
 - [FAQ](faq)
 
-**Development**
+**[Development](development)**
 
 - [Architecture](architecture)
 - [Building & Packaging](building-and-packaging)

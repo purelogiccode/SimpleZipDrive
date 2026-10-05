@@ -155,14 +155,47 @@ function New-ReleaseZip
         # which makes Linux/macOS extraction tools ignore the Unix external attributes
         # above. Patch the host byte of each central-directory header to Unix (3) so
         # unzip/7-Zip restore the executable bit.
+        #
+        # Walk the real central directory instead of scanning the file for the
+        # PK\x01\x02 signature: compressed entry data can contain the same byte
+        # sequence, and patching such a false positive would corrupt the bundle.
         $bytes = [System.IO.File]::ReadAllBytes($DestinationPath)
-        for ($i = 0; $i -le $bytes.Length - 8; $i++)
+
+        # The end-of-central-directory record (PK\x05\x06) is at most 22 bytes plus a
+        # 64 KiB comment from the end of the file; locate it from the back.
+        $eocd = -1
+        $searchStart = $bytes.Length - 22
+        $searchEnd = [Math]::Max(0, $bytes.Length - 22 - 65535)
+        for ($i = $searchStart; $i -ge $searchEnd; $i--)
         {
             if ($bytes[$i] -eq 0x50 -and $bytes[$i + 1] -eq 0x4B -and
-                $bytes[$i + 2] -eq 0x01 -and $bytes[$i + 3] -eq 0x02)
+                $bytes[$i + 2] -eq 0x05 -and $bytes[$i + 3] -eq 0x06)
             {
-                $bytes[$i + 5] = 3
+                $eocd = $i
+                break
             }
+        }
+
+        if ($eocd -lt 0) { throw "Could not locate the zip central directory in '$DestinationPath'." }
+
+        $entryCount = [System.BitConverter]::ToUInt16($bytes, $eocd + 10)
+        $offset = [int][System.BitConverter]::ToUInt32($bytes, $eocd + 16)
+
+        for ($entry = 0; $entry -lt $entryCount; $entry++)
+        {
+            if ($offset + 46 -gt $bytes.Length -or
+                $bytes[$offset] -ne 0x50 -or $bytes[$offset + 1] -ne 0x4B -or
+                $bytes[$offset + 2] -ne 0x01 -or $bytes[$offset + 3] -ne 0x02)
+            {
+                throw "Malformed zip central directory in '$DestinationPath' (entry $entry)."
+            }
+
+            $bytes[$offset + 5] = 3 # "version made by" high byte = Unix (3)
+
+            $nameLength = [System.BitConverter]::ToUInt16($bytes, $offset + 28)
+            $extraLength = [System.BitConverter]::ToUInt16($bytes, $offset + 30)
+            $commentLength = [System.BitConverter]::ToUInt16($bytes, $offset + 32)
+            $offset += 46 + $nameLength + $extraLength + $commentLength
         }
 
         [System.IO.File]::WriteAllBytes($DestinationPath, $bytes)

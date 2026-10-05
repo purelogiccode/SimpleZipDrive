@@ -369,6 +369,15 @@ public class ErrorLoggerAdditionalTests
     [InlineData("Dokan driver not found. Unable to mount archive.")]
     [InlineData("Can't install the Dokan driver")]
     [InlineData("The file 'book.cbz' is not a supported archive format (expected .zip, .7z, .rar, .tar).")]
+    // Cross-platform facade: missing driver or a backend that does not exist on this OS
+    // (the reported "libfuse3 not found" startup warning on Windows).
+    [InlineData("libfuse3 not found: FUSE is only available on Linux and macOS.")]
+    [InlineData("FUSE is not available: FUSE is only available on Linux and macOS. Unable to mount archive.")]
+    [InlineData(
+        "The FUSE runtime library (libfuse3 on Linux, macFUSE on macOS) is not available. Unable to mount archive.")]
+    [InlineData("Dokan is not available: The Dokan driver (dokan2.dll) is not installed. Unable to mount archive.")]
+    [InlineData("WinFsp is not available: The WinFsp driver is not installed. Unable to mount archive.")]
+    [InlineData("Dokan is not available: Dokan is only available on Windows.")]
     public void IsUserError_ExpectedEnvironmentOrUserConditions_ReturnsTrue(string message)
     {
         var ex = new InvalidOperationException(message);
@@ -469,6 +478,15 @@ public class ErrorLoggerAdditionalTests
         var ex = new InvalidOperationException("Unexpected failure in ZipFs.InitializeEntries.");
         var result = ErrorLogger.IsUserError(ex);
         Assert.False(result);
+    }
+
+    [Fact]
+    public void IsUserError_GenuineFuseSessionFailure_ReturnsFalse()
+    {
+        // A real FUSE session/interop failure must stay reportable; only missing-runtime
+        // and unavailable-backend messages are environment conditions.
+        var ex = new InvalidOperationException("FUSE session failed for '/mnt/archive': fuse_loop failed with -1");
+        Assert.False(ErrorLogger.IsUserError(ex));
     }
 
     [Fact]

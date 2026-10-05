@@ -163,7 +163,11 @@ public partial class MainWindow : Window, IDisposable
     {
         try
         {
-            var backend = MountBackendAvailability.ResolveEffective(_settingsService.Settings.MountBackend);
+            // Normalize first: a settings file moved between platforms can hold a backend
+            // that does not exist here (e.g. FUSE on Windows), which must not be reported as
+            // a missing "libfuse3" driver.
+            var requested = AppSettings.NormalizeMountBackend(_settingsService.Settings.MountBackend);
+            var backend = MountBackendAvailability.ResolveEffective(requested);
             if (MountBackendAvailability.IsAvailable(backend, out var reason))
                 return;
 

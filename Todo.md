@@ -290,9 +290,35 @@ A second review of everything committed after `acffb16f` found and fixed additio
   `7zip-license.txt`; Unix 7-Zip binaries committed as `100755`; local packaging on Windows
   skips non-Windows RIDs instead of producing bundles without the executable bit.
 
+## Follow-up review (post-3.1.0)
+
+A third pass over the commits after `acffb16f` found two regressions that the test suite could
+not catch; both are fixed:
+
+- **Bundle corruption in the zip host-byte patch.** `scripts/package-release.ps1` scanned the
+  whole archive byte stream for the central-directory signature `PK\x01\x02` and overwrote the
+  following "version made by" host byte. Compressed entry data can contain the same byte
+  sequence, so a false positive silently corrupted the shipped executable or library. The patch
+  now locates the end-of-central-directory record and walks only the real central-directory
+  headers (verified by re-extracting a bundle that contains the signature inside a payload:
+  byte-for-byte identical, all headers patched to Unix).
+- **Backend disposal blocked the UI thread.** `Mounting/MountService.cs` disposed the previous
+  backend directly on the UI thread after every unmount and failed mount; Dokan's and WinFsp's
+  `Dispose` sleep 500 ms to let the driver drain callbacks, so the interface froze for that
+  long. Disposal now runs on a background thread, and the facade publishes the new backend only
+  after the previous one has been unmounted and released (so a concurrent unmount can never
+  target the new, not-yet-mounted instance).
+- **Bogus "libfuse3 not found" report from Windows (bug report #68046).** A persisted
+  `MountBackend.Fuse` value on Windows reached the startup warning before normalization was
+  applied, and the message was not recognized as an environment condition, so the bug-report
+  API received *"libfuse3 not found: FUSE is only available on Linux and macOS."* The startup
+  check and `MountService.ResolveBackend` now normalize the persisted backend for the current
+  platform first, and `ErrorLogger.IsUserError` treats missing/unsupported filesystem drivers
+  (Dokan, WinFsp, libfuse3, macFUSE, "only available on ...") as environment conditions.
+
 ## Notes
 
-- The suite now contains 1430 tests (101 added in the screenshot/test batch) with 0 build
+- The suite now contains 1454 tests (101 added in the screenshot/test batch) with 0 build
   warnings; it was run ten consecutive times green before the 7-Zip CLI change and is re-run
   after each subsequent change.
 - The screenshot service already existed (registered at `App.axaml.cs:170`, invoked on F8 at

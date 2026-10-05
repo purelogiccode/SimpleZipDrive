@@ -51,14 +51,14 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 `scripts/package-release.ps1` performs the same publish/package steps locally:
 
 ```powershell
-# All targets for the current OS (other OSes are skipped on Windows, see below)
+# All six targets (any host can build any runtime identifier)
 .\scripts\package-release.ps1 -Version 3.1.0
 
 # Only the targets for one OS
 .\scripts\package-release.ps1 -Version 3.1.0 -RuntimeIdentifiers win-x64,win-arm64
 ```
 
-It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. On Linux/macOS the script uses the `zip` CLI so the apphost and the 7-Zip binary keep their executable bit; on Windows it writes the zip through `System.IO.Compression` and records the Unix executable bit (external attributes) explicitly for Linux/macOS bundles - so **all six bundles can be produced from any host** (CI still builds each OS on its matching runner).
+It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. On Linux/macOS the script uses the `zip` CLI so the apphost and the 7-Zip binary keep their executable bit; on Windows it writes the zip through `System.IO.Compression`, records the Unix executable bit (external attributes) explicitly for Linux/macOS bundles, and patches the *version-made-by* host byte of every real central-directory header to Unix (located through the end-of-central-directory record, never by scanning for the signature - compressed data can contain the same bytes) - so **all six bundles can be produced from any host** (CI still builds each OS on its matching runner).
 
 > **`SimpleZipDrive\bin\Release` is append-only - never delete files in it.** It holds locally
 > produced bundles (and may hold historical ones), and they are intentionally not tracked by
@@ -103,7 +103,7 @@ Three constraints make the file layout non-negotiable:
 
 2. **The 7-Zip fallback binary must stay a real file beside the exe on every platform.** `SevenZipFallback` probes `AppContext.BaseDirectory` for `7za.exe` (Windows), `7zzs` (Linux) or `7zz` (macOS); the csproj copies exactly the file matching the publish `RuntimeIdentifier` and links it under its canonical name. Bundling it into the single file would make the fallback silently unavailable. On Unix the app sets the executable bit at runtime, and the release bundles preserve the bit through the `zip` CLI. The Unix binaries are committed with mode `100755` (`git update-index --chmod=+x`) so a publish from Linux/macOS keeps them executable.
 
-   `7zip-license.txt` must ship beside them: it contains the Windows (`7za.exe`) and Linux/macOS (`7zz`, `7zzs`) license texts, since the Windows and Unix packages carry different notices.
+   `7zip-license.txt` must ship beside them: it contains the Windows (`7za.exe`) and Linux/macOS (`7zz`, `7zzs`) license texts, since the Windows and Unix packages carry different notices. The Unix binaries are committed with mode `100755`, and the packaging script restores that mode in the zip even when the bundle is written on Windows (external attributes plus the central-directory host byte).
 
 3. **winfsp.net stays at 2.1.x** (`2.1.25156`). Interop 2.2.x rejects the stable native 2.1 driver (*"incorrect dll version (need 2.2, have 2.1)"*); interop 2.1 accepts both the 2.1 stable driver and 2.2+ betas. Version gates live in `WinFspMountService` (`RequiredWinFspVersion = 2.1`).
 

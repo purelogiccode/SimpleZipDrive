@@ -53,15 +53,14 @@ public sealed class MountService : IDisposable, IMountService
         lock (_sync)
         {
             previous = _active;
-            _active = backend;
-            ActiveBackendName = backend.GetType().Name;
         }
 
         if (previous is not null)
         {
             // Replace the previous backend cleanly: unmount it and release its event
-            // subscription and resources before starting the new mount. Otherwise the old
-            // mount stays active forever and its event keeps the facade alive.
+            // subscription and resources before publishing the new backend. Otherwise the
+            // old mount stays active while the facade already reports the new (not yet
+            // mounted) backend, and a concurrent unmount would target the wrong instance.
             try
             {
                 await previous.UnmountAsync().ConfigureAwait(false);
@@ -72,17 +71,22 @@ public sealed class MountService : IDisposable, IMountService
                     "MountService.MountAsync: Failed to unmount the previous backend", true);
             }
 
-            previous.MountStatusChanged -= OnBackendMountStatusChanged;
-
+            // Backend disposal can block on the driver's grace delay; keep it off the UI thread.
             try
             {
-                (previous as IDisposable)?.Dispose();
+                await Task.Run(() => DetachBackend(previous)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 ErrorLoggerStatic.ReportSilentException(ex,
                     "MountService.MountAsync: Failed to dispose the previous backend", true);
             }
+        }
+
+        lock (_sync)
+        {
+            _active = backend;
+            ActiveBackendName = backend.GetType().Name;
         }
 
         backend.MountStatusChanged += OnBackendMountStatusChanged;
@@ -93,8 +97,18 @@ public sealed class MountService : IDisposable, IMountService
         }
         catch
         {
-            // A synchronously failing mount must not leave a failed backend attached.
-            DetachBackend(backend);
+            // A synchronously failing mount must not leave a failed backend attached. Disposal
+            // failures are logged so the original mount error is the one that reaches the user.
+            try
+            {
+                await Task.Run(() => DetachBackend(backend)).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                ErrorLoggerStatic.ReportSilentException(ex,
+                    "MountService.MountAsync: Failed to dispose the failed backend", true);
+            }
+
             throw;
         }
     }
@@ -112,11 +126,12 @@ public sealed class MountService : IDisposable, IMountService
 
         try
         {
-            await backend.UnmountAsync();
+            await backend.UnmountAsync().ConfigureAwait(false);
         }
         finally
         {
-            DetachBackend(backend);
+            // Backend disposal can block on the driver's grace delay; keep it off the UI thread.
+            await Task.Run(() => DetachBackend(backend)).ConfigureAwait(false);
         }
     }
 
@@ -151,7 +166,10 @@ public sealed class MountService : IDisposable, IMountService
 
     private IMountService? ResolveBackend()
     {
-        var requested = _settingsService.Settings.MountBackend;
+        // Normalize for this platform first (FUSE -> Dokan on Windows, Dokan/WinFsp -> FUSE
+        // elsewhere) so a settings file that traveled between platforms can never select a
+        // backend that does not exist here.
+        var requested = AppSettings.NormalizeMountBackend(_settingsService.Settings.MountBackend);
 
         if (requested == MountBackend.Auto)
         {

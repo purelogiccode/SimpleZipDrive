@@ -520,7 +520,22 @@ public class ErrorLogger : IDisposable
             messageLower.Contains("dokan driver not found", StringComparison.OrdinalIgnoreCase) ||
             // Produced at runtime from DokanNet's DokanException.Message ("Can't install the Dokan driver"),
             // e.g. "Dokan error: Can't install the Dokan driver" and "[Warning] ... - Can't install the Dokan driver".
-            messageLower.Contains("can't install the dokan driver", StringComparison.OrdinalIgnoreCase);
+            messageLower.Contains("can't install the dokan driver", StringComparison.OrdinalIgnoreCase) ||
+            // Missing/unsupported filesystem drivers are environment conditions with their own
+            // dialogs. Dokan/WinFsp are covered above; these cover the cross-platform facade
+            // ("Dokan is not available: ... is not installed") and the FUSE runtime
+            // (libfuse3/macFUSE), including a backend that does not exist on this OS
+            // ("FUSE is only available on Linux and macOS").
+            (messageLower.Contains("dokan", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("not installed", StringComparison.OrdinalIgnoreCase)) ||
+            (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("not installed", StringComparison.OrdinalIgnoreCase)) ||
+            ((messageLower.Contains("libfuse3", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("macfuse", StringComparison.OrdinalIgnoreCase)) &&
+             (messageLower.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("not available", StringComparison.OrdinalIgnoreCase))) ||
+            messageLower.Contains("only available on linux and macos", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("only available on windows", StringComparison.OrdinalIgnoreCase);
 
         return isArchiveError || isArchiveDataError || isDriveError || isPasswordError || isCancellationError ||
                isEnvironmentError;
