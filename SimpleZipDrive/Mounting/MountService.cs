@@ -155,18 +155,10 @@ public sealed class MountService : IDisposable, IMountService
 
         if (requested == MountBackend.Auto)
         {
-            if (OperatingSystem.IsWindows())
-            {
-                requested = WinFspMountService.IsAvailable(out _)
-                    ? MountBackend.WinFsp
-                    : MountBackend.Dokan;
-                _loggingService.Log($"Mount backend: auto-selected {requested}.");
-            }
-            else
-            {
-                requested = MountBackend.Fuse;
-                _loggingService.Log("Mount backend: FUSE (only backend available on this platform).");
-            }
+            requested = MountBackendAvailability.ResolveEffective(requested);
+            _loggingService.Log(requested == MountBackend.Fuse
+                ? "Mount backend: FUSE (only backend available on this platform)."
+                : $"Mount backend: auto-selected {requested}.");
         }
 
         switch (requested)

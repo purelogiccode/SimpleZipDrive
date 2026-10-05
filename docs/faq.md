@@ -23,7 +23,7 @@ Closing the window unmounts the drive. Keep the app running while you use the mo
 One archive per app instance. Launch a second instance to mount another archive (each instance occupies its own mount point).
 
 **Which backend should I use?**
-On Windows: Dokan for the mature driver, WinFsp if you need cross-integrity mounting or folder mounts on fresh directories (Auto prefers WinFsp when installed). On Linux/macOS the backend is always FUSE (libfuse3/macFUSE). See [Mount Backends](variants).
+On Windows you can use **Dokan** (the default) or **WinFsp** - install whichever driver you prefer and select it in Settings; Auto prefers WinFsp when installed. Choose WinFsp if you need cross-integrity mounting or folder mounts on fresh directories. On Linux/macOS the backend is always FUSE (libfuse3/macFUSE). See [Mount Backends](variants).
 
 **Does it run on Linux and macOS?**
 Yes — one application supports Windows, Linux and macOS. Windows uses WinFsp or Dokan, Linux uses libfuse3, macOS uses macFUSE. Drive letters and cross-integrity mounts are Windows-only; Linux/macOS mount on folders.

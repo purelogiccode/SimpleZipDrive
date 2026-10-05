@@ -21,7 +21,7 @@ SimpleZipDrive is a single cross-platform application. Download the package for 
 - **Linux** — install libfuse3 from your distribution (`libfuse3-3` on Debian/Ubuntu, `fuse3` on Fedora).
 - **macOS** — install [macFUSE](https://macfuse.github.io/).
 
-> On Windows the mount backend is selected inside the app (Settings → Mount backend). **Auto** prefers WinFsp when installed, otherwise Dokan. See [Mount Backends](variants) for a full comparison.
+> On Windows you can use **either Dokan or WinFsp** - install the driver you want and select it in *Settings → Mount backend* (**Dokan** is the default; **Auto** prefers WinFsp when installed, otherwise Dokan). If the selected driver is missing, the app warns on startup and offers to open its download page. See [Mount Backends](variants) for a full comparison.
 
 ## 2. Install prerequisites
 

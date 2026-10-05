@@ -10,9 +10,14 @@ namespace SimpleZipDrive.Tests;
 public class AppSettingsDefaultsTests
 {
     [Fact]
-    public void MountBackend_Default_IsAuto()
+    public void MountBackend_Default_IsPlatformDefault()
     {
-        Assert.Equal(MountBackend.Auto, new AppSettings().MountBackend);
+        Assert.Equal(AppSettings.DefaultMountBackend, new AppSettings().MountBackend);
+
+        // Windows defaults to Dokan; Linux/macOS default to Auto (which resolves to FUSE).
+        Assert.Equal(
+            OperatingSystem.IsWindows() ? MountBackend.Dokan : MountBackend.Auto,
+            AppSettings.DefaultMountBackend);
     }
 
     [Fact]

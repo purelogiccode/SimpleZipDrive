@@ -15,12 +15,12 @@ SimpleZipDrive is a single cross-platform application. The archive engine, cache
 
 Choose the backend in **Settings → Mount Settings → Mount backend**:
 
-- **Auto (recommended)** - uses WinFsp when it is installed, otherwise Dokan on Windows; FUSE on Linux/macOS.
-- **Dokan** - force the Dokan driver (Windows only).
-- **WinFsp** - force the WinFsp driver (Windows only).
-- **FUSE** - force FUSE (Linux/macOS only).
+- **Auto** - uses WinFsp when it is installed, otherwise Dokan on Windows; FUSE on Linux/macOS.
+- **Dokan** - the default on Windows; install the Dokan driver to use it.
+- **WinFsp** - install the WinFsp driver and select this to use it instead.
+- **FUSE** - Linux/macOS only; it is not offered on Windows.
 
-If the selected backend is not available (driver missing or unsupported platform), the app reports the reason in the log and shows a dialog instead of mounting.
+The Settings list shows only the backends for the current platform: **Dokan/WinFsp/Auto on Windows** and **FUSE/Auto on Linux/macOS**. You can install either (or both) Windows drivers and switch between them at any time. If the driver for the selected backend is missing, the app warns on startup and offers to open the matching download page (and reports the reason in the log instead of mounting).
 
 ## Windows: Dokan vs. WinFsp
 
@@ -63,8 +63,8 @@ On Linux and macOS the app mounts archives on **folders** through the bundled Fu
 
 ## Which one should you use on Windows?
 
-- **Default recommendation: Auto**, which prefers **WinFsp** when installed and falls back to **Dokan**.
-- **Choose Dokan** if you prefer the long-established Dokan driver or cannot install WinFsp.
+- **Default: Dokan** - the app defaults to Dokan on Windows. Install the Dokan driver (2.3.0+) and you are ready to mount.
+- **Choose Auto** to prefer **WinFsp** when it is installed and fall back to **Dokan**.
 - **Choose WinFsp** if you need:
   - mounting by **elevated** processes that must remain accessible to normal apps (or vice versa),
   - automatic creation of fresh mount folders,

@@ -24,7 +24,7 @@
 
 A single application supports every filesystem backend:
 
-*   **Windows** - [WinFsp](https://github.com/winfsp/winfsp) or [DokanNet](https://github.com/dokan-dev/dokan-dotnet), selectable in Settings (Auto prefers WinFsp when installed).
+*   **Windows** - [Dokan](https://github.com/dokan-dev/dokany) (default) or [WinFsp](https://github.com/winfsp/winfsp). Install whichever driver you prefer and select it in Settings → Mount backend; *Auto* picks WinFsp when installed, otherwise Dokan.
 *   **Linux / macOS** - FUSE via the bundled FuseSharp library (libfuse3 on Linux, macFUSE on macOS).
 
 The UI is built with [Avalonia](https://avaloniaui.net/) and shares one codebase across all platforms.
@@ -64,9 +64,9 @@ Unlike traditional archive utilities that extract the entire archive to a tempor
 Before running Simple Zip Drive, ensure your system meets the following requirements:
 
 1.  **.NET 10.0 Runtime:** Download the latest [.NET 10 runtime](https://dotnet.microsoft.com/download).
-2.  **Filesystem Driver** (depends on your platform):
-    *   **Windows — Dokan backend:** Download and install `DokanSetup.exe` from the [Official Releases](https://github.com/dokan-dev/dokany/releases). **Dokan v2 2.3.0 or later is required** — older driver installs are refused with a *"Dokan Driver Outdated"* dialog.
-    *   **Windows — WinFsp backend:** Download and install [WinFsp](https://github.com/winfsp/winfsp/releases) **2.1 or later** (2.1 is the latest stable release; 2.2+ are beta versions). Keep `winfsp-msil.dll` beside the executable — it ships with the app and is removed neither by you nor your antivirus without breaking mounts.
+2.  **Filesystem Driver** (depends on your platform). On Windows you can use **either Dokan or WinFsp** - install the driver for the backend you want to use (Dokan is the default; if the selected driver is missing, the app offers to open its download page):
+    *   **Windows — Dokan (default):** Download and install `DokanSetup.exe` from the [Official Releases](https://github.com/dokan-dev/dokany/releases). **Dokan v2 2.3.0 or later is required** — older driver installs are refused with a *"Dokan Driver Outdated"* dialog.
+    *   **Windows — WinFsp (alternative):** Download and install [WinFsp](https://github.com/winfsp/winfsp/releases) **2.1 or later** (2.1 is the latest stable release; 2.2+ are beta versions), then select *WinFsp* (or *Auto*) in *Settings → Mount backend*. Keep `winfsp-msil.dll` beside the executable — it ships with the app and is removed neither by you nor your antivirus without breaking mounts.
     *   **Linux:** Install libfuse3 (e.g. `sudo apt install libfuse3-3` or `sudo dnf install fuse3`).
     *   **macOS:** Install [macFUSE](https://macfuse.github.io/).
 
@@ -76,7 +76,7 @@ Before running Simple Zip Drive, ensure your system meets the following requirem
 
 | Platform | Backends | Notes |
 |:---------|:---------|:------|
-| **Windows** | **WinFsp**, **Dokan**, or **Auto** | Select in *Settings → Mount backend*. Auto prefers WinFsp when installed, otherwise Dokan. |
+| **Windows** | **Dokan** (default), **WinFsp**, or **Auto** | You can use either driver - install the one you want and select it in *Settings → Mount backend*; if it is missing, the app offers to open its download page. Auto prefers WinFsp when installed, otherwise Dokan. |
 | **Linux / macOS** | **FUSE** | libfuse3 / macFUSE required. Archives mount on folders. |
 
 All backends share the same UI and feature set; only the underlying filesystem driver differs. See [Mount Backends](docs/variants.md) for the full comparison.

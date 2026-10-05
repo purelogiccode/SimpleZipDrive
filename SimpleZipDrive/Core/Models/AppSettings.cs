@@ -72,10 +72,33 @@ public class AppSettings
     public MountType DefaultMountType { get; set; } = MountType.DriveLetter;
 
     /// <summary>
-    ///     Gets or sets which file-system driver is used to mount archives.
-    ///     <see cref="MountBackend.Auto" /> prefers WinFsp, then Dokan on Windows, and FUSE on Linux/macOS.
+    ///     Gets the default mount backend for the current platform: <see cref="MountBackend.Dokan" />
+    ///     on Windows, <see cref="MountBackend.Auto" /> (FUSE) on Linux/macOS.
     /// </summary>
-    public MountBackend MountBackend { get; set; } = MountBackend.Auto;
+    public static MountBackend DefaultMountBackend =>
+        OperatingSystem.IsWindows() ? MountBackend.Dokan : MountBackend.Auto;
+
+    /// <summary>
+    ///     Gets or sets which file-system driver is used to mount archives.
+    ///     Defaults to <see cref="DefaultMountBackend" />; <see cref="MountBackend.Auto" /> prefers
+    ///     WinFsp, then Dokan on Windows, and FUSE on Linux/macOS.
+    /// </summary>
+    public MountBackend MountBackend { get; set; } = DefaultMountBackend;
+
+    /// <summary>
+    ///     Maps a backend that is not available on the current platform to one that is:
+    ///     FUSE becomes <see cref="DefaultMountBackend" /> (Dokan) on Windows, and Dokan/WinFsp
+    ///     become FUSE on Linux/macOS. Auto and valid values are returned unchanged.
+    /// </summary>
+    /// <param name="backend">The backend to normalize.</param>
+    /// <returns>A backend usable on the current platform.</returns>
+    internal static MountBackend NormalizeMountBackend(MountBackend backend)
+    {
+        if (OperatingSystem.IsWindows())
+            return backend == MountBackend.Fuse ? DefaultMountBackend : backend;
+
+        return backend is MountBackend.Dokan or MountBackend.WinFsp ? MountBackend.Fuse : backend;
+    }
 
     /// <summary>Gets or sets a value indicating whether the mounted drive should be opened in Explorer automatically.</summary>
     public bool AutoOpenMountedDrive { get; set; }
@@ -148,6 +171,10 @@ public class AppSettings
 
         // Return validated settings or defaults
         settings ??= new AppSettings();
+
+        // A settings file can travel between platforms; keep the backend valid for this OS
+        // (FUSE is not available on Windows, Dokan/WinFsp are not available elsewhere).
+        settings.MountBackend = NormalizeMountBackend(settings.MountBackend);
 
         // Re-apply validation in case the loaded value exceeds current system limits
         var availableMemoryBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;

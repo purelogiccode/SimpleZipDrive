@@ -27,6 +27,7 @@ public partial class MainWindow : Window, IDisposable
 
     private readonly IMountService _mountService;
     private readonly IScreenshotService _screenshotService;
+    private readonly ISettingsService _settingsService;
     private int _isShuttingDown;
 
     /// <summary>
@@ -41,6 +42,7 @@ public partial class MainWindow : Window, IDisposable
         _mountService = ServiceProvider.Get<IMountService>();
         _loggingService = ServiceProvider.Get<ILoggingService>();
         _screenshotService = ServiceProvider.Get<IScreenshotService>();
+        _settingsService = ServiceProvider.Get<ISettingsService>();
 
         _mountService.MountStatusChanged += OnMountStatusChanged;
 
@@ -135,12 +137,66 @@ public partial class MainWindow : Window, IDisposable
         {
             Opened -= MainWindow_OpenedAsync;
             var args = App.StartupArgs;
-            if (args.Length > 0) await ProcessCommandLineArgsAsync(args);
+            if (args.Length > 0)
+            {
+                await ProcessCommandLineArgsAsync(args);
+                return;
+            }
+
+            // Interactive start: proactively warn when the selected backend's driver is missing
+            // and offer its download page. Command-line/drag-and-drop mounts already show the
+            // same warning from the mount path, so this runs only for an idle start.
+            Dispatcher.UIThread.Post(WarnIfMountDriverMissing, DispatcherPriority.Background);
         }
         catch (Exception ex)
         {
             const string context = "Error in method MainWindow_OpenedAsync";
             await ErrorLoggerStatic.LogErrorAsync(ex, context);
+        }
+    }
+
+    /// <summary>
+    ///     Warns - with an offer to open the download page - when the driver required by the
+    ///     effective mount backend is not installed (Dokan/WinFsp on Windows, FUSE elsewhere).
+    /// </summary>
+    private void WarnIfMountDriverMissing()
+    {
+        try
+        {
+            var backend = MountBackendAvailability.ResolveEffective(_settingsService.Settings.MountBackend);
+            if (MountBackendAvailability.IsAvailable(backend, out var reason))
+                return;
+
+            var backendName = MountBackendAvailability.DisplayName(backend);
+            var driverName = MountBackendAvailability.DriverName(backend);
+            var downloadUrl = MountBackendAvailability.DownloadUrl(backend);
+
+            _loggingService.LogError($"{driverName} not found: {reason}");
+
+            var message =
+                $"SimpleZipDrive could not find the {driverName} required by the {backendName} mount backend.\n\n" +
+                $"{reason}\n\n" +
+                "Archives cannot be mounted until it is installed. " +
+                $"Would you like to open the {backendName} download page now?";
+            var result = MessageBox.Show(message, $"{driverName} Not Found",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                _loggingService.Log($"User declined to open the {backendName} download page.");
+                return;
+            }
+
+            if (!ShellHelper.OpenUrl(downloadUrl))
+            {
+                MessageBox.Show(
+                    $"Could not open the browser automatically.\n\nPlease visit:\n{downloadUrl}",
+                    "Open Download Page", MessageBoxButton.Ok, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorLoggerStatic.ReportSilentException(ex, "MainWindow.WarnIfMountDriverMissing failed", true);
         }
     }
 

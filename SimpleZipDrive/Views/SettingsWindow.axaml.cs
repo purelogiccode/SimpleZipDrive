@@ -42,25 +42,33 @@ public partial class SettingsWindow : Window
 
     private void PopulateBackends(MountBackend current)
     {
-        var options = new (string Label, MountBackend Value, bool Enabled)[]
-        {
-            ("Auto (recommended)", MountBackend.Auto, true),
-            ("Dokan (Windows)", MountBackend.Dokan, OperatingSystem.IsWindows()),
-            ("WinFsp (Windows)", MountBackend.WinFsp, OperatingSystem.IsWindows()),
-            ("FUSE (Linux/macOS)", MountBackend.Fuse, !OperatingSystem.IsWindows())
-        };
+        // Only offer the backends that exist on this platform: Dokan/WinFsp on Windows,
+        // FUSE on Linux/macOS. (A settings file moved between platforms is normalized on load.)
+        var options = OperatingSystem.IsWindows()
+            ? new (string Label, MountBackend Value)[]
+            {
+                ("Auto (prefers WinFsp)", MountBackend.Auto),
+                ("Dokan (default)", MountBackend.Dokan),
+                ("WinFsp", MountBackend.WinFsp)
+            }
+            : new (string Label, MountBackend Value)[]
+            {
+                ("Auto", MountBackend.Auto),
+                ("FUSE (libfuse3/macFUSE)", MountBackend.Fuse)
+            };
 
         var selectedIndex = 0;
         for (var i = 0; i < options.Length; i++)
         {
-            var (label, value, enabled) = options[i];
-            MountBackendComboBox.Items.Add(new ComboBoxItem { Content = label, Tag = value, IsEnabled = enabled });
-            if (value == current && enabled) selectedIndex = i;
+            var (label, value) = options[i];
+            MountBackendComboBox.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+            if (value == current) selectedIndex = i;
         }
 
         MountBackendComboBox.SelectedIndex = selectedIndex;
         BackendHintText.Text = OperatingSystem.IsWindows()
-            ? "Auto picks WinFsp when installed, otherwise Dokan. FUSE is used on Linux/macOS."
+            ? "Windows defaults to Dokan. Auto picks WinFsp when installed, otherwise Dokan. " +
+              "Install the driver for the backend you want to use."
             : "FUSE (libfuse3/macFUSE) is used on Linux/macOS.";
     }
 

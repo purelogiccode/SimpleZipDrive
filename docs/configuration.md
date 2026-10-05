@@ -15,6 +15,7 @@ Settings persist as **JSON** in `%LOCALAPPDATA%\SimpleZipDrive\settings.dat` (ed
 |---|---|---|---|
 | `MaxMemoryPerFileMb` | int | **512** | Maximum RAM used to cache a single decompressed entry. Clamped automatically to 1 MB … 90 % of installed RAM; re-validated at every load |
 | `DefaultMountType` | enum | `DriveLetter` | What the plain *Mount* menu item does: `DriveLetter` (auto M–Q) or `Folder` (asks for a folder) |
+| `MountBackend` | enum | `Dokan` on Windows, `Auto` on Linux/macOS | Filesystem driver to use. Windows offers `Dokan` (default), `WinFsp`, or `Auto`; Linux/macOS offer `Fuse` or `Auto` - FUSE is not offered on Windows and Dokan/WinFsp are not offered elsewhere (a settings file moved between platforms is normalized on load). If the selected driver is missing, a startup warning offers its download page |
 | `AutoOpenMountedDrive` | bool | `false` | Open the mount in a new Explorer window after a successful mount (`explorer /root,"<mountPoint>"`) |
 | `CrossIntegrityMount` | bool | `false` | *(WinFsp only)* Use permissive-DACL folder mounts visible to both standard and elevated processes; also forces folder mounting |
 | `CrossIntegrityMountFolder` | string | `""` | *(WinFsp only)* Base folder for cross-integrity mounts; empty = `%LOCALAPPDATA%\SimpleZipDrive\Mounts` |

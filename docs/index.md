@@ -74,6 +74,6 @@ See [Mount Backends](variants) for a detailed comparison and help choosing.
 |---|---|
 | Operating system | Windows 10/11 (x64 or ARM64), Linux (x64 or ARM64), macOS (Intel or Apple silicon) |
 | Runtime | [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
-| Filesystem driver | **Windows:** Dokan v2 2.3+ or WinFsp 2.1+ (selected in Settings; Auto prefers WinFsp) · **Linux:** libfuse3 · **macOS:** macFUSE |
+| Filesystem driver | **Windows:** Dokan v2 2.3+ (default) or WinFsp 2.1+ - install either driver and select it in Settings (Auto prefers WinFsp) · **Linux:** libfuse3 · **macOS:** macFUSE |
 | Disk space | ~15 MB for the application; temp space equal to the largest file you open when the disk cache is used |
 | Memory | The memory cache is clamped to 90 % of installed RAM; the per-entry default is 512 MB |

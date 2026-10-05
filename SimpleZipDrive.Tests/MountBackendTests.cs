@@ -60,9 +60,9 @@ public class MountBackendTests
     }
 
     [Fact]
-    public void AppSettings_MountBackend_DefaultsToAuto()
+    public void AppSettings_MountBackend_DefaultsToPlatformDefault()
     {
-        Assert.Equal(MountBackend.Auto, new AppSettings().MountBackend);
+        Assert.Equal(AppSettings.DefaultMountBackend, new AppSettings().MountBackend);
     }
 
     [Fact]
