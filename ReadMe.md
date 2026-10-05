@@ -8,7 +8,6 @@
 [![CI](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml)
 [![Release](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml)
 [![Wiki Sync](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml)
-
 [![Tests](https://img.shields.io/badge/tests-1454%20passing-brightgreen)](#-technical-architecture)
 [![C#](https://img.shields.io/badge/C%23-14-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
 [![Avalonia](https://img.shields.io/badge/Avalonia-12.1.3-8A2BE2)](https://avaloniaui.net/)
