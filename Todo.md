@@ -315,6 +315,12 @@ not catch; both are fixed:
   check and `MountService.ResolveBackend` now normalize the persisted backend for the current
   platform first, and `ErrorLogger.IsUserError` treats missing/unsupported filesystem drivers
   (Dokan, WinFsp, libfuse3, macFUSE, "only available on ...") as environment conditions.
+- **Avalonia render-pass crash forwarded as an application bug (bug reports #68051/#68052).**
+  A control template applied while a `TextBlock` with embedded inline controls was measured made
+  Avalonia invalidate a visual during the render pass. The trigger was removed from the About
+  window (its links are separate controls now), and `ErrorLogger.IsUserError` now classifies
+  `"Visual was invalidated during the render pass"` as an environment condition so the framework
+  exception from stale builds is no longer forwarded to the bug-report API.
 
 ## Notes
 

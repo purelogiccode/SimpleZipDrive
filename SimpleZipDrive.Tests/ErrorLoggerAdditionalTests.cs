@@ -385,6 +385,40 @@ public class ErrorLoggerAdditionalTests
         Assert.True(result);
     }
 
+    // ─── IsUserError: Avalonia render-pass invalidation is a framework condition ───
+
+    [Fact]
+    public void IsUserError_AvaloniaRenderPassInvalidation_ReturnsTrue()
+    {
+        // Avalonia throws InvalidOperationException("Visual was invalidated during the render pass")
+        // when a control template is applied while a TextBlock with embedded inline controls is
+        // measured during rendering. It is a framework condition, not an application bug, and must
+        // not be forwarded to the bug-report API (bug reports #68051/#68052).
+        var ex = new InvalidOperationException("Visual was invalidated during the render pass")
+        {
+            Source = "Avalonia.Base"
+        };
+        Assert.True(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_AvaloniaRenderPassInvalidationMessageOnly_ReturnsTrue()
+    {
+        // BugReportSink wraps message-only log events in an InvalidOperationException before
+        // classifying them, so the same text must be recognized without an Avalonia source.
+        var ex = new InvalidOperationException("Visual was invalidated during the render pass");
+        Assert.True(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_UnrelatedRenderFailure_ReturnsFalse()
+    {
+        // Only the exact Avalonia render-pass invalidation is an environment condition; other
+        // render/layout failures may be real application bugs and must stay reportable.
+        var ex = new InvalidOperationException("Failed to render the archive listing.");
+        Assert.False(ErrorLogger.IsUserError(ex));
+    }
+
     // ─── IsUserError: user/data errors observed in bug reports that must not be forwarded ───
 
     [Theory]

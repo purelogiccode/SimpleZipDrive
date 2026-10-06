@@ -535,7 +535,13 @@ public class ErrorLogger : IDisposable
              (messageLower.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
               messageLower.Contains("not available", StringComparison.OrdinalIgnoreCase))) ||
             messageLower.Contains("only available on linux and macos", StringComparison.OrdinalIgnoreCase) ||
-            messageLower.Contains("only available on windows", StringComparison.OrdinalIgnoreCase);
+            messageLower.Contains("only available on windows", StringComparison.OrdinalIgnoreCase) ||
+            // Avalonia framework condition: applying a control template while a TextBlock with
+            // embedded inline controls is measured makes Avalonia invalidate a visual during the
+            // render pass (bug reports #68051/#68052). The application-side trigger was removed
+            // (the About window no longer embeds links inline), but stale builds would otherwise
+            // keep forwarding the same framework exception as an application bug.
+            messageLower.Contains("visual was invalidated during the render pass", StringComparison.OrdinalIgnoreCase);
 
         return isArchiveError || isArchiveDataError || isDriveError || isPasswordError || isCancellationError ||
                isEnvironmentError;
