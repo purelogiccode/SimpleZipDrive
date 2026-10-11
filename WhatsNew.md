@@ -1,5 +1,16 @@
 # What's New
 
+## 3.1.1
+
+### Fixed
+- **The Avalonia render-pass crash (bug reports #68051/#68052) is no longer reported as an application bug.** Applying a control template while a `TextBlock` containing inline controls was measured made Avalonia invalidate a visual during the render pass. The About window no longer embeds its links inline, and the framework exception is now classified as an environment condition so stale builds cannot flood the bug-report API with it.
+- **Opening the browser no longer produces duplicate bug reports on systems with a broken URL association (bug reports #68197/#68198).** When shell execution failed (*"Class not registered"* - e.g. clicking a driver download link on a machine with a partially broken shell registration), the failure was reported twice: once as a warning carrying the exception and once as an error carrying only the message. On Windows the URL is now retried through the URL protocol handler (`rundll32 url.dll,FileProtocolHandler`), shell-launch failures are classified as environment conditions, and each failure reaches the API at most once (the in-app mirror is informational).
+
+### Internal
+- Dependency updates: Avalonia 12.1.4, SharpCompress 0.50.5, Meziantou.Analyzer 3.0.299 and xunit.runner.visualstudio 4.0.1; the separate Roslynator code-analysis and formatting packages were consolidated into the single `Roslynator.Analyzers` 5.0.1 package.
+- Documentation refresh for the 3.1.1 release (version references and the packaging guide); the developer review notes file `Todo.md` was removed from the repository.
+- The suite now contains **1,466 tests** and stays analyzer-warning-clean.
+
 ## 3.1.0
 
 ### Added
@@ -15,8 +26,6 @@
 - **Dialogs answer the keyboard again.** Message boxes now honour Enter (default button) and Escape (Cancel/No), exactly like the WPF `MessageBox` they replaced; concurrent password prompts are serialized instead of nesting dispatcher loops, and dialogs are owned by the active window (so a prompt opened from Settings is not stacked behind the main window).
 - **Shutdown hardening.** The update prompt can no longer appear after shutdown began, the log writer's token source is no longer disposed while its background task is still using it, and the screenshot file-name helper no longer overwrites the 1000th same-millisecond capture.
 - **Error reporting is narrower where it should be.** Only WinFsp assembly-load failures and missing *application* data/temp paths are treated as environment conditions; missing unrelated assemblies or paths are reported again instead of being silently suppressed. Missing/unsupported filesystem drivers (Dokan, WinFsp, libfuse3, macFUSE) and a backend that does not exist on the current OS are also environment conditions now, so the startup warning can no longer send a bogus *"libfuse3 not found: FUSE is only available on Linux and macOS"* report from a Windows machine (bug report #68046).
-- **The Avalonia render-pass crash (bug reports #68051/#68052) is no longer reported as an application bug.** Applying a control template while a `TextBlock` containing inline controls was measured made Avalonia invalidate a visual during the render pass. The About window no longer embeds its links inline, and the framework exception is now classified as an environment condition so stale builds cannot flood the bug-report API with it.
-- **Opening the browser no longer produces duplicate bug reports on systems with a broken URL association (bug reports #68197/#68198).** When shell execution failed (*"Class not registered"* - e.g. clicking a driver download link on a machine with a partially broken shell registration), the failure was reported twice: once as a warning carrying the exception and once as an error carrying only the message. On Windows the URL is now retried through the URL protocol handler (`rundll32 url.dll,FileProtocolHandler`), shell-launch failures are classified as environment conditions, and each failure reaches the API at most once (the in-app mirror is informational).
 - **A settings file moved between platforms can no longer produce a nonsensical driver warning.** The startup driver check and the mount-backend selection normalize the persisted backend for the current platform first (FUSE → Dokan on Windows, Dokan/WinFsp → FUSE on Linux/macOS), matching the normalization already applied when settings are loaded.
 - **`F1` now actually opens the About window.** The *Help → About* menu advertised `F1` through `InputGesture`, which is display-only in Avalonia; it is now a real `HotKey`.
 - **Mount service no longer blocks the UI thread on unmount.** The backend facade now disposes the previous backend on a background thread (its driver grace delay used to freeze the interface for ~0.5 s after every unmount and failed mount) and publishes the new backend only after the old one has been unmounted and released, so a concurrent unmount can never target the wrong instance.
@@ -30,7 +39,7 @@
 - Passwords for fallback extraction are passed as a command-line argument to the short-lived 7-Zip process (see [Security & Privacy](docs/security.md)); the process runs headless and exits as soon as the entry is extracted.
 
 ### Internal
-- All 37 findings from the deep review in `Todo.md` are fixed; the suite grew to **1,454 tests** and stays analyzer-warning-clean.
+- All 37 findings from the deep review that preceded this release are fixed; the suite grew to **1,454 tests** and stays analyzer-warning-clean.
 - Documentation (`docs/`) is published both as the repository wiki (side menu in `docs/_Sidebar.md`) and as a GitHub Pages site (just-the-docs navigation via `docs/_config.yml`).
 
 ## 3.0.1

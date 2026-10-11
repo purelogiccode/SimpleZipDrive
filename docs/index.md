@@ -10,7 +10,7 @@ nav_order: 1
 
 **SimpleZipDrive** is a cross-platform application for **Windows, Linux, and macOS** that mounts `ZIP`, `7Z`, `RAR`, and `TAR` archives (including compressed TAR variants and comic-book archives), Zstd-seekable `.zar` containers, and Xbox XISO disc images as **virtual drives or directory mount points**. Mounted archives appear and behave exactly like a regular drive in your file manager and every other application — files can be browsed, opened, and streamed directly from the archive without extracting it first.
 
-**Current version: 3.1.0** · License: [GPL v3](https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt) · Downloads: [Releases](https://github.com/purelogiccode/SimpleZipDrive/releases)
+**Current version: 3.1.1** · License: [GPL v3](https://github.com/purelogiccode/SimpleZipDrive/blob/master/LICENSE.txt) · Downloads: [Releases](https://github.com/purelogiccode/SimpleZipDrive/releases)
 
 ---
 

@@ -12,28 +12,30 @@ nav_order: 19
 Every release ships **six** zip packages - one per supported runtime identifier:
 
 ```
-release_<version>_<rid>.zip
-     3.1.0     win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
+release_<version>_<rid>.zip     (e.g. release_3.1.1_win-x64.zip)
+<rid> = win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
 ```
 
 | Package | Contents |
 |---|---|
-| `._win-x64.zip` | `SimpleZipDrive.exe`, `7za.exe`, `7zip-license.txt`, `winfsp-msil.dll`, Avalonia native libraries (`libSkiaSharp.dll`, `libHarfBuzzSharp.dll`, `av_libglesv2.dll`), `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
-| `._win-arm64.zip` | same layout (ARM64 `7za.exe`) |
-| `._linux-x64.zip` / `._linux-arm64.zip` | `SimpleZipDrive` (apphost), `7zzs`, `7zip-license.txt`, `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
-| `._osx-x64.zip` / `._osx-arm64.zip` | `SimpleZipDrive`, universal `7zz`, `7zip-license.txt`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
+| `release_<version>_win-x64.zip` | `SimpleZipDrive.exe`, `7za.exe`, `7zip-license.txt`, `winfsp-msil.dll`, Avalonia native libraries (`libSkiaSharp.dll`, `libHarfBuzzSharp.dll`, `av_libglesv2.dll`), `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
+| `release_<version>_win-arm64.zip` | same layout (ARM64 `7za.exe`) |
+| `release_<version>_linux-x64.zip` / `release_<version>_linux-arm64.zip` | `SimpleZipDrive` (apphost), `7zzs`, `7zip-license.txt`, `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
+| `release_<version>_osx-x64.zip` / `release_<version>_osx-arm64.zip` | `SimpleZipDrive`, universal `7zz`, `7zip-license.txt`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
 
 All are **framework-dependent single-file** executables: the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only prerequisites.
 
 ## Automated builds (GitHub Actions)
 
-Three workflows live in `.github/workflows`:
+Three workflows live in `.github/workflows`, and GitHub's built-in Pages deployment publishes the
+documentation site from `docs/`:
 
 | Workflow | Trigger | What it does |
 |---|---|---|
 | `ci.yml` | Every push/PR to `master` | Builds and tests the solution on Windows and compiles the app on Ubuntu and macOS |
 | `release.yml` | `workflow_dispatch` (version input) or a `release_*` tag push | Verifies the csproj version matches, builds + tests on Windows, publishes and packages the six bundles on Windows/Linux/macOS runners, uploads them as `release-bundles-*` artifacts, then **waits for approval in the protected `release` environment** before creating/updating the GitHub release |
-| `wiki-sync.yml` | Push to `master` touching `docs/**` (or manually) | Mirrors `docs/*.md` into the repository wiki (`index.md` → `Home.md`) |
+| `wiki-sync.yml` | Push to `master` touching `docs/**` (or manually) | Mirrors `docs/*.md` into the repository wiki (`index.md` → `Home.md`); the wiki side menu comes from `docs/_Sidebar.md` |
+| Built-in Pages build (`pages-build-deployment`) | Push to `master` touching `docs/**` | Builds `docs/` with Jekyll (just-the-docs theme) and deploys <https://purelogiccode.github.io/SimpleZipDrive/>; the site side menu comes from the `parent`/`nav_order` front matter in each page |
 
 ### Reviewing a release before it is published
 
@@ -52,10 +54,10 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 
 ```powershell
 # All six targets (any host can build any runtime identifier)
-.\scripts\package-release.ps1 -Version 3.1.0
+.\scripts\package-release.ps1 -Version 3.1.1
 
 # Only the targets for one OS
-.\scripts\package-release.ps1 -Version 3.1.0 -RuntimeIdentifiers win-x64,win-arm64
+.\scripts\package-release.ps1 -Version 3.1.1 -RuntimeIdentifiers win-x64,win-arm64
 ```
 
 It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. On Linux/macOS the script uses the `zip` CLI so the apphost and the 7-Zip binary keep their executable bit; on Windows it writes the zip through `System.IO.Compression`, records the Unix executable bit (external attributes) explicitly for Linux/macOS bundles, and patches the *version-made-by* host byte of every real central-directory header to Unix (located through the end-of-central-directory record, never by scanning for the signature - compressed data can contain the same bytes) - so **all six bundles can be produced from any host** (CI still builds each OS on its matching runner).
