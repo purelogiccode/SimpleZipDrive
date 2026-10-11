@@ -536,6 +536,18 @@ public class ErrorLogger : IDisposable
               messageLower.Contains("not available", StringComparison.OrdinalIgnoreCase))) ||
             messageLower.Contains("only available on linux and macos", StringComparison.OrdinalIgnoreCase) ||
             messageLower.Contains("only available on windows", StringComparison.OrdinalIgnoreCase) ||
+            // Shell-launch failures: the system has no handler associated with the URL/file type
+            // or its shell/COM registration is partially broken, so Process.Start cannot launch
+            // the browser or file manager (bug reports #68197/#68198 — "Class not registered"
+            // when opening the Dokan download page). Covered for both the Win32Exception thrown
+            // by Process.Start ("An error occurred trying to start process ...") and the
+            // message-only mirror logged by ShellHelper ("Could not open URL: ..."), so the
+            // scope stays on launches rather than on unrelated COM failures.
+            (messageLower.Contains("class not registered", StringComparison.OrdinalIgnoreCase) &&
+             (messageLower.Contains("trying to start process", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("could not open url", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("could not open folder", StringComparison.OrdinalIgnoreCase))) ||
+            messageLower.Contains("no application is associated with the specified file", StringComparison.OrdinalIgnoreCase) ||
             // Avalonia framework condition: applying a control template while a TextBlock with
             // embedded inline controls is measured makes Avalonia invalidate a visual during the
             // render pass (bug reports #68051/#68052). The application-side trigger was removed

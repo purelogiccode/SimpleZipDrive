@@ -378,6 +378,14 @@ public class ErrorLoggerAdditionalTests
     [InlineData("Dokan is not available: The Dokan driver (dokan2.dll) is not installed. Unable to mount archive.")]
     [InlineData("WinFsp is not available: The WinFsp driver is not installed. Unable to mount archive.")]
     [InlineData("Dokan is not available: Dokan is only available on Windows.")]
+    // Shell-launch failures: broken URL/file association or shell COM registration
+    // (bug reports #68197/#68198 — opening the Dokan download page).
+    [InlineData(
+        "An error occurred trying to start process 'https://github.com/dokan-dev/dokany/releases' with working directory 'C:\\Portable\\SimpleZipDrive'. Class not registered")]
+    [InlineData(
+        "Could not open URL: An error occurred trying to start process 'https://github.com/dokan-dev/dokany/releases' with working directory 'C:\\Portable\\SimpleZipDrive'. Class not registered")]
+    [InlineData(
+        "An error occurred trying to start process 'https://example.com' with working directory 'C:\\App'. No application is associated with the specified file for this operation.")]
     public void IsUserError_ExpectedEnvironmentOrUserConditions_ReturnsTrue(string message)
     {
         var ex = new InvalidOperationException(message);
@@ -408,6 +416,19 @@ public class ErrorLoggerAdditionalTests
         // classifying them, so the same text must be recognized without an Avalonia source.
         var ex = new InvalidOperationException("Visual was invalidated during the render pass");
         Assert.True(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_UnrelatedComRegistrationFailure_ReturnsFalse()
+    {
+        // Only shell-launch failures are environment conditions; an unrelated COM activation
+        // failure mentioning the same "Class not registered" error may be a real application
+        // bug and must stay reportable.
+        var ex = new InvalidOperationException(
+            "Retrieving the COM class factory for component with CLSID " +
+            "{00020906-0000-0000-C000-000000000046} failed due to the following error: " +
+            "80040154 Class not registered (Exception from HRESULT: 0x80040154 (REGDB_E_CLASSNOTREG)).");
+        Assert.False(ErrorLogger.IsUserError(ex));
     }
 
     [Fact]

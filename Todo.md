@@ -321,6 +321,14 @@ not catch; both are fixed:
   window (its links are separate controls now), and `ErrorLogger.IsUserError` now classifies
   `"Visual was invalidated during the render pass"` as an environment condition so the framework
   exception from stale builds is no longer forwarded to the bug-report API.
+- **Duplicate bug reports for a failed shell launch (bug reports #68197/#68198).** Opening the
+  Dokan download page failed with *"Class not registered"* on a Windows installation with a
+  partially broken shell/URL association. `ShellHelper.OpenUrl` now retries through the URL
+  protocol handler (`rundll32 url.dll,FileProtocolHandler`), reports each failure once (the
+  error-level mirror used to send a second, message-only ticket), and `ErrorLogger.IsUserError`
+  classifies shell-launch environment failures ("Class not registered" while starting a process,
+  and missing file/protocol associations) as non-bugs while unrelated COM registration failures
+  stay reportable.
 
 ## Notes
 
