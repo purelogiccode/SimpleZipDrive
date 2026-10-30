@@ -34,14 +34,14 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="DokanNet" Version="2.3.0.3" />
-        <PackageReference Include="winfsp.net" Version="2.1.25156" />
+        <PackageReference Include="winfsp.net" Version="2.2.26286" />
         <PackageReference Include="Serilog" Version="4.4.0" />
         <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-        <PackageReference Include="SharpCompress" Version="0.50.5" />
-        <PackageReference Include="XISOSharp" Version="1.4.2" />
+        <PackageReference Include="SharpCompress" Version="0.50.7" />
+        <PackageReference Include="XISOSharp" Version="1.4.4" />
         <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
-        <PackageReference Include="Meziantou.Analyzer" Version="3.0.299">
+        <PackageReference Include="Meziantou.Analyzer" Version="3.0.318">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
