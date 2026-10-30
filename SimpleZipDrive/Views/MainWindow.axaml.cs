@@ -28,7 +28,6 @@ public partial class MainWindow : Window, IDisposable
     private readonly IMountService _mountService;
     private readonly IScreenshotService _screenshotService;
     private readonly ISettingsService _settingsService;
-    private int _isShuttingDown;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="MainWindow" /> class and wires it to the
@@ -536,7 +535,7 @@ public partial class MainWindow : Window, IDisposable
 
     private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
     {
-        if (Interlocked.Exchange(ref _isShuttingDown, 1) != 0)
+        if (!App.TryBeginShutdown())
             return;
 
         e.Cancel = true;

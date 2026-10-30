@@ -440,6 +440,38 @@ public class ErrorLoggerAdditionalTests
         Assert.False(ErrorLogger.IsUserError(ex));
     }
 
+    // ─── IsUserError: duplicate platform shutdown requests are a framework shutdown race ───
+
+    [Fact]
+    public void IsUserError_AvaloniaAlreadyShuttingDown_ReturnsTrue()
+    {
+        // Avalonia's ClassicDesktopStyleApplicationLifetime throws this when an OS shutdown
+        // request arrives while a shutdown is already running (bug report #68244). It is a
+        // shutdown race, not an application bug, and must not be forwarded to the API.
+        var ex = new InvalidOperationException("Application is already shutting down.")
+        {
+            Source = "Avalonia.Controls"
+        };
+        Assert.True(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_AvaloniaAlreadyShuttingDownMessageOnly_ReturnsTrue()
+    {
+        // BugReportSink wraps message-only log events in an InvalidOperationException before
+        // classifying them, so the same text must be recognized without an Avalonia source.
+        var ex = new InvalidOperationException("Application is already shutting down.");
+        Assert.True(ErrorLogger.IsUserError(ex));
+    }
+
+    [Fact]
+    public void IsUserError_UnrelatedShutdownFailure_ReturnsFalse()
+    {
+        // Other shutdown failures may be real application bugs and must stay reportable.
+        var ex = new InvalidOperationException("Application shutdown failed.");
+        Assert.False(ErrorLogger.IsUserError(ex));
+    }
+
     // ─── IsUserError: user/data errors observed in bug reports that must not be forwarded ───
 
     [Theory]

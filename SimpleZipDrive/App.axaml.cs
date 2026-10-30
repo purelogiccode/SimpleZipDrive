@@ -27,6 +27,19 @@ public class App : Application
     /// </summary>
     internal static CancellationTokenSource ShutdownCts { get; } = new();
 
+    private static int _shutdownStarted;
+
+    /// <summary>
+    ///     Gets a value indicating whether the application has started its graceful shutdown.
+    /// </summary>
+    internal static bool IsShuttingDown => Volatile.Read(ref _shutdownStarted) != 0;
+
+    /// <summary>
+    ///     Marks the start of the graceful shutdown.
+    /// </summary>
+    /// <returns><see langword="true" /> the first time; <see langword="false" /> if shutdown already started.</returns>
+    internal static bool TryBeginShutdown() => Interlocked.Exchange(ref _shutdownStarted, 1) == 0;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -38,6 +51,7 @@ public class App : Application
         {
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
             desktop.Exit += OnDesktopExit;
+            desktop.ShutdownRequested += OnDesktopShutdownRequested;
             StartupArgs = desktop.Args ?? [];
 
             DiagnosticLogger.CleanupOldLogs();
@@ -121,6 +135,7 @@ public class App : Application
                 catch (Exception ex)
                 {
                     ErrorLoggerStatic.ReportSilentException(ex, "App.OnStartup: Failed to create the main window");
+                    _ = TryBeginShutdown();
                     desktop.Shutdown(1);
                 }
             }
@@ -223,6 +238,20 @@ public class App : Application
         {
             return Task.FromException(exception);
         }
+    }
+
+    /// <summary>
+    ///     Handles a shutdown request from the platform (on Windows, a <c>WM_QUERYENDSESSION</c> message).
+    ///     Avalonia runs its own synchronous shutdown for these requests. If the application is already
+    ///     unmounting and exiting, that would start a second shutdown and throw
+    ///     <see cref="InvalidOperationException" /> from the native window procedure, which terminates
+    ///     the process as an unhandled <see cref="AppDomain" /> exception (bug report #68244). Veto the
+    ///     duplicate request so the shutdown already in progress can finish.
+    /// </summary>
+    private static void OnDesktopShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+    {
+        if (IsShuttingDown)
+            e.Cancel = true;
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)

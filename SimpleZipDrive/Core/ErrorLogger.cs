@@ -553,7 +553,12 @@ public class ErrorLogger : IDisposable
             // render pass (bug reports #68051/#68052). The application-side trigger was removed
             // (the About window no longer embeds links inline), but stale builds would otherwise
             // keep forwarding the same framework exception as an application bug.
-            messageLower.Contains("visual was invalidated during the render pass", StringComparison.OrdinalIgnoreCase);
+            messageLower.Contains("visual was invalidated during the render pass", StringComparison.OrdinalIgnoreCase) ||
+            // Avalonia's desktop lifetime throws this when a platform shutdown request (on Windows,
+            // WM_QUERYENDSESSION) arrives while a shutdown is already running (bug report #68244).
+            // The app now vetoes duplicate requests, but stale builds would otherwise keep forwarding
+            // this expected shutdown race as an application bug.
+            messageLower.Contains("application is already shutting down", StringComparison.OrdinalIgnoreCase);
 
         return isArchiveError || isArchiveDataError || isDriveError || isPasswordError || isCancellationError ||
                isEnvironmentError;

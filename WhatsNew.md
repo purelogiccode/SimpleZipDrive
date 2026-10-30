@@ -3,13 +3,14 @@
 ## 3.1.1
 
 ### Fixed
+- **Closing the app while Windows is shutting down no longer crashes with *"Application is already shutting down"* (bug report #68244).** When Windows requested a session end (`WM_QUERYENDSESSION`) while the app was already unmounting and exiting, Avalonia's lifetime started a second shutdown and threw from the native window procedure, which surfaced as an unhandled `AppDomain` exception. Duplicate shutdown requests are now vetoed so the shutdown already in progress can finish, and the framework exception is classified as an environment condition so stale builds stop forwarding it.
 - **The Avalonia render-pass crash (bug reports #68051/#68052) is no longer reported as an application bug.** Applying a control template while a `TextBlock` containing inline controls was measured made Avalonia invalidate a visual during the render pass. The About window no longer embeds its links inline, and the framework exception is now classified as an environment condition so stale builds cannot flood the bug-report API with it.
 - **Opening the browser no longer produces duplicate bug reports on systems with a broken URL association (bug reports #68197/#68198).** When shell execution failed (*"Class not registered"* - e.g. clicking a driver download link on a machine with a partially broken shell registration), the failure was reported twice: once as a warning carrying the exception and once as an error carrying only the message. On Windows the URL is now retried through the URL protocol handler (`rundll32 url.dll,FileProtocolHandler`), shell-launch failures are classified as environment conditions, and each failure reaches the API at most once (the in-app mirror is informational).
 
 ### Internal
 - Dependency updates: Avalonia 12.1.4, SharpCompress 0.50.5, Meziantou.Analyzer 3.0.299 and xunit.runner.visualstudio 4.0.1; the separate Roslynator code-analysis and formatting packages were consolidated into the single `Roslynator.Analyzers` 5.0.1 package.
 - Documentation refresh for the 3.1.1 release (version references and the packaging guide); the developer review notes file `Todo.md` was removed from the repository.
-- The suite now contains **1,466 tests** and stays analyzer-warning-clean.
+- The suite now contains **1,469 tests** and stays analyzer-warning-clean.
 
 ## 3.1.0
 
