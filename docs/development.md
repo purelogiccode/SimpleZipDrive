@@ -38,7 +38,16 @@ dotnet test SimpleZipDrive.Tests -c Release
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push and pull request to `master`: restore, Release build (must stay analyzer-warning-clean), full test suite on Windows, and cross-platform compilation on Ubuntu/macOS. The release workflow (`release.yml`) re-verifies and packages the six platform bundles behind the protected `release` environment; the wiki sync workflow mirrors `docs/` to the repository wiki. See [Building & Packaging](building-and-packaging#automated-builds-github-actions).
+`.github/workflows/ci.yml` runs on every push and pull request to `master`: restore, Release build with warnings treated as errors, the full test suite with coverage on Windows, cross-platform compilation on Ubuntu/macOS, and a NuGet vulnerability audit. The `CI success` job aggregates the results so branch protection can require a single status check.
+
+Security automation runs alongside it:
+
+- `codeql.yml` - CodeQL analysis of the C# code and the GitHub Actions workflows (push, PR and a weekly schedule).
+- `dependency-review.yml` - blocks pull requests that introduce high-severity runtime dependencies.
+- `scorecard.yml` - OpenSSF Scorecard supply-chain analysis, published to code scanning.
+- `dependabot.yml` - weekly grouped update PRs for NuGet packages and GitHub Actions.
+
+The release workflow (`release.yml`) re-verifies and packages the six platform bundles behind the protected `release` environment; the wiki sync workflow mirrors `docs/` to the repository wiki. See [Building & Packaging](building-and-packaging#automated-builds-github-actions). Security reports go through the process in [`SECURITY.md`](https://github.com/purelogiccode/SimpleZipDrive/blob/master/SECURITY.md).
 
 ## Code conventions
 

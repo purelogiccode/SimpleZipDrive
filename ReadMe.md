@@ -6,6 +6,8 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.txt)
 [![GitHub release](https://img.shields.io/github/v/release/purelogiccode/SimpleZipDrive)](https://github.com/purelogiccode/SimpleZipDrive/releases)
 [![CI](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/codeql.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/purelogiccode/SimpleZipDrive/badge)](https://securityscorecards.dev/viewer/?uri=github.com/purelogiccode/SimpleZipDrive)
 [![Release](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml)
 [![Wiki Sync](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml)
 [![Tests](https://img.shields.io/badge/tests-1469%20passing-brightgreen)](#-technical-architecture)

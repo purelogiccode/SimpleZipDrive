@@ -27,12 +27,16 @@ All are **framework-dependent single-file** executables: the [.NET 10 runtime](h
 
 ## Automated builds (GitHub Actions)
 
-Three workflows live in `.github/workflows`, and GitHub's built-in Pages deployment publishes the
-documentation site from `docs/`:
+The automation in `.github` covers build, test, release and security, and GitHub's built-in
+Pages deployment publishes the documentation site from `docs/`:
 
-| Workflow | Trigger | What it does |
+| Workflow / config | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | Every push/PR to `master` | Builds and tests the solution on Windows and compiles the app on Ubuntu and macOS |
+| `ci.yml` | Every push/PR to `master` (or manually) | Builds the solution with warnings as errors and runs the full test suite with coverage on Windows, compiles the app on Ubuntu and macOS, audits NuGet packages for known vulnerabilities, and exposes the `CI success` gate |
+| `codeql.yml` | Push/PR to `master`, weekly schedule (or manually) | Runs CodeQL `security-extended` analysis for C# and the GitHub Actions workflows and uploads the results to code scanning |
+| `dependency-review.yml` | Pull requests to `master` | Fails the PR when it adds a high-severity runtime dependency with a known vulnerability |
+| `scorecard.yml` | Push to `master`, weekly schedule, branch-protection changes (or manually) | Runs the OpenSSF Scorecard supply-chain checks and uploads the SARIF report to code scanning |
+| `dependabot.yml` | Weekly | Opens grouped update PRs for NuGet packages and GitHub Actions |
 | `release.yml` | `workflow_dispatch` (version input) or a `release_*` tag push | Verifies the csproj version matches, builds + tests on Windows, publishes and packages the six bundles on Windows/Linux/macOS runners, uploads them as `release-bundles-*` artifacts, then **waits for approval in the protected `release` environment** before creating/updating the GitHub release |
 | `wiki-sync.yml` | Push to `master` touching `docs/**` (or manually) | Mirrors `docs/*.md` into the repository wiki (`index.md` → `Home.md`); the wiki side menu comes from `docs/_Sidebar.md` |
 | Built-in Pages build (`pages-build-deployment`) | Push to `master` touching `docs/**` | Builds `docs/` with Jekyll (just-the-docs theme) and deploys <https://purelogiccode.github.io/SimpleZipDrive/>; the site side menu comes from the `parent`/`nav_order` front matter in each page |
