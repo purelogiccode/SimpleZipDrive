@@ -85,12 +85,23 @@ public class ZipFileSystemCore : IDisposable
         MaxTotalMemoryCache = (long)(availableMemory * 0.90);
 
         var tempDirName = ZipFsHelpers.GenerateTempDirectoryName();
-        TempDirectoryPath = Path.Combine(ZipFsHelpers.BaseTempPath, tempDirName);
         ZipFsHelpers.RegisterCurrentTempDirectory(tempDirName);
+        var tempDirectoryPath = string.Empty;
 
         try
         {
-            Directory.CreateDirectory(TempDirectoryPath);
+            // Falls back to the system temp root when the application data folder is unusable
+            // (e.g. redirected to a volume that is no longer attached), so a broken settings
+            // folder cannot prevent mounting.
+            tempDirectoryPath = ZipFsHelpers.CreateSessionTempDirectory(tempDirName);
+            TempDirectoryPath = tempDirectoryPath;
+
+            if (!string.Equals(Path.GetDirectoryName(tempDirectoryPath), ZipFsHelpers.BaseTempPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                DiagnosticLogger.Log($"  Temp root fallback: '{tempDirectoryPath}' " +
+                                     $"(preferred root '{ZipFsHelpers.BaseTempPath}' is not usable).");
+            }
 
             // Get file path for SevenZip fallback (if stream is a FileStream)
             if (archiveStream is FileStream fs) _archiveFilePath = fs.Name;
@@ -125,12 +136,13 @@ public class ZipFileSystemCore : IDisposable
             // just-created temp directory and its registration here to avoid leaking it.
             try
             {
-                if (Directory.Exists(TempDirectoryPath)) Directory.Delete(TempDirectoryPath, true);
+                if (tempDirectoryPath.Length > 0 && Directory.Exists(tempDirectoryPath))
+                    Directory.Delete(tempDirectoryPath, true);
             }
             catch (Exception cleanupEx)
             {
                 DiagnosticLogger.Log(cleanupEx,
-                    $"Failed to remove temp directory '{TempDirectoryPath}' after a failed construction.");
+                    $"Failed to remove temp directory '{tempDirectoryPath}' after a failed construction.");
             }
 
             ZipFsHelpers.ClearCurrentTempDirectory(tempDirName);
@@ -1264,21 +1276,46 @@ public class ZipFileSystemCore : IDisposable
     /// <summary>
     ///     Reads from a cached entry stream, handling StoredEntryStream and seekable/non-seekable streams.
     /// </summary>
+    /// <remarks>
+    ///     Windows may issue concurrent reads on the same open handle (paging I/O, multiple readers
+    ///     of one file), so seeking and reading must be a single atomic operation. Otherwise one
+    ///     thread can move the shared stream position between another thread's seek and read, which
+    ///     returns the wrong data or - for <see cref="MemoryStream" /> - throws
+    ///     "Offset and length were out of bounds" from <c>Buffer.BlockCopy</c> (bug report #69584).
+    /// </remarks>
     public static int ReadStream(Stream stream, long offset, byte[] buffer, int bufferOffset, int count)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(buffer);
+
         if (stream is StoredEntryStream stored) return stored.ReadAt(offset, buffer, bufferOffset, count);
+
+        if (stream is SharedMemoryStream shared) return shared.ReadAt(offset, buffer, bufferOffset, count);
+
+        if (stream is FileStream { CanSeek: true } fileStream)
+        {
+            // RandomAccess reads do not touch the shared file position, so concurrent reads on the
+            // same handle cannot interleave.
+            if (offset < 0 || offset >= fileStream.Length) return 0;
+
+            return RandomAccess.Read(fileStream.SafeFileHandle, buffer.AsSpan(bufferOffset, count), offset);
+        }
 
         if (stream.CanSeek)
         {
-            if (offset >= stream.Length) return 0;
+            // Serialize seek+read for any other seekable stream (e.g. a MemoryStream supplied by a
+            // caller or a custom archive stream) so concurrent reads on the same handle stay atomic.
+            lock (stream)
+            {
+                if (offset >= stream.Length) return 0;
 
-            stream.Position = offset;
+                stream.Position = offset;
+                return stream.Read(buffer, bufferOffset, count);
+            }
         }
-        else
-        {
-            if (offset != stream.Position)
-                throw new InvalidOperationException("Non-sequential read requested for non-seekable stream.");
-        }
+
+        if (offset != stream.Position)
+            throw new InvalidOperationException("Non-sequential read requested for non-seekable stream.");
 
         return stream.Read(buffer, bufferOffset, count);
     }

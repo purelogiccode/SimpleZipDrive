@@ -898,7 +898,9 @@ public class WinFspMountService : IDisposable, IMountService
                 _currentZipFs = null;
                 host.Dispose();
                 var detail = GetDeepestMessage(ex);
-                _loggingService.LogError($"WinFsp mount error: {detail}");
+                // Informational mirror only: the exception is reported through the error logger
+                // below, so the bug report API sees at most one event per failure.
+                _loggingService.Log($"WinFsp mount error: {detail}");
 
                 if (IsVersionMismatchError(ex))
                 {
@@ -995,7 +997,7 @@ public class WinFspMountService : IDisposable, IMountService
                                    ex.Message.Contains("mount", StringComparison.OrdinalIgnoreCase))
         {
             DiagnosticLogger.Log(ex, "Mount error (drive/mount)");
-            _loggingService.LogError($"Mount error: {ex.Message}");
+            _loggingService.Log($"Mount error: {ex.Message}");
             ErrorLoggerStatic.ReportSilentException(ex,
                 $"WinFspMountService.AttemptMountLifecycleAsync: Drive/mount error for '{archivePath}' to '{mountPoint}'",
                 true);
@@ -1005,7 +1007,7 @@ public class WinFspMountService : IDisposable, IMountService
         catch (Exception ex)
         {
             DiagnosticLogger.Log(ex, "Mount error (general)");
-            _loggingService.LogError($"Mount error: {ex.Message}");
+            _loggingService.Log($"Mount error: {ex.Message}");
             ErrorLoggerStatic.LogErrorSync(ex,
                 $"WinFspMountService.AttemptMountLifecycleAsync: Error mounting archive '{archivePath}' to '{mountPoint}'");
             CurrentArchivePath = null;

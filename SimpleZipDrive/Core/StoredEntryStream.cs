@@ -15,6 +15,10 @@ internal sealed class StoredEntryStream : Stream
     private readonly Lock _sourceLock;
 
     private readonly Stream _sourceStream;
+
+    // Guards the read-ahead state so concurrent ReadAt calls (Windows can read the same handle
+    // from several threads) cannot observe half-updated read-ahead fields.
+    private readonly Lock _stateLock = new();
     private bool _disposed;
     private long _lastReadEnd = -1;
     private long _position;
@@ -137,46 +141,49 @@ internal sealed class StoredEntryStream : Stream
         var maxBytes = (int)Math.Min(count, Length - fileOffset);
         if (maxBytes <= 0) return 0;
 
-        var buf = _readAheadBuffer;
-        if (buf != null)
+        lock (_stateLock)
         {
-            var isSequential = _lastReadEnd >= 0 && fileOffset == _lastReadEnd;
-
-            switch (isSequential)
+            var buf = _readAheadBuffer;
+            if (buf != null)
             {
-                case true
-                    when _readAheadFileOffset >= 0
-                         && fileOffset >= _readAheadFileOffset
-                         && fileOffset < _readAheadFileOffset + _readAheadLength:
-                {
-                    var bufStart = (int)(fileOffset - _readAheadFileOffset);
-                    var available = _readAheadLength - bufStart;
-                    var toCopy = Math.Min(maxBytes, available);
-                    Buffer.BlockCopy(buf, bufStart, buffer, bufferOffset, toCopy);
-                    _position = fileOffset + toCopy;
-                    _lastReadEnd = fileOffset + toCopy;
-                    return toCopy;
-                }
-                case true:
-                {
-                    var readAheadSize = (int)Math.Min(ReadAheadBufferSize, Length - fileOffset);
-                    var directBytes = ReadFromSource(fileOffset, buf, 0, readAheadSize);
-                    _readAheadFileOffset = fileOffset;
-                    _readAheadLength = directBytes;
+                var isSequential = _lastReadEnd >= 0 && fileOffset == _lastReadEnd;
 
-                    var resultBytes = Math.Min(maxBytes, directBytes);
-                    Buffer.BlockCopy(buf, 0, buffer, bufferOffset, resultBytes);
-                    _position = fileOffset + resultBytes;
-                    _lastReadEnd = fileOffset + resultBytes;
-                    return resultBytes;
+                switch (isSequential)
+                {
+                    case true
+                        when _readAheadFileOffset >= 0
+                             && fileOffset >= _readAheadFileOffset
+                             && fileOffset < _readAheadFileOffset + _readAheadLength:
+                    {
+                        var bufStart = (int)(fileOffset - _readAheadFileOffset);
+                        var available = _readAheadLength - bufStart;
+                        var toCopy = Math.Min(maxBytes, available);
+                        Buffer.BlockCopy(buf, bufStart, buffer, bufferOffset, toCopy);
+                        _position = fileOffset + toCopy;
+                        _lastReadEnd = fileOffset + toCopy;
+                        return toCopy;
+                    }
+                    case true:
+                    {
+                        var readAheadSize = (int)Math.Min(ReadAheadBufferSize, Length - fileOffset);
+                        var directBytes = ReadFromSource(fileOffset, buf, 0, readAheadSize);
+                        _readAheadFileOffset = fileOffset;
+                        _readAheadLength = directBytes;
+
+                        var resultBytes = Math.Min(maxBytes, directBytes);
+                        Buffer.BlockCopy(buf, 0, buffer, bufferOffset, resultBytes);
+                        _position = fileOffset + resultBytes;
+                        _lastReadEnd = fileOffset + resultBytes;
+                        return resultBytes;
+                    }
                 }
             }
-        }
 
-        var bytesRead = ReadFromSource(fileOffset, buffer, bufferOffset, maxBytes);
-        _position = fileOffset + bytesRead;
-        _lastReadEnd = fileOffset + bytesRead;
-        return bytesRead;
+            var bytesRead = ReadFromSource(fileOffset, buffer, bufferOffset, maxBytes);
+            _position = fileOffset + bytesRead;
+            _lastReadEnd = fileOffset + bytesRead;
+            return bytesRead;
+        }
     }
 
     private int ReadFromSource(long fileOffset, byte[] buffer, int bufferOffset, int count)

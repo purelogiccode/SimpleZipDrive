@@ -107,6 +107,132 @@ public class ZipFsStreamsTests
         Assert.True(callbackInvoked);
     }
 
+    [Fact]
+    public void SharedMemoryStream_ConcurrentReadsThroughReadStream_ReturnCorrectData()
+    {
+        // Regression test for bug report #69584: Dokan/WinFsp issue concurrent reads on the same
+        // open handle. ReadStream used to set Position and then Read as two separate operations,
+        // so another thread could move the shared MemoryStream position in between, producing
+        // wrong data or an ArgumentException from Buffer.BlockCopy
+        // ("Offset and length were out of bounds ...").
+        const int size = 64 * 1024;
+        var data = new byte[size];
+        for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 251);
+
+        using var stream = new SharedMemoryStream(data, () => { });
+
+        int[] offsets = [0, 1024, 4096, 16384, 32768, size - 8192];
+        var failures = 0;
+
+        Parallel.For(0, 96, i =>
+        {
+            var offset = offsets[i % offsets.Length];
+            var buffer = new byte[size - offset];
+            var read = ZipFileSystemCore.ReadStream(stream, offset, buffer, 0, buffer.Length);
+
+            if (read != buffer.Length || !buffer.AsSpan().SequenceEqual(data.AsSpan(offset)))
+                Interlocked.Increment(ref failures);
+        });
+
+        Assert.Equal(0, failures);
+    }
+
+    [Fact]
+    public void SharedMemoryStream_ReadAt_ReturnsCorrectDataWithoutLosingPosition()
+    {
+        var data = new byte[] { 10, 20, 30, 40, 50 };
+        using var stream = new SharedMemoryStream(data, () => { });
+        stream.Position = 1;
+
+        var buffer = new byte[3];
+        var bytesRead = stream.ReadAt(2, buffer, 0, 3);
+
+        Assert.Equal(3, bytesRead);
+        Assert.Equal([30, 40, 50], buffer);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(5)]
+    [InlineData(100)]
+    public void SharedMemoryStream_ReadAtOutsideBuffer_ReturnsZero(long offset)
+    {
+        using var stream = new SharedMemoryStream(new byte[] { 1, 2, 3, 4, 5 }, () => { });
+
+        var buffer = new byte[4];
+        Assert.Equal(0, stream.ReadAt(offset, buffer, 0, buffer.Length));
+    }
+
+    [Fact]
+    public void ReadStream_ConcurrentReadsOnFileStream_ReturnCorrectData()
+    {
+        // Disk-cached entries use a FileStream. Seek+read used to share the file position, so
+        // concurrent reads on the same handle could return data from another thread's offset.
+        const int size = 64 * 1024;
+        var data = new byte[size];
+        for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 251);
+
+        var path = Path.Combine(Path.GetTempPath(), $"SimpleZipDriveTests_{Guid.NewGuid():N}.tmp");
+        File.WriteAllBytes(path, data);
+
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+            int[] offsets = [0, 1024, 4096, 16384, 32768, size - 8192];
+            var failures = 0;
+
+            Parallel.For(0, 96, i =>
+            {
+                var offset = offsets[i % offsets.Length];
+                var buffer = new byte[size - offset];
+                var read = ZipFileSystemCore.ReadStream(stream, offset, buffer, 0, buffer.Length);
+
+                if (read != buffer.Length || !buffer.AsSpan().SequenceEqual(data.AsSpan(offset)))
+                    Interlocked.Increment(ref failures);
+            });
+
+            Assert.Equal(0, failures);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void StoredEntryStream_ConcurrentSequentialReadAt_ReturnsCorrectData()
+    {
+        // Regression coverage for the same class of race as bug report #69584: Windows can read
+        // one open handle from several threads, and the read-ahead state is shared per stream.
+        // Concurrent ReadAt calls used to be able to observe half-updated read-ahead fields.
+        const int size = 5 * 1024 * 1024;
+        const int chunkSize = 64 * 1024;
+        var data = new byte[size];
+        for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 251);
+
+        using var source = new MemoryStream(data);
+        var lockObj = new Lock();
+        using var stream = new StoredEntryStream(source, 0, size, lockObj);
+
+        var failures = 0;
+
+        Parallel.For(0, 4, _ =>
+        {
+            var buffer = new byte[chunkSize];
+            for (long offset = 0; offset < size; offset += chunkSize)
+            {
+                var count = (int)Math.Min(chunkSize, size - offset);
+                var read = stream.ReadAt(offset, buffer, 0, count);
+
+                if (read != count || !buffer.AsSpan(0, read).SequenceEqual(data.AsSpan((int)offset, read)))
+                    Interlocked.Increment(ref failures);
+            }
+        });
+
+        Assert.Equal(0, failures);
+    }
+
     // ─── StoredEntryStream tests ───
 
     [Fact]

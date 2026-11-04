@@ -46,9 +46,73 @@ public static class ZipFsHelpers
     private static readonly char[] InvalidVolumeLabelChars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
 
     /// <summary>
-    ///     The base temp directory path for SimpleZipDrive (%TEMP%\SimpleZipDrive).
+    ///     The base temp directory path for SimpleZipDrive (%LOCALAPPDATA%\SimpleZipDrive\Temp).
     /// </summary>
     internal static string BaseTempPath { get; } = Path.Combine(AppSettings.SettingsDirectory, "Temp");
+
+    /// <summary>
+    ///     Fallback temp root used when <see cref="BaseTempPath" /> cannot be created - for example
+    ///     when the application data folder is redirected to a volume that is no longer attached
+    ///     (bug reports #69557-#69563: "The create operation failed because the name contained at
+    ///     least one mount point which resolves to a volume to which the specified device object is
+    ///     not attached"). It lives under the system temp directory, which is independent of the
+    ///     application data folder.
+    /// </summary>
+    internal static string FallbackTempPath { get; } =
+        Path.Combine(Path.GetTempPath(), "SimpleZipDrive", "Temp");
+
+    /// <summary>
+    ///     Gets the temp roots that may hold per-session temp directories, most preferred first.
+    /// </summary>
+    private static IEnumerable<string> EnumerateTempRoots()
+    {
+        yield return BaseTempPath;
+
+        if (!string.Equals(FallbackTempPath, BaseTempPath, StringComparison.OrdinalIgnoreCase))
+            yield return FallbackTempPath;
+    }
+
+    /// <summary>
+    ///     Creates the per-session temp directory under the first usable temp root and returns its
+    ///     full path. When the preferred root is unusable (permissions, disconnected volume, a
+    ///     dangling mount point, an invalid path, ...) the system temp root is tried instead so
+    ///     mounting does not fail because of a broken application data folder.
+    /// </summary>
+    /// <param name="dirName">Per-session directory name (see <see cref="GenerateTempDirectoryName" />).</param>
+    /// <param name="roots">
+    ///     Optional explicit roots, in preference order. Defaults to <see cref="BaseTempPath" />
+    ///     followed by <see cref="FallbackTempPath" />.
+    /// </param>
+    /// <returns>The full path of the created directory.</returns>
+    /// <exception cref="IOException">No temp root could be used.</exception>
+    internal static string CreateSessionTempDirectory(string dirName, IReadOnlyList<string>? roots = null)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(dirName);
+
+        var candidates = roots ?? EnumerateTempRoots().ToList();
+        var failures = new List<Exception>(candidates.Count);
+
+        foreach (var root in candidates)
+        {
+            try
+            {
+                var path = Path.Combine(root, dirName);
+                Directory.CreateDirectory(path);
+                return path;
+            }
+            catch (Exception ex) when (ex is not ArgumentNullException and
+                                           (IOException or UnauthorizedAccessException or ArgumentException
+                                               or NotSupportedException))
+            {
+                failures.Add(ex);
+            }
+        }
+
+        throw new IOException(
+            $"Could not create the temporary working directory '{dirName}' in any of these locations: " +
+            string.Join(", ", candidates.Select(static root => $"'{root}'")) + ".",
+            new AggregateException(failures));
+    }
 
     /// <summary>
     ///     Registers the current instance's temp directory name so cleanup can skip it.
@@ -111,7 +175,8 @@ public static class ZipFsHelpers
     /// </summary>
     public static void CleanupOrphanedTempDirectories()
     {
-        CleanupOrphanedTempDirectoriesIn(BaseTempPath);
+        foreach (var tempRoot in EnumerateTempRoots()) CleanupOrphanedTempDirectoriesIn(tempRoot);
+
         CleanupOrphanedTempDirectoriesIn(AppSettings.SettingsDirectory);
     }
 

@@ -453,11 +453,14 @@ public class DokanMountService : IDisposable, IMountService
                 _loggingService.Log("");
                 _loggingService.Log($"Attempting to mount on '{currentMountPoint}'...");
 
-                if (await AttemptMountLifecycleAsync(archivePath, currentMountPoint, dokan, archiveType))
-                {
-                    // Event is already fired inside AttemptMountLifecycleAsync when mount succeeds
-                    return;
-                }
+                var outcome = await AttemptMountLifecycleAsync(archivePath, currentMountPoint, dokan, archiveType);
+
+                // The event is already fired inside AttemptMountLifecycleAsync when the mount
+                // succeeds. Only a mount-point-specific failure (letter in use/unavailable) is
+                // worth trying another letter; any other failure (archive could not be opened,
+                // temp directory unavailable, driver error) would just repeat the same work and
+                // the same error five times.
+                if (outcome != MountAttemptOutcome.MountPointUnavailable) return;
             }
         }
 
@@ -488,14 +491,31 @@ public class DokanMountService : IDisposable, IMountService
             _loggingService.Log($"Dokan Driver Version: {dokan.DriverVersion}");
             _loggingService.Log("");
 
-            if (!await AttemptMountLifecycleAsync(archivePath, mountPoint, dokan, archiveType))
+            if (await AttemptMountLifecycleAsync(archivePath, mountPoint, dokan, archiveType) !=
+                MountAttemptOutcome.Mounted)
                 _loggingService.Log($"Error: Failed to mount on '{mountPoint}'.");
             // Event is already fired inside AttemptMountLifecycleAsync when mount succeeds
         }
     }
 
-    private async Task<bool> AttemptMountLifecycleAsync(string archivePath, string mountPoint, DokanDriver dokan,
-        string archiveType)
+    /// <summary>
+    ///     Outcome of a single mount attempt, used by the auto-mount loop to decide whether trying
+    ///     another drive letter could plausibly succeed.
+    /// </summary>
+    private enum MountAttemptOutcome
+    {
+        /// <summary>The mount succeeded (and was later unmounted by the user).</summary>
+        Mounted,
+
+        /// <summary>The drive letter or folder could not be used; another mount point may work.</summary>
+        MountPointUnavailable,
+
+        /// <summary>Any other failure; another mount point would fail the same way.</summary>
+        Failed
+    }
+
+    private async Task<MountAttemptOutcome> AttemptMountLifecycleAsync(string archivePath, string mountPoint,
+        DokanDriver dokan, string archiveType)
     {
         _mountCancellation?.Dispose();
         _mountCancellation = new CancellationTokenSource();
@@ -595,47 +615,52 @@ public class DokanMountService : IDisposable, IMountService
                 _loggingService.Log($"Unmounting '{mountPoint}'...");
             }
 
-            return true;
+            return MountAttemptOutcome.Mounted;
         }
         catch (OperationCanceledException ex)
         {
             // User cancelled the password prompt - expected behavior, not an error.
             _loggingService.Log($"Mount cancelled: {ex.Message}");
             CurrentArchivePath = null;
-            return false;
+            return MountAttemptOutcome.Failed;
         }
         catch (DokanException ex)
         {
-            _loggingService.LogError($"Dokan error: {ex.Message}");
+            // The message-only mirror is informational: the exception itself is reported through
+            // the error logger below, so it reaches the bug report API at most once.
+            _loggingService.Log($"Dokan error: {ex.Message}");
             ErrorLoggerStatic.ReportSilentException(ex,
                 $"DokanMountService.AttemptMountLifecycleAsync: DokanException mounting '{archivePath}' to '{mountPoint}'",
                 true);
 
-            if (ex.ErrorStatus is DokanStatus.MountError or DokanStatus.DriveLetterError)
-                ShowMountPointErrorDialog(mountPoint);
-            else
-                ShowDokanDriverErrorDialog(ex.Message);
-
             CurrentArchivePath = null;
-            return false;
+
+            if (ex.ErrorStatus is DokanStatus.MountError or DokanStatus.DriveLetterError)
+            {
+                ShowMountPointErrorDialog(mountPoint);
+                return MountAttemptOutcome.MountPointUnavailable;
+            }
+
+            ShowDokanDriverErrorDialog(ex.Message);
+            return MountAttemptOutcome.Failed;
         }
         catch (Exception ex) when (ex.Message.Contains("drive", StringComparison.OrdinalIgnoreCase) ||
                                    ex.Message.Contains("mount", StringComparison.OrdinalIgnoreCase))
         {
-            _loggingService.LogError($"Mount error: {ex.Message}");
+            _loggingService.Log($"Mount error: {ex.Message}");
             ErrorLoggerStatic.ReportSilentException(ex,
                 $"DokanMountService.AttemptMountLifecycleAsync: Drive/mount error for '{archivePath}' to '{mountPoint}'",
                 true);
             CurrentArchivePath = null;
-            return false;
+            return MountAttemptOutcome.Failed;
         }
         catch (Exception ex)
         {
-            _loggingService.LogError($"Mount error: {ex.Message}");
+            _loggingService.Log($"Mount error: {ex.Message}");
             ErrorLoggerStatic.LogErrorSync(ex,
                 $"DokanMountService.AttemptMountLifecycleAsync: Error mounting archive '{archivePath}' to '{mountPoint}'");
             CurrentArchivePath = null;
-            return false;
+            return MountAttemptOutcome.Failed;
         }
     }
 

@@ -55,7 +55,7 @@ When an allocation would exceed the total budget — or the system throws `OutOf
 
 Entries larger than the per-entry limit (or decompressed when memory is exhausted) are extracted **once** to a file in the session temp directory:
 
-- Location: `%LOCALAPPDATA%\SimpleZipDrive\Temp\<pid>_<guid>\<n>.tmp` — one directory per mount session.
+- Location: `%LOCALAPPDATA%\SimpleZipDrive\Temp\<pid>_<guid>\<n>.tmp` — one directory per mount session. When the application data folder cannot be used (for example it is redirected or junctioned to a volume that is no longer attached), the session directory is created under `%TEMP%\SimpleZipDrive\Temp` instead.
 - Temp files are created with a secure ACL granting **full control to the current user only**.
 - The extracted file is registered in an in-session cache and reused by all subsequent opens (*"Reusing existing temporary cache for '…'"*).
 - Free disk space is checked first: *"Insufficient disk space to extract file '…'. Available: … Required: …"*.
