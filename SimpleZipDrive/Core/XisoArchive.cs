@@ -170,8 +170,7 @@ public sealed class XisoArchive : IArchive
 
                 if (child.IsDirectory)
                 {
-                    _entries.Add(new XisoArchiveEntry(this, key + "/", child.FullPath, child.StartSector, 0, true,
-                        child));
+                    _entries.Add(new XisoArchiveEntry(this, key + "/", child.StartSector, 0, true, child));
 
                     // Track directory tables by sector: a corrupt entry pointing back at
                     // an ancestor would otherwise grow the path (and the stack) forever.
@@ -179,8 +178,7 @@ public sealed class XisoArchive : IArchive
                 }
                 else
                 {
-                    _entries.Add(new XisoArchiveEntry(this, key, child.FullPath, child.StartSector, child.Size,
-                        false, child));
+                    _entries.Add(new XisoArchiveEntry(this, key, child.StartSector, child.Size, false, child));
                 }
             }
         }
@@ -207,7 +205,7 @@ public sealed class XisoArchive : IArchive
 
                 if (item.IsDirectory)
                 {
-                    _entries.Add(new XisoArchiveEntry(this, key + "/", childPath, item.StartSector, 0, true));
+                    _entries.Add(new XisoArchiveEntry(this, key + "/", item.StartSector, 0, true));
 
                     // Track directory tables by sector: a corrupt entry pointing back at
                     // an ancestor would otherwise grow the path (and the stack) forever.
@@ -215,7 +213,7 @@ public sealed class XisoArchive : IArchive
                 }
                 else
                 {
-                    _entries.Add(new XisoArchiveEntry(this, key, childPath, item.StartSector, item.FileSize, false));
+                    _entries.Add(new XisoArchiveEntry(this, key, item.StartSector, item.FileSize, false));
                 }
             }
         }

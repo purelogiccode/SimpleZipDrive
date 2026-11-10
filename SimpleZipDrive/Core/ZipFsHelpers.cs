@@ -58,7 +58,7 @@ public static class ZipFsHelpers
     ///     not attached"). It lives under the system temp directory, which is independent of the
     ///     application data folder.
     /// </summary>
-    internal static string FallbackTempPath { get; } =
+    private static string FallbackTempPath { get; } =
         Path.Combine(Path.GetTempPath(), "SimpleZipDrive", "Temp");
 
     /// <summary>

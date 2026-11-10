@@ -121,20 +121,7 @@ public class ZipFsStreamsTests
 
         using var stream = new SharedMemoryStream(data, () => { });
 
-        int[] offsets = [0, 1024, 4096, 16384, 32768, size - 8192];
-        var failures = 0;
-
-        Parallel.For(0, 96, i =>
-        {
-            var offset = offsets[i % offsets.Length];
-            var buffer = new byte[size - offset];
-            var read = ZipFileSystemCore.ReadStream(stream, offset, buffer, 0, buffer.Length);
-
-            if (read != buffer.Length || !buffer.AsSpan().SequenceEqual(data.AsSpan(offset)))
-                Interlocked.Increment(ref failures);
-        });
-
-        Assert.Equal(0, failures);
+        Assert.Equal(0, CountConcurrentReadStreamFailures(stream, data));
     }
 
     [Fact]
@@ -179,20 +166,7 @@ public class ZipFsStreamsTests
         {
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-            int[] offsets = [0, 1024, 4096, 16384, 32768, size - 8192];
-            var failures = 0;
-
-            Parallel.For(0, 96, i =>
-            {
-                var offset = offsets[i % offsets.Length];
-                var buffer = new byte[size - offset];
-                var read = ZipFileSystemCore.ReadStream(stream, offset, buffer, 0, buffer.Length);
-
-                if (read != buffer.Length || !buffer.AsSpan().SequenceEqual(data.AsSpan(offset)))
-                    Interlocked.Increment(ref failures);
-            });
-
-            Assert.Equal(0, failures);
+            Assert.Equal(0, CountConcurrentReadStreamFailures(stream, data));
         }
         finally
         {
@@ -207,7 +181,6 @@ public class ZipFsStreamsTests
         // one open handle from several threads, and the read-ahead state is shared per stream.
         // Concurrent ReadAt calls used to be able to observe half-updated read-ahead fields.
         const int size = 5 * 1024 * 1024;
-        const int chunkSize = 64 * 1024;
         var data = new byte[size];
         for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 251);
 
@@ -215,22 +188,7 @@ public class ZipFsStreamsTests
         var lockObj = new Lock();
         using var stream = new StoredEntryStream(source, 0, size, lockObj);
 
-        var failures = 0;
-
-        Parallel.For(0, 4, _ =>
-        {
-            var buffer = new byte[chunkSize];
-            for (long offset = 0; offset < size; offset += chunkSize)
-            {
-                var count = (int)Math.Min(chunkSize, size - offset);
-                var read = stream.ReadAt(offset, buffer, 0, count);
-
-                if (read != count || !buffer.AsSpan(0, read).SequenceEqual(data.AsSpan((int)offset, read)))
-                    Interlocked.Increment(ref failures);
-            }
-        });
-
-        Assert.Equal(0, failures);
+        Assert.Equal(0, CountConcurrentStoredEntryReadFailures(stream, data));
     }
 
     // ─── StoredEntryStream tests ───
@@ -635,5 +593,49 @@ public class ZipFsStreamsTests
         Assert.Equal(4, read3);
         Assert.Equal(7, buffer3[0]);
         Assert.Equal(10, buffer3[3]);
+    }
+
+    /// <summary>
+    ///     Runs the concurrency regression pattern against an arbitrary readable stream. The
+    ///     helper keeps the stream out of a local <c>using</c> scope inside the parallel lambda
+    ///     (the caller owns its lifetime).
+    /// </summary>
+    private static int CountConcurrentReadStreamFailures(Stream stream, byte[] data)
+    {
+        int[] offsets = [0, 1024, 4096, 16384, 32768, data.Length - 8192];
+        var failures = 0;
+
+        Parallel.For(0, 96, i =>
+        {
+            var offset = offsets[i % offsets.Length];
+            var buffer = new byte[data.Length - offset];
+            var read = ZipFileSystemCore.ReadStream(stream, offset, buffer, 0, buffer.Length);
+
+            if (read != buffer.Length || !buffer.AsSpan().SequenceEqual(data.AsSpan(offset)))
+                Interlocked.Increment(ref failures);
+        });
+
+        return failures;
+    }
+
+    private static int CountConcurrentStoredEntryReadFailures(StoredEntryStream stream, byte[] data)
+    {
+        const int chunkSize = 64 * 1024;
+        var failures = 0;
+
+        Parallel.For(0, 4, _ =>
+        {
+            var buffer = new byte[chunkSize];
+            for (long offset = 0; offset < data.Length; offset += chunkSize)
+            {
+                var count = (int)Math.Min(chunkSize, data.Length - offset);
+                var read = stream.ReadAt(offset, buffer, 0, count);
+
+                if (read != count || !buffer.AsSpan(0, read).SequenceEqual(data.AsSpan((int)offset, read)))
+                    Interlocked.Increment(ref failures);
+            }
+        });
+
+        return failures;
     }
 }

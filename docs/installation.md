@@ -13,8 +13,10 @@ SimpleZipDrive is a single cross-platform application. Download the package for 
 | Package | Platform | Driver |
 |---|---|---|
 | `release_X.Y.Z_win-x64.zip` / `..._win-arm64.zip` | Windows (x64 / ARM64) | [WinFsp](https://github.com/winfsp/winfsp/releases) and/or [Dokan](https://github.com/dokan-dev/dokany/releases) |
-| `release_X.Y.Z_linux-x64.zip` / `..._linux-arm64.zip` | Linux (x64 / ARM64) | libfuse3 |
-| `release_X.Y.Z_osx-x64.zip` / `..._osx-arm64.zip` | macOS (Intel / Apple silicon) | macFUSE |
+| `release_X.Y.Z_linux-x64.tar.gz` / `..._linux-arm64.tar.gz` | Linux (x64 / ARM64) | libfuse3 |
+| `release_X.Y.Z_osx-x64.dmg` / `..._osx-arm64.dmg` | macOS (Intel / Apple silicon) | macFUSE |
+
+The Linux tarballs contain a top-level `SimpleZipDrive-X.Y.Z-linux-<arch>/` folder and preserve the executable bit; the macOS disk images contain the same folder with `SimpleZipDrive` and `7zz` already executable.
 
 - **Windows x64** — standard 64-bit Intel/AMD systems (the vast majority of PCs).
 - **Windows ARM64** — Windows-on-ARM devices (Snapdragon X, Surface Pro X, etc.).
@@ -38,8 +40,21 @@ Administrator rights are **not** required to run SimpleZipDrive (see [Security &
 
 ## 3. Install the application
 
-1. Download the `.zip` for your platform and architecture from the [Releases page](https://github.com/purelogiccode/SimpleZipDrive/releases).
-2. Extract **all files** into a dedicated folder. The package contains:
+1. Download the package for your platform and architecture from the [Releases page](https://github.com/purelogiccode/SimpleZipDrive/releases).
+2. Extract **all files** into a dedicated folder:
+
+   ```bash
+   # Linux
+   tar -xzf release_X.Y.Z_linux-x64.tar.gz
+   cd SimpleZipDrive-X.Y.Z-linux-x64
+
+   # macOS - open the .dmg and copy the SimpleZipDrive-X.Y.Z-osx-<arch> folder
+   # to a location of your choice (e.g. Applications or ~/Applications).
+   ```
+
+   On Windows, extract the `.zip` with Explorer or any zip tool.
+
+   The package contains:
    - the executable (`SimpleZipDrive.exe` on Windows, `SimpleZipDrive` on Linux/macOS),
    - the bundled 7-Zip fallback extractor — `7za.exe` on Windows, `7zzs` on Linux, `7zz` on macOS (required for the fallback; mark it executable if your archive tool dropped the permission),
    - `7zip-license.txt` — the license for the bundled 7-Zip binaries,

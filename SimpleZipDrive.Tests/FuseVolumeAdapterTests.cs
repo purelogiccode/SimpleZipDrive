@@ -13,12 +13,11 @@ public class FuseVolumeAdapterTests : IDisposable
 {
     private readonly FuseVolumeAdapter _adapter;
     private readonly ZipFileSystemCore _core;
-    private readonly MemoryStream _stream;
 
     public FuseVolumeAdapterTests()
     {
-        _stream = CreateZipStream();
-        _core = new ZipFileSystemCore(_stream, "/mnt/test", static (_, _) => { }, static () => null, "zip");
+        var stream = CreateZipStream();
+        _core = new ZipFileSystemCore(stream, "/mnt/test", static (_, _) => { }, static () => null, "zip");
         _adapter = new FuseVolumeAdapter(_core);
     }
 

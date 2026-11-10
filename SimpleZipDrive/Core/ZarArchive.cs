@@ -105,7 +105,7 @@ public sealed class ZarArchive : IArchive
     /// </summary>
     private uint? LookUpRoot()
     {
-        var node = Reader.LookUp("/", true, true);
+        var node = Reader.LookUp("/");
         return node == ZArchiveReader.InvalidNode ? null : node;
     }
 

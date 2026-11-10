@@ -274,7 +274,7 @@ public class ScreenshotServiceTests : IDisposable
         var service = new ScreenshotService(_loggingService);
 
         var result = service.SaveScreenshotCore(
-            path => throw new UnauthorizedAccessException("Denied."), primary, fallback);
+            _ => throw new UnauthorizedAccessException("Denied."), primary, fallback);
 
         Assert.False(result.Success);
         Assert.Null(result.FilePath);
@@ -303,7 +303,7 @@ public class ScreenshotServiceTests : IDisposable
         var fallback = TempDirectory("fallback");
         var service = new ScreenshotService(_loggingService);
 
-        service.SaveScreenshotCore(path => throw new IOException("Nope."), primary, fallback);
+        service.SaveScreenshotCore(_ => throw new IOException("Nope."), primary, fallback);
 
         Assert.Contains(_loggingService.LogEntries, entry =>
             entry.IsError && entry.Message.Contains($"'{primary}'", StringComparison.OrdinalIgnoreCase));
@@ -319,7 +319,7 @@ public class ScreenshotServiceTests : IDisposable
         var service = new ScreenshotService(_loggingService);
 
         var result = service.SaveScreenshotCore(
-            path => throw new IOException("Nope."), primary, fallback);
+            _ => throw new IOException("Nope."), primary, fallback);
 
         Assert.False(result.Success);
         Assert.Empty(Directory.GetFiles(fallback));

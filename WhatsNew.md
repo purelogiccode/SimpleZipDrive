@@ -1,18 +1,32 @@
 # What's New
 
-## 3.1.1
+## 3.1.2
 
 ### Fixed
 - **Reading a file that is open more than once no longer fails with *"Offset and length were out of bounds"* (bug report #69584).** Windows can issue concurrent reads on the same open handle (paging I/O for thumbnails, several readers of one file). The read helper set the stream position and then read as two separate operations, so another thread could move the position in between; the shared in-memory cache stream then computed the read length from one position and copied from another, which surfaced as an `ArgumentException` from `Buffer.BlockCopy` and marked the entry as failed for the rest of the session. Reads are now position-independent and atomic: the shared memory stream seeks and reads under one lock, disk-cached files use `RandomAccess.Read` (which does not touch the shared file position), other seekable streams serialize seek+read, and the stored-entry read-ahead state is synchronized as well.
 - **Mounting no longer fails when the application data folder cannot be used (bug reports #69557-#69563).** Creating the per-session temp directory under `%LOCALAPPDATA%\SimpleZipDrive\Temp` could fail with *"The create operation failed because the name contained at least one mount point which resolves to a volume to which the specified device object is not attached"* (for example when the folder is redirected/junctioned to a volume that is detached), which aborted every mount attempt. The session temp directory now falls back to `%TEMP%\SimpleZipDrive\Temp`, and orphan cleanup sweeps both roots. Auto-mounting also stops after the first attempt when the failure is not drive-letter specific instead of retrying all five preferred letters, and the mount-error mirror no longer forwards a second, exception-less bug report for the same failure.
 - **Closing the app while Windows is shutting down no longer crashes with *"Application is already shutting down"* (bug report #68244).** When Windows requested a session end (`WM_QUERYENDSESSION`) while the app was already unmounting and exiting, Avalonia's lifetime started a second shutdown and threw from the native window procedure, which surfaced as an unhandled `AppDomain` exception. Duplicate shutdown requests are now vetoed so the shutdown already in progress can finish, and the framework exception is classified as an environment condition so stale builds stop forwarding it.
+
+### Changed
+- **Linux releases now ship as `.tar.gz` and macOS releases as `.dmg`.** Linux tarballs contain a top-level `SimpleZipDrive-<version>-<rid>/` folder and preserve the executable bit on the apphost and `7zzs`; macOS disk images contain the same folder with `SimpleZipDrive` and `7zz` already executable. Windows keeps the `.zip` bundle. The update checker only compares versions and opens the GitHub release page, so the container change does not affect in-app updates. `scripts/package-release.ps1` builds Linux tarballs on any host; macOS DMGs require macOS (CI builds them there) and fall back to `.tar.gz` on other hosts.
+
+### Internal
+- **`winfsp.net` is pinned back to 2.1.25156.** The 2.2.26286 interop requires the native WinFsp 2.2 beta and rejects the stable 2.1 driver at runtime (*"incorrect dll version (need 2.2, have 2.1)"*). Dependabot now ignores major/minor `winfsp.net` updates so only compatible 2.1.x patches can land.
+- **`global.json` now names a valid SDK version** (`10.0.100` instead of `10.0.0`), so `dotnet --info` and CI no longer report the SDK file as invalid.
+- Dependency updates: Avalonia 12.1.6, SharpCompress 0.50.8, XISOSharp 1.9.1, Microsoft.NET.Test.Sdk 18.11.0 and Meziantou.Analyzer 3.0.322; GitHub Actions were updated. Central Package Management keeps every version exactly pinned in `Directory.Packages.props`, and FsCheck.Xunit was added for property-based helper tests.
+- CI/security automation now includes CodeQL, Dependency Review, OpenSSF Scorecard, grouped Dependabot updates, a NuGet vulnerability audit and coverage summaries. The optional FileBenchmark helper binaries are no longer committed, and the supply-chain policy is documented in `SECURITY.md`.
+- Static analysis is warning-clean again (`jb inspectcode`: 0 warnings, 0 errors); the suite now contains **1,485 tests**.
+
+## 3.1.1
+
+### Fixed
 - **The Avalonia render-pass crash (bug reports #68051/#68052) is no longer reported as an application bug.** Applying a control template while a `TextBlock` containing inline controls was measured made Avalonia invalidate a visual during the render pass. The About window no longer embeds its links inline, and the framework exception is now classified as an environment condition so stale builds cannot flood the bug-report API with it.
 - **Opening the browser no longer produces duplicate bug reports on systems with a broken URL association (bug reports #68197/#68198).** When shell execution failed (*"Class not registered"* - e.g. clicking a driver download link on a machine with a partially broken shell registration), the failure was reported twice: once as a warning carrying the exception and once as an error carrying only the message. On Windows the URL is now retried through the URL protocol handler (`rundll32 url.dll,FileProtocolHandler`), shell-launch failures are classified as environment conditions, and each failure reaches the API at most once (the in-app mirror is informational).
 
 ### Internal
 - Dependency updates: Avalonia 12.1.4, SharpCompress 0.50.5, Meziantou.Analyzer 3.0.299 and xunit.runner.visualstudio 4.0.1; the separate Roslynator code-analysis and formatting packages were consolidated into the single `Roslynator.Analyzers` 5.0.1 package.
 - Documentation refresh for the 3.1.1 release (version references and the packaging guide); the developer review notes file `Todo.md` was removed from the repository.
-- The suite now contains **1,480 tests** and stays analyzer-warning-clean.
+- The suite now contains **1,466 tests** and stays analyzer-warning-clean.
 
 ## 3.1.0
 

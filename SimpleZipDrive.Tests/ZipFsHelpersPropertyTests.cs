@@ -1,4 +1,3 @@
-using FsCheck;
 using FsCheck.Xunit;
 using SimpleZipDrive.Core;
 

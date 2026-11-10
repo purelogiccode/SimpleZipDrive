@@ -32,7 +32,7 @@ public class App : Application
     /// <summary>
     ///     Gets a value indicating whether the application has started its graceful shutdown.
     /// </summary>
-    internal static bool IsShuttingDown => Volatile.Read(ref _shutdownStarted) != 0;
+    private static bool IsShuttingDown => Volatile.Read(ref _shutdownStarted) != 0;
 
     /// <summary>
     ///     Marks the start of the graceful shutdown.

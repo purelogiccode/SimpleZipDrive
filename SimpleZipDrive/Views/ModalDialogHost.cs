@@ -79,12 +79,9 @@ internal static class ModalDialogHost
         var owner = GetOwnerWindow();
 
         var closed = new CancellationTokenSource();
-        void OnClosed(object? sender, EventArgs e)
-        {
-            closed.Cancel();
-        }
+        var closeHandler = new DialogCloseHandler(closed);
 
-        dialog.Closed += OnClosed;
+        dialog.Closed += closeHandler.OnClosed;
 
         try
         {
@@ -102,8 +99,21 @@ internal static class ModalDialogHost
         }
         finally
         {
-            dialog.Closed -= OnClosed;
+            dialog.Closed -= closeHandler.OnClosed;
             closed.Dispose();
+        }
+    }
+
+    /// <summary>
+    ///     Cancels the nested-loop token when the dialog closes. A handler object is used instead
+    ///     of a lambda so the disposable token source is not captured by a closure that outlives
+    ///     the method scope.
+    /// </summary>
+    private sealed class DialogCloseHandler(CancellationTokenSource closed)
+    {
+        public void OnClosed(object? sender, EventArgs e)
+        {
+            closed.Cancel();
         }
     }
 }

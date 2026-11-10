@@ -12,6 +12,11 @@ updates:
       nuget-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      # winfsp.net 2.2.x requires the native WinFsp 2.2 beta driver; the 2.1 interop
+      # accepts both the stable 2.1 driver and the 2.2 betas. Only patch updates are safe.
+      - dependency-name: "winfsp.net"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: github-actions
     directory: "/"

@@ -119,10 +119,12 @@ jobs:
         shell: pwsh
         run: |
           $lines = @('## Bundles ready for review', '')
-          Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/bundles" -Filter *.zip | Sort-Object Name | ForEach-Object {
-            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
-            $lines += ('- `{0}` - {1:N0} bytes - SHA256 `{2}`' -f $_.Name, $_.Length, $hash)
-          }
+          Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/bundles" -File |
+            Where-Object { $_.Name -match '\.(zip|tar\.gz|dmg)$' } |
+            Sort-Object Name | ForEach-Object {
+              $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+              $lines += ('- `{0}` - {1:N0} bytes - SHA256 `{2}`' -f $_.Name, $_.Length, $hash)
+            }
           $lines += ''
           $lines += 'The **Publish release** job is waiting for approval in the protected `release` environment.'
           $lines | Set-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
@@ -131,7 +133,10 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-bundles-${{ matrix.name }}
-          path: ${{ runner.temp }}/bundles/*.zip
+          path: |
+            ${{ runner.temp }}/bundles/*.zip
+            ${{ runner.temp }}/bundles/*.tar.gz
+            ${{ runner.temp }}/bundles/*.dmg
           if-no-files-found: error
           retention-days: 30
 
@@ -165,10 +170,10 @@ jobs:
           $expected = @(
             "release_$($env:VERSION)_win-x64.zip",
             "release_$($env:VERSION)_win-arm64.zip",
-            "release_$($env:VERSION)_linux-x64.zip",
-            "release_$($env:VERSION)_linux-arm64.zip",
-            "release_$($env:VERSION)_osx-x64.zip",
-            "release_$($env:VERSION)_osx-arm64.zip"
+            "release_$($env:VERSION)_linux-x64.tar.gz",
+            "release_$($env:VERSION)_linux-arm64.tar.gz",
+            "release_$($env:VERSION)_osx-x64.dmg",
+            "release_$($env:VERSION)_osx-arm64.dmg"
           )
           foreach ($name in $expected) {
             if (-not (Test-Path -LiteralPath (Join-Path 'bundles' $name))) { throw "Missing expected bundle: $name" }
@@ -196,13 +201,19 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           TAG="release_${VERSION}"
+          shopt -s nullglob
+          assets=(bundles/*.zip bundles/*.tar.gz bundles/*.dmg)
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release bundles were downloaded." >&2
+            exit 1
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists - updating notes and uploading/replacing the bundles."
             gh release edit "$TAG" --notes-file bundles/release-notes.md
-            gh release upload "$TAG" bundles/*.zip --clobber
+            gh release upload "$TAG" "${assets[@]}" --clobber
           elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            gh release create "$TAG" --title "$VERSION" --target "$RELEASE_SHA" --notes-file bundles/release-notes.md bundles/*.zip
+            gh release create "$TAG" --title "$VERSION" --target "$RELEASE_SHA" --notes-file bundles/release-notes.md "${assets[@]}"
           else
-            gh release create "$TAG" --title "$VERSION" --notes-file bundles/release-notes.md bundles/*.zip
+            gh release create "$TAG" --title "$VERSION" --notes-file bundles/release-notes.md "${assets[@]}"
           fi
           echo "Published: $(gh release view "$TAG" --json url --jq .url)"

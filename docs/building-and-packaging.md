@@ -9,19 +9,28 @@ nav_order: 19
 
 ## Release artifacts
 
-Every release ships **six** zip packages - one per supported runtime identifier:
+Every release ships **six** packages - one per supported runtime identifier - using the most
+compatible container for each platform:
 
 ```
-release_<version>_<rid>.zip     (e.g. release_3.1.1_win-x64.zip)
+release_<version>_win-x64.zip        release_<version>_win-arm64.zip
+release_<version>_linux-x64.tar.gz   release_<version>_linux-arm64.tar.gz
+release_<version>_osx-x64.dmg        release_<version>_osx-arm64.dmg
 <rid> = win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
 ```
+
+The Linux `.tar.gz` and macOS `.dmg` bundles contain a top-level
+`SimpleZipDrive-<version>-<rid>/` folder and preserve the executable bit on the apphost and the
+7-Zip binary. When the packaging script runs on a non-macOS host it produces a `.tar.gz` instead
+of a `.dmg` for the macOS runtime identifiers (a DMG requires `hdiutil`); CI always builds the
+macOS bundles on macOS, so the published release contains the DMGs.
 
 | Package | Contents |
 |---|---|
 | `release_<version>_win-x64.zip` | `SimpleZipDrive.exe`, `7za.exe`, `7zip-license.txt`, `winfsp-msil.dll`, Avalonia native libraries (`libSkiaSharp.dll`, `libHarfBuzzSharp.dll`, `av_libglesv2.dll`), `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
 | `release_<version>_win-arm64.zip` | same layout (ARM64 `7za.exe`) |
-| `release_<version>_linux-x64.zip` / `release_<version>_linux-arm64.zip` | `SimpleZipDrive` (apphost), `7zzs`, `7zip-license.txt`, `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
-| `release_<version>_osx-x64.zip` / `release_<version>_osx-arm64.zip` | `SimpleZipDrive`, universal `7zz`, `7zip-license.txt`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
+| `release_<version>_linux-x64.tar.gz` / `release_<version>_linux-arm64.tar.gz` | `SimpleZipDrive` (apphost), `7zzs`, `7zip-license.txt`, `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
+| `release_<version>_osx-x64.dmg` / `release_<version>_osx-arm64.dmg` | `SimpleZipDrive`, universal `7zz`, `7zip-license.txt`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
 
 All are **framework-dependent single-file** executables: the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only prerequisites.
 
@@ -44,8 +53,8 @@ Pages deployment publishes the documentation site from `docs/`:
 ### Reviewing a release before it is published
 
 1. Run **Release** from the Actions tab (or push a `release_x.y.z` tag).
-2. When the *Build bundles* jobs finish, download the **release-bundles-*** artifacts from the run summary - the six `release_<version>_<rid>.zip` files. The run summary lists sizes and SHA256 checksums, and nothing is public yet.
-3. Inspect the zips and smoke-test at least one packaged executable per OS.
+2. When the *Build bundles* jobs finish, download the **release-bundles-*** artifacts from the run summary - the six packages (Windows `.zip`, Linux `.tar.gz`, macOS `.dmg`). The run summary lists sizes and SHA256 checksums, and nothing is public yet.
+3. Inspect the packages and smoke-test at least one packaged executable per OS.
 4. Approve the waiting **Publish release** job in the `release` environment (Settings → Environments → `release` → required reviewer). The workflow then creates the GitHub release with the six bundles attached and the matching `WhatsNew.md` section as the release notes.
 
 If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
@@ -57,22 +66,23 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 `scripts/package-release.ps1` performs the same publish/package steps locally:
 
 ```powershell
-# All six targets (any host can build any runtime identifier)
-.\scripts\package-release.ps1 -Version 3.1.1
+# All six targets (any host can build any runtime identifier; macOS gets .tar.gz instead of
+# .dmg on a non-macOS host because hdiutil is macOS-only)
+.\scripts\package-release.ps1 -Version 3.1.2
 
 # Only the targets for one OS
-.\scripts\package-release.ps1 -Version 3.1.1 -RuntimeIdentifiers win-x64,win-arm64
+.\scripts\package-release.ps1 -Version 3.1.2 -RuntimeIdentifiers win-x64,win-arm64
 ```
 
-It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. On Linux/macOS the script uses the `zip` CLI so the apphost and the 7-Zip binary keep their executable bit; on Windows it writes the zip through `System.IO.Compression`, records the Unix executable bit (external attributes) explicitly for Linux/macOS bundles, and patches the *version-made-by* host byte of every real central-directory header to Unix (located through the end-of-central-directory record, never by scanning for the signature - compressed data can contain the same bytes) - so **all six bundles can be produced from any host** (CI still builds each OS on its matching runner).
+It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Windows bundles are flat `.zip` files, Linux bundles are `.tar.gz` files written through `System.Formats.Tar` (with a top-level folder and the Unix executable bit on the apphost and `7zzs`), and macOS bundles are `.dmg` disk images when the script runs on macOS. On Windows the zip is written through `System.IO.Compression`, records the Unix executable bit (external attributes) explicitly when needed, and patches the *version-made-by* host byte of every real central-directory header to Unix (located through the end-of-central-directory record, never by scanning for the signature - compressed data can contain the same bytes). On Linux/macOS the `zip` CLI writes the Windows-targeted zips. **Linux and macOS bundles can be produced on any host; the macOS DMG requires a macOS host** (CI still builds each OS on its matching runner).
 
 > **`SimpleZipDrive\bin\Release` is append-only - never delete files in it.** It holds locally
 > produced bundles (and may hold historical ones), and they are intentionally not tracked by
 > git (`.gitignore` ignores `bin/`), so a deleted bundle is gone permanently. Never run
 > `Remove-Item -Recurse`, `git clean`, `rm -rf` or any "clear output directory" step against
 > that path. Packaging may only overwrite the exact bundle file being regenerated
-> (`release_<version>_<rid>.zip`); every other file must stay untouched. `scripts/package-release.ps1`
-> follows this rule - keep it that way when editing the script.
+> (`release_<version>_<rid>.zip`, `.tar.gz` or `.dmg`); every other file must stay untouched.
+> `scripts/package-release.ps1` follows this rule - keep it that way when editing the script.
 
 ## Publish commands
 
@@ -107,11 +117,11 @@ Three constraints make the file layout non-negotiable:
 
    Timing matters: `AfterTargets="ComputeFilesToPublish"` / `BeforeTargets="BundleFiles"` do **not** work - the SDK splits bundled/non-bundled files in `_ComputeFilesToBundle`.
 
-2. **The 7-Zip fallback binary must stay a real file beside the exe on every platform.** `SevenZipFallback` probes `AppContext.BaseDirectory` for `7za.exe` (Windows), `7zzs` (Linux) or `7zz` (macOS); the csproj copies exactly the file matching the publish `RuntimeIdentifier` and links it under its canonical name. Bundling it into the single file would make the fallback silently unavailable. On Unix the app sets the executable bit at runtime, and the release bundles preserve the bit through the `zip` CLI. The Unix binaries are committed with mode `100755` (`git update-index --chmod=+x`) so a publish from Linux/macOS keeps them executable.
+2. **The 7-Zip fallback binary must stay a real file beside the exe on every platform.** `SevenZipFallback` probes `AppContext.BaseDirectory` for `7za.exe` (Windows), `7zzs` (Linux) or `7zz` (macOS); the csproj copies exactly the file matching the publish `RuntimeIdentifier` and links it under its canonical name. Bundling it into the single file would make the fallback silently unavailable. On Unix the app sets the executable bit at runtime, and the release bundles preserve the bit: Linux `.tar.gz` files record it through `System.Formats.Tar`, macOS DMGs preserve it on the filesystem, and Windows-produced Unix zips record it through the zip external attributes and central-directory host byte. The Unix binaries are committed with mode `100755` (`git update-index --chmod=+x`) so a publish from Linux/macOS keeps them executable.
 
-   `7zip-license.txt` must ship beside them: it contains the Windows (`7za.exe`) and Linux/macOS (`7zz`, `7zzs`) license texts, since the Windows and Unix packages carry different notices. The Unix binaries are committed with mode `100755`, and the packaging script restores that mode in the zip even when the bundle is written on Windows (external attributes plus the central-directory host byte).
+   `7zip-license.txt` must ship beside them: it contains the Windows (`7za.exe`) and Linux/macOS (`7zz`, `7zzs`) license texts, since the Windows and Unix packages carry different notices. The Unix binaries are committed with mode `100755`, and the packaging script restores that mode in every Unix bundle even when it is written on Windows.
 
-3. **winfsp.net stays at 2.1.x** (`2.1.25156`). Interop 2.2.x rejects the stable native 2.1 driver (*"incorrect dll version (need 2.2, have 2.1)"*); interop 2.1 accepts both the 2.1 stable driver and 2.2+ betas. Version gates live in `WinFspMountService` (`RequiredWinFspVersion = 2.1`).
+3. **winfsp.net stays at 2.1.x** (`2.1.25156`). Interop 2.2.x rejects the stable native 2.1 driver (*"incorrect dll version (need 2.2, have 2.1)"*); interop 2.1 accepts both the 2.1 stable driver and 2.2+ betas. Version gates live in `WinFspMountService` (`RequiredWinFspVersion = 2.1`). `.github/dependabot.yml` ignores major/minor `winfsp.net` updates so this constraint cannot be broken by an automated bump.
 
 ## Release process checklist
 
@@ -119,9 +129,9 @@ Three constraints make the file layout non-negotiable:
 2. Update `WhatsNew.md` (user-facing Added/Fixed/Changed/Internal sections) - the matching `## <version>` section becomes the GitHub release notes automatically.
 3. Push to `master` - the **CI** workflow must be green.
 4. Run **Release** from the Actions tab with the version, or push a `release_<version>` tag. The workflow verifies the csproj version, runs the tests again, and builds the six bundles.
-5. Download the **release-bundles-*** artifacts and **review the zips before approving** - the run summary lists sizes and SHA256 checksums.
+5. Download the **release-bundles-*** artifacts and **review the packages before approving** - the run summary lists sizes and SHA256 checksums.
 6. Smoke-test a downloaded bundle on each OS: mount a stored ZIP, a compressed archive, a `.zar` container, and an Xbox `.iso`/`.cso` image through the *packaged* executable (both a drive letter and a folder; elevated *and* non-elevated for WinFsp; a folder mount on Linux/macOS).
 7. Approve the **Publish release** job in the `release` environment. The workflow creates the GitHub release with the six bundles attached (full release - not draft/prerelease).
 8. Inform issue reporters whose bugs the release fixes.
 
-Bundles can also be produced locally with `scripts/package-release.ps1 -Version <version>` and uploaded by hand with `gh release create release_<version> --title "<version>" --notes-file . *.zip`, but the Actions path is the supported one.
+Bundles can also be produced locally with `scripts/package-release.ps1 -Version <version>` and uploaded by hand with `gh release create release_<version> --title "<version>" --notes-file . *.zip *.tar.gz *.dmg`, but the Actions path is the supported one.

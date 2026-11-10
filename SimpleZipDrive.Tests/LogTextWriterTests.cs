@@ -45,6 +45,16 @@ public class LogTextWriterTests : IDisposable
         return condition();
     }
 
+    private static bool WaitUntilContains(StringWriter writer, string expected)
+    {
+        return WaitUntil(() => writer.ToString().Contains(expected, StringComparison.Ordinal));
+    }
+
+    private static Exception? RecordWrite(LogTextWriter writer, string text)
+    {
+        return Record.Exception(() => writer.WriteLine(text));
+    }
+
     // ─── Encoding and simple writes ───
 
     [Fact]
@@ -221,7 +231,7 @@ public class LogTextWriterTests : IDisposable
 
         writer.WriteLine("fallback line");
 
-        Assert.True(WaitUntil(() => fallback.ToString().Contains("fallback line", StringComparison.Ordinal)));
+        Assert.True(WaitUntilContains(fallback, "fallback line"));
     }
 
     [Fact]
@@ -243,7 +253,7 @@ public class LogTextWriterTests : IDisposable
     {
         using var writer = new LogTextWriter();
 
-        var ex = Record.Exception(() => writer.WriteLine("nowhere"));
+        var ex = RecordWrite(writer, "nowhere");
 
         Assert.Null(ex);
     }

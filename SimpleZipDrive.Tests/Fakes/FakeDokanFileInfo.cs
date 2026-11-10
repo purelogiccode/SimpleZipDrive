@@ -1,4 +1,5 @@
 #nullable disable
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Principal;
 using DokanNet;
 
@@ -7,6 +8,10 @@ namespace SimpleZipDrive.Tests.Fakes;
 /// <summary>
 ///     A fake implementation of <see cref="IDokanFileInfo" /> for testing purposes.
 /// </summary>
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global",
+    Justification = "The fake implements the full IDokanFileInfo surface; individual tests set only the members they need.")]
+[SuppressMessage("ReSharper", "UnusedMember.Global",
+    Justification = "The fake implements the full IDokanFileInfo surface.")]
 public class FakeDokanFileInfo : IDokanFileInfo
 {
     public bool DeleteOnClose { get; set; }

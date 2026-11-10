@@ -10,9 +10,9 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/purelogiccode/SimpleZipDrive/badge)](https://securityscorecards.dev/viewer/?uri=github.com/purelogiccode/SimpleZipDrive)
 [![Release](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/release.yml)
 [![Wiki Sync](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml/badge.svg)](https://github.com/purelogiccode/SimpleZipDrive/actions/workflows/wiki-sync.yml)
-[![Tests](https://img.shields.io/badge/tests-1469%20passing-brightgreen)](#-technical-architecture)
+[![Tests](https://img.shields.io/badge/tests-1485%20passing-brightgreen)](#-technical-architecture)
 [![C#](https://img.shields.io/badge/C%23-14-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
-[![Avalonia](https://img.shields.io/badge/Avalonia-12.1.4-8A2BE2)](https://avaloniaui.net/)
+[![Avalonia](https://img.shields.io/badge/Avalonia-12.1.6-8A2BE2)](https://avaloniaui.net/)
 [![7-Zip](https://img.shields.io/badge/7--Zip-26.03-yellow)](https://github.com/ip7z/7zip)
 [![Downloads](https://img.shields.io/github/downloads/purelogiccode/SimpleZipDrive/total)](https://github.com/purelogiccode/SimpleZipDrive/releases)
 [![Stars](https://img.shields.io/github/stars/purelogiccode/SimpleZipDrive?style=flat)](https://github.com/purelogiccode/SimpleZipDrive/stargazers)
@@ -47,7 +47,7 @@ Unlike traditional archive utilities that extract the entire archive to a tempor
     *   **Stored Entries (ZIP):** Uncompressed entries are read directly from the source archive with zero-copy, zero-cache performance - no RAM or disk overhead.
     *   **Small Files:** Cached in-memory for near-instantaneous access. Each file is decompressed only once and the buffer is shared across all open handles, so memory usage stays at approximately one copy per file regardless of how many applications access it. Decompression writes directly into the final buffer, halving the transient peak memory footprint during extraction of large entries.
     *   **Large Files (≥512 MB by default):** Automatically offloaded to a temporary disk cache to prevent RAM exhaustion. The per-file memory threshold can be adjusted via the Settings window.
-*   **Framework-Dependent Single Executable:** Ships as framework-dependent single-file binaries for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`. Every package includes the platform 7-Zip fallback binary (`7za.exe` on Windows, `7zzs` on Linux, `7zz` on macOS) and its license beside the executable; Windows packages also include `winfsp-msil.dll`. Only the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) must be installed.
+*   **Framework-Dependent Single Executable:** Ships as framework-dependent single-file binaries for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`. Windows uses `.zip`, Linux uses `.tar.gz`, and macOS uses `.dmg` packages (each Unix bundle contains a top-level `SimpleZipDrive-<version>-<rid>/` folder with the executable bit already set). Every package includes the platform 7-Zip fallback binary (`7za.exe` on Windows, `7zzs` on Linux, `7zz` on macOS) and its license beside the executable; Windows packages also include `winfsp-msil.dll`. Only the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) must be installed.
 *   **Streaming Architecture:** The source archive is accessed via a direct file stream, supporting archives of virtually any size.
 *   **Zero-Configuration UI:** Supports drag-and-drop functionality for automatic mounting to the first available drive letter (M-Q). The mounted drive label displays the archive filename.
 *   **Configurable Cache:** Open `Settings > RAM Limit` to adjust the per-file RAM cache limit. The value is automatically clamped to 90% of available system memory to prevent out-of-memory errors.
