@@ -327,7 +327,7 @@ public class ZipFileSystemCore : IDisposable
     /// </summary>
     private IArchive PromptAndOpenEncryptedArchive(Stream stream)
     {
-        const int maxPasswordAttempts = 3;
+        const int maxAttempts = 3;
 
         for (var attempt = 1;; attempt++)
         {
@@ -348,7 +348,7 @@ public class ZipFileSystemCore : IDisposable
             {
                 archive?.Dispose();
 
-                if (attempt >= maxPasswordAttempts)
+                if (attempt >= maxAttempts)
                 {
                     throw new InvalidOperationException(
                         $"The provided password did not match the encrypted {ArchiveType.ToUpperInvariant()} archive. Mount aborted after {attempt} attempts.",
@@ -356,7 +356,7 @@ public class ZipFileSystemCore : IDisposable
                 }
 
                 _logErrorAction?.Invoke(null,
-                    $"Incorrect password for '{ArchiveType}' archive (attempt {attempt} of {maxPasswordAttempts}). Please try again.");
+                    $"Incorrect password for '{ArchiveType}' archive (attempt {attempt} of {maxAttempts}). Please try again.");
                 continue;
             }
             catch

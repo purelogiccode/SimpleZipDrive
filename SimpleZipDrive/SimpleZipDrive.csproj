@@ -25,27 +25,27 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="12.1.5" />
-        <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.5" />
-        <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
+        <PackageReference Include="Avalonia" />
+        <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="Avalonia.Themes.Fluent" />
+        <PackageReference Include="Avalonia.Fonts.Inter" />
+        <PackageReference Include="AvaloniaUI.DiagnosticsSupport">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="DokanNet" Version="2.3.0.3" />
-        <PackageReference Include="winfsp.net" Version="2.2.26286" />
-        <PackageReference Include="Serilog" Version="4.4.0" />
-        <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
-        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-        <PackageReference Include="SharpCompress" Version="0.50.8" />
-        <PackageReference Include="XISOSharp" Version="1.9.1" />
-        <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
-        <PackageReference Include="Meziantou.Analyzer" Version="3.0.322">
+        <PackageReference Include="DokanNet" />
+        <PackageReference Include="winfsp.net" />
+        <PackageReference Include="Serilog" />
+        <PackageReference Include="Serilog.Sinks.Debug" />
+        <PackageReference Include="Serilog.Sinks.File" />
+        <PackageReference Include="SharpCompress" />
+        <PackageReference Include="XISOSharp" />
+        <PackageReference Include="ZArchiveSharp" />
+        <PackageReference Include="Meziantou.Analyzer">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Roslynator.Analyzers" Version="5.0.1">
+        <PackageReference Include="Roslynator.Analyzers">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
