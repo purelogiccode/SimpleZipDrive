@@ -15,14 +15,8 @@
         <ApplicationManifest>app.manifest</ApplicationManifest>
     </PropertyGroup>
 
-    <ItemGroup>
-        <None Update="xxhsum.exe">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-        <None Update="RAMMap64.exe">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
+    <!-- Optional helper tools (xxhsum.exe / RAMMap64.exe) are not committed: drop them beside the
+         benchmark executable to enable the XXH3 benchmarks and RAMMap-based cache clearing. -->
 
     <ItemGroup>
         <PackageReference Include="Meziantou.Analyzer">

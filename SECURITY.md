@@ -50,6 +50,17 @@ Out of scope:
   unless it leads to memory corruption, code execution or data disclosure.
 - Missing hardening headers on the documentation site (GitHub Pages).
 
+## Supply chain
+
+- Every NuGet package version is pinned exactly in `Directory.Packages.props`, and all GitHub
+  Actions are referenced by commit SHA.
+- `SimpleZipDrive/7zip/` contains unmodified official 7-Zip 26.03 console binaries used as the
+  fallback extractor when SharpCompress cannot read an archive. They are a deliberate vendored
+  dependency (licence in `SimpleZipDrive/7zip/License.txt`); the binaries are updated when a new
+  upstream release ships security fixes.
+- The optional FileBenchmark helper tools (`xxhsum.exe`, `RAMMap64.exe`) are not committed. Place
+  your own trusted copies beside the benchmark executable if you need them.
+
 ## Safe harbour
 
 We will not pursue legal action against researchers who act in good faith, avoid privacy

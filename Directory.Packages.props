@@ -6,25 +6,28 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageVersion Include="Avalonia" Version="12.1.5" />
-        <PackageVersion Include="Avalonia.Desktop" Version="12.1.5" />
-        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.5" />
-        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.5" />
-        <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
-        <PackageVersion Include="coverlet.collector" Version="10.1.0" />
-        <PackageVersion Include="DokanNet" Version="2.3.0.3" />
-        <PackageVersion Include="Meziantou.Analyzer" Version="3.0.322" />
-        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-        <PackageVersion Include="Roslynator.Analyzers" Version="5.0.1" />
-        <PackageVersion Include="Serilog" Version="4.4.0" />
-        <PackageVersion Include="Serilog.Sinks.Debug" Version="3.0.0" />
-        <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
-        <PackageVersion Include="SharpCompress" Version="0.50.8" />
-        <PackageVersion Include="winfsp.net" Version="2.2.26286" />
-        <PackageVersion Include="XISOSharp" Version="1.9.1" />
-        <PackageVersion Include="xunit" Version="2.9.3" />
-        <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
-        <PackageVersion Include="ZArchiveSharp" Version="1.4.0" />
+        <!-- Exact (bracketed) versions keep restores reproducible and satisfy the
+             OpenSSF Scorecard Pinned-Dependencies check. -->
+        <PackageVersion Include="Avalonia" Version="[12.1.5]" />
+        <PackageVersion Include="Avalonia.Desktop" Version="[12.1.5]" />
+        <PackageVersion Include="Avalonia.Fonts.Inter" Version="[12.1.5]" />
+        <PackageVersion Include="Avalonia.Themes.Fluent" Version="[12.1.5]" />
+        <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="[2.2.3]" />
+        <PackageVersion Include="coverlet.collector" Version="[10.1.0]" />
+        <PackageVersion Include="DokanNet" Version="[2.3.0.3]" />
+        <PackageVersion Include="FsCheck.Xunit" Version="[3.6.0]" />
+        <PackageVersion Include="Meziantou.Analyzer" Version="[3.0.322]" />
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="[18.11.0]" />
+        <PackageVersion Include="Roslynator.Analyzers" Version="[5.0.1]" />
+        <PackageVersion Include="Serilog" Version="[4.4.0]" />
+        <PackageVersion Include="Serilog.Sinks.Debug" Version="[3.0.0]" />
+        <PackageVersion Include="Serilog.Sinks.File" Version="[7.0.0]" />
+        <PackageVersion Include="SharpCompress" Version="[0.50.8]" />
+        <PackageVersion Include="winfsp.net" Version="[2.2.26286]" />
+        <PackageVersion Include="XISOSharp" Version="[1.9.1]" />
+        <PackageVersion Include="xunit" Version="[2.9.3]" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="[4.0.1]" />
+        <PackageVersion Include="ZArchiveSharp" Version="[1.4.0]" />
     </ItemGroup>
 
 </Project>

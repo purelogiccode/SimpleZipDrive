@@ -285,6 +285,7 @@ public static class ZipFsHelpers
         if (!path.StartsWith('/')) path = "/" + path;
 
         if (path.Length > 1) path = path.TrimEnd('/');
+        if (path.Length == 0) return "/";
 
         try
         {
