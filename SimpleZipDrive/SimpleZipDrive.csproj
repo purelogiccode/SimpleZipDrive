@@ -6,12 +6,13 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PlatformTarget>AnyCPU</PlatformTarget>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
         <ApplicationIcon>icon\zip.ico</ApplicationIcon>
         <IsPackable>false</IsPackable>
-        <AssemblyVersion>3.1.2</AssemblyVersion>
-        <FileVersion>3.1.2</FileVersion>
+        <AssemblyVersion>3.1.3</AssemblyVersion>
+        <FileVersion>3.1.3</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
         <Company>PureLogicCode.com</Company>
         <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -35,7 +36,9 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="DokanNet" />
-        <PackageReference Include="Microsoft.NET.ILLink.Tasks" />
+        <PackageReference Include="Microsoft.NET.ILLink.Tasks">
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
         <PackageReference Include="winfsp.net" />
         <PackageReference Include="Serilog" />
         <PackageReference Include="Serilog.Sinks.Debug" />
@@ -70,31 +73,41 @@
         - Linux:   7zzs (statically linked console build, maximum distro portability)
         - macOS:   7zz (universal x86-64/arm64 console build)
         Sources: https://github.com/ip7z/7zip (26.03). See 7zip/License.txt.
+        The binaries are executed from disk, so they must stay loose next to the app instead of
+        being embedded in the single-file bundle. The explicit ExcludeFromSingleFile also works
+        around the .NET 11 Windows bundler regression (dotnet/sdk#56308), which otherwise drops
+        native executables from the publish output.
     -->
     <ItemGroup>
         <None Update="7zip\win-x64\7za.exe" Condition="'$(RuntimeIdentifier)' == 'win-x64'">
             <Link>7za.exe</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </None>
         <None Update="7zip\win-arm64\7za.exe" Condition="'$(RuntimeIdentifier)' == 'win-arm64'">
             <Link>7za.exe</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </None>
         <None Update="7zip\linux-x64\7zzs" Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
             <Link>7zzs</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </None>
         <None Update="7zip\linux-arm64\7zzs" Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">
             <Link>7zzs</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </None>
         <None Update="7zip\osx\7zz" Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
             <Link>7zz</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </None>
         <None Update="7zip\License.txt">
             <Link>7zip-license.txt</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </None>
     </ItemGroup>
 

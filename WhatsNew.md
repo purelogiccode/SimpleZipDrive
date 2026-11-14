@@ -5,6 +5,12 @@
 ### Fixed
 - **Duplicate shutdown requests can no longer crash the app with *"Application is already shutting down"* (bug report #69869).** The guard from bug report #68244 only vetoed a platform shutdown request after the app's graceful unmount had begun. A second request that arrived while Avalonia was still processing the first one could therefore still reach its lifetime, which throws from the native window procedure and surfaced as an unhandled `AppDomain` exception. Every shutdown request is now processed at most once: the first one starts the normal unmount-and-exit flow and duplicates are vetoed, whether or not the graceful-shutdown flag has already been set.
 
+### Changed
+- **The application now targets .NET 11.** Builds use SDK `11.0.100` (pinned in `global.json`) and C# 15, and the framework-dependent bundles require the [.NET 11 runtime](https://dotnet.microsoft.com/download/dotnet/11.0). Install the runtime before upgrading. The release pipeline uses `11.0.x`, and the 7-Zip helpers stay loose beside the executable; they are explicitly excluded from the single-file bundle to work around the .NET 11 Windows bundler regression that would otherwise drop them from the publish output ([dotnet/sdk#56308](https://github.com/dotnet/sdk/issues/56308)).
+
+### Internal
+- Dependency updates: Meziantou.Analyzer 3.0.339, SharpCompress 0.50.9, Microsoft.NET.Test.Sdk 18.12.0 and Microsoft.NET.ILLink.Tasks 11.0.0. Every package version remains exactly pinned in `Directory.Packages.props`. The suite now contains **1,490 tests** and stays analyzer-warning-clean.
+
 ## 3.1.2
 
 ### Fixed

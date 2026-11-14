@@ -11,7 +11,7 @@ has_children: true
 
 | Tool | Version | Notes |
 |---|---|---|
-| .NET SDK | **10.0** (pinned: `global.json` → `10.0.0`, `rollForward: latestMajor`) | `dotnet --version` must resolve to 10.x |
+| .NET SDK | **11.0** (pinned: `global.json` → `11.0.100`, `rollForward: latestMajor`) | `dotnet --version` must resolve to 11.x |
 | OS | Windows, Linux or macOS | Avalonia UI; Windows backends need Dokan/WinFsp, Linux/macOS need libfuse3/macFUSE |
 | Drivers (to *run*) | Dokan v2 and/or WinFsp ≥ 2.1 (Windows), libfuse3/macFUSE (Unix) | Only needed for manual mount testing; unit tests do not need drivers |
 | IDE | Visual Studio 2022+, Rider, or VS Code | Solution: `CSharp_SimpleZipDrive.sln` |
@@ -31,7 +31,7 @@ Debug runs mount exactly like packaged builds (in-process driver hosting). F5 in
 dotnet test SimpleZipDrive.Tests -c Release
 ```
 
-- **xUnit 2.9.3**, 1,300+ test cases, coverlet collector included.
+- **xUnit 2.9.3**, 1,490 test cases, coverlet collector included.
 - Layout: root classes cover the archive engine and services; `Mounting\` coverage includes the Dokan and WinFsp backends plus the FUSE adapter; `FuseSharp\` covers the vendored FUSE interop; `Fakes\` provides `FakeDokanFileInfo`, `FakeUserNotificationService`, `MockBugReport`.
 - Areas: filesystem core, memory-cache behaviour, error handling, streams/read-ahead, settings, services, update checker (asserts the canonical GitHub endpoint), logging/error filtering, administrator checks, archive formats (including ZArchive/XISO adapters).
 - **Settings-file isolation:** the three test classes that exercise the real `settings.dat` path (`AppSettingsAdditionalTests`, `SettingsServiceTests`, `WinFspSettingsServiceTests`) share the `Settings file` xUnit collection so they never race each other (the old `Save_WritesValidJson` flake).
@@ -51,7 +51,7 @@ The release workflow (`release.yml`) re-verifies and packages the six platform b
 
 ## Code conventions
 
-- **Language level:** default C# for net10.0 — file-scoped namespaces, collection expressions, target-typed `new`, `required` members, `System.Threading.Lock` for lock objects.
+- **Language level:** default C# for net11.0 — file-scoped namespaces, collection expressions, target-typed `new`, `required` members, `System.Threading.Lock` for lock objects.
 - **Analyzers:** Meziantou.Analyzer + the three Roslynator packs run on every project; the build is warning-clean (a few `MA` rules relaxed in `.editorconfig`). Keep it that way.
 - **Structure:** the app is a single project. The former `SimpleZipDrive.Core` engine lives under `SimpleZipDrive\Core\` (namespaces unchanged), the mount backends under `SimpleZipDrive\Mounting\{Dokan,WinFsp,Fuse}\`, the vendored FUSE binding under `SimpleZipDrive\FuseSharp\`, and the UI under `SimpleZipDrive\Views\`. The backend facade (`Mounting\MountService.cs`) selects the driver at mount time.
 - **Tests:** every new engine/service behaviour gets tests in the existing classes; driver-specific behaviour is covered in the backend test classes.

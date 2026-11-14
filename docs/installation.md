@@ -29,7 +29,7 @@ The Linux tarballs contain a top-level `SimpleZipDrive-X.Y.Z-linux-<arch>/` fold
 
 All packages are **framework-dependent** — the .NET runtime is *not* bundled:
 
-1. **[.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0)** — install the runtime matching your OS architecture.
+1. **[.NET 11 runtime](https://dotnet.microsoft.com/download/dotnet/11.0)** — install the runtime matching your OS architecture.
 2. **The filesystem driver** for your platform:
    - **Windows — Dokan**: install the latest **Dokan v2** `DokanSetup.exe` (**2.3.0 or newer is required** — older `dokan2.dll` versions are refused with a *"Dokan Driver Outdated"* dialog).
    - **Windows — WinFsp**: install **WinFsp 2.1 or newer** (2.2.x beta releases are also supported). Mounting is blocked if an older version is detected. The `WinFsp.Launcher` service must be running — it is installed and started automatically by the WinFsp installer.

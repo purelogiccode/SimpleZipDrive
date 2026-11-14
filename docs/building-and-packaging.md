@@ -32,7 +32,7 @@ macOS bundles on macOS, so the published release contains the DMGs.
 | `release_<version>_linux-x64.tar.gz` / `release_<version>_linux-arm64.tar.gz` | `SimpleZipDrive` (apphost), `7zzs`, `7zip-license.txt`, `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
 | `release_<version>_osx-x64.dmg` / `release_<version>_osx-arm64.dmg` | `SimpleZipDrive`, universal `7zz`, `7zip-license.txt`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
 
-All are **framework-dependent single-file** executables: the [.NET 10 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only prerequisites.
+All are **framework-dependent single-file** executables: the [.NET 11 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only prerequisites.
 
 ## Automated builds (GitHub Actions)
 
@@ -68,10 +68,10 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 ```powershell
 # All six targets (any host can build any runtime identifier; macOS gets .tar.gz instead of
 # .dmg on a non-macOS host because hdiutil is macOS-only)
-.\scripts\package-release.ps1 -Version 3.1.2
+.\scripts\package-release.ps1 -Version 3.1.3
 
 # Only the targets for one OS
-.\scripts\package-release.ps1 -Version 3.1.2 -RuntimeIdentifiers win-x64,win-arm64
+.\scripts\package-release.ps1 -Version 3.1.3 -RuntimeIdentifiers win-x64,win-arm64
 ```
 
 It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Windows bundles are flat `.zip` files, Linux bundles are `.tar.gz` files written through `System.Formats.Tar` (with a top-level folder and the Unix executable bit on the apphost and `7zzs`), and macOS bundles are `.dmg` disk images when the script runs on macOS. On Windows the zip is written through `System.IO.Compression`, records the Unix executable bit (external attributes) explicitly when needed, and patches the *version-made-by* host byte of every real central-directory header to Unix (located through the end-of-central-directory record, never by scanning for the signature - compressed data can contain the same bytes). On Linux/macOS the `zip` CLI writes the Windows-targeted zips. **Linux and macOS bundles can be produced on any host; the macOS DMG requires a macOS host** (CI still builds each OS on its matching runner).

@@ -9,7 +9,7 @@ nav_order: 18
 
 ## Solution layout
 
-Three projects (solution `CSharp_SimpleZipDrive.sln`, `net10.0`, SDK pinned via `global.json`):
+Three projects (solution `CSharp_SimpleZipDrive.sln`, `net11.0`, SDK pinned via `global.json`):
 
 | Project | Kind | Role |
 |---|---|---|
@@ -96,6 +96,6 @@ flowchart TB
 
 ## Conventions
 
-- Modern C# on .NET 10: file-scoped namespaces, collection expressions, `required` members, `System.Threading.Lock`, `System.IO.RandomAccess`.
+- Modern C# on .NET 11: file-scoped namespaces, collection expressions, `required` members, `System.Threading.Lock`, `System.IO.RandomAccess`.
 - Clean-up enforced by Meziantou.Analyzer + Roslynator (all warnings resolved; dev-only packages).
 - `InternalsVisibleTo` grants test access; `References\` holds third-party reference sources excluded from compilation.
