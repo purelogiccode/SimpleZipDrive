@@ -1,5 +1,10 @@
 # What's New
 
+## 3.1.3
+
+### Fixed
+- **Duplicate shutdown requests can no longer crash the app with *"Application is already shutting down"* (bug report #69869).** The guard from bug report #68244 only vetoed a platform shutdown request after the app's graceful unmount had begun. A second request that arrived while Avalonia was still processing the first one could therefore still reach its lifetime, which throws from the native window procedure and surfaced as an unhandled `AppDomain` exception. Every shutdown request is now processed at most once: the first one starts the normal unmount-and-exit flow and duplicates are vetoed, whether or not the graceful-shutdown flag has already been set.
+
 ## 3.1.2
 
 ### Fixed

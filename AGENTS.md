@@ -26,6 +26,13 @@ ones). Treat this folder and everything inside it as append-only:
 - Framework-dependent publish for a bundle (never self-contained):
   `dotnet publish SimpleZipDrive\SimpleZipDrive.csproj -c Release -r <rid> --self-contained false -o <dir>`
 
+## Static analysis
+
+- **Always run JetBrains InspectCode before every commit:**
+  `jb inspectcode "CSharp_SimpleZipDrive.sln" --stdout`
+- Fix **all** warnings and errors it reports before committing; re-run the command until
+  the report is clean (0 warnings, 0 errors).
+
 ## Documentation
 
 - `docs/` is published both to the GitHub wiki (side menu: `docs/_Sidebar.md`) and as a

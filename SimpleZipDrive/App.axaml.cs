@@ -27,18 +27,13 @@ public class App : Application
     /// </summary>
     internal static CancellationTokenSource ShutdownCts { get; } = new();
 
-    private static int _shutdownStarted;
-
-    /// <summary>
-    ///     Gets a value indicating whether the application has started its graceful shutdown.
-    /// </summary>
-    private static bool IsShuttingDown => Volatile.Read(ref _shutdownStarted) != 0;
+    private static readonly ShutdownCoordinator ShutdownState = new();
 
     /// <summary>
     ///     Marks the start of the graceful shutdown.
     /// </summary>
     /// <returns><see langword="true" /> the first time; <see langword="false" /> if shutdown already started.</returns>
-    internal static bool TryBeginShutdown() => Interlocked.Exchange(ref _shutdownStarted, 1) == 0;
+    internal static bool TryBeginShutdown() => ShutdownState.TryBeginShutdown();
 
     public override void Initialize()
     {
@@ -243,14 +238,15 @@ public class App : Application
     /// <summary>
     ///     Handles a shutdown request from the platform (on Windows, a <c>WM_QUERYENDSESSION</c> message).
     ///     Avalonia runs its own synchronous shutdown for these requests. If the application is already
-    ///     unmounting and exiting, that would start a second shutdown and throw
-    ///     <see cref="InvalidOperationException" /> from the native window procedure, which terminates
-    ///     the process as an unhandled <see cref="AppDomain" /> exception (bug report #68244). Veto the
-    ///     duplicate request so the shutdown already in progress can finish.
+    ///     unmounting and exiting - or a previous request is still being processed - that would start a
+    ///     second shutdown and throw <see cref="InvalidOperationException" /> from the native window
+    ///     procedure, which terminates the process as an unhandled <see cref="AppDomain" /> exception
+    ///     (bug reports #68244 and #69869). Veto the duplicate request so the shutdown already in
+    ///     progress can finish.
     /// </summary>
     private static void OnDesktopShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
-        if (IsShuttingDown)
+        if (!ShutdownState.TryAcceptShutdownRequest())
             e.Cancel = true;
     }
 
