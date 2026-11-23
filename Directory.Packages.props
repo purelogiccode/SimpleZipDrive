@@ -13,17 +13,17 @@
         <PackageVersion Include="Avalonia.Fonts.Inter" Version="[12.1.6]" />
         <PackageVersion Include="Avalonia.Themes.Fluent" Version="[12.1.6]" />
         <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="[2.2.3]" />
-        <PackageVersion Include="coverlet.collector" Version="[10.1.0]" />
+        <PackageVersion Include="coverlet.collector" Version="[10.1.1]" />
         <PackageVersion Include="DokanNet" Version="[2.3.0.3]" />
         <PackageVersion Include="FsCheck.Xunit" Version="[3.6.0]" />
-        <PackageVersion Include="Meziantou.Analyzer" Version="[3.0.339]" />
+        <PackageVersion Include="Meziantou.Analyzer" Version="[3.0.342]" />
         <PackageVersion Include="Microsoft.NET.ILLink.Tasks" Version="[11.0.0]" />
         <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="[18.12.0]" />
         <PackageVersion Include="Roslynator.Analyzers" Version="[5.0.1]" />
         <PackageVersion Include="Serilog" Version="[4.4.0]" />
         <PackageVersion Include="Serilog.Sinks.Debug" Version="[3.0.0]" />
         <PackageVersion Include="Serilog.Sinks.File" Version="[7.0.0]" />
-        <PackageVersion Include="SharpCompress" Version="[0.50.9]" />
+        <PackageVersion Include="SharpCompress" Version="[0.50.11]" />
         <!-- winfsp.net 2.2.x rejects the stable native WinFsp 2.1 driver at runtime
              ("incorrect dll version (need 2.2, have 2.1)"); keep the 2.1 interop. -->
         <PackageVersion Include="winfsp.net" Version="[2.1.25156]" />
