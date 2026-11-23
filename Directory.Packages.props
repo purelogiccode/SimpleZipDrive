@@ -27,7 +27,7 @@
         <!-- winfsp.net 2.2.x rejects the stable native WinFsp 2.1 driver at runtime
              ("incorrect dll version (need 2.2, have 2.1)"); keep the 2.1 interop. -->
         <PackageVersion Include="winfsp.net" Version="[2.1.25156]" />
-        <PackageVersion Include="XISOSharp" Version="[1.9.1]" />
+        <PackageVersion Include="XISOSharp" Version="[2.1.0]" />
         <PackageVersion Include="xunit" Version="[2.9.3]" />
         <PackageVersion Include="xunit.runner.visualstudio" Version="[4.0.1]" />
         <PackageVersion Include="ZArchiveSharp" Version="[1.4.0]" />
