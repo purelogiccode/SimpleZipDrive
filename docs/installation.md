@@ -13,10 +13,12 @@ SimpleZipDrive is a single cross-platform application. Download the package for 
 | Package | Platform | Driver |
 |---|---|---|
 | `release_X.Y.Z_win-x64.zip` / `..._win-arm64.zip` | Windows (x64 / ARM64) | [WinFsp](https://github.com/winfsp/winfsp/releases) and/or [Dokan](https://github.com/dokan-dev/dokany/releases) |
-| `release_X.Y.Z_linux-x64.tar.gz` / `..._linux-arm64.tar.gz` | Linux (x64 / ARM64) | libfuse3 |
+| `release_X.Y.Z_linux-x64.tar.gz` / `..._linux-arm64.tar.gz` | Linux (x64 / ARM64), portable | libfuse3 |
+| `release_X.Y.Z_linux-x64.deb` / `..._linux-arm64.deb` | Debian/Ubuntu/Mint (x64 / ARM64) | libfuse3 |
+| `release_X.Y.Z_linux-x64.AppImage` / `..._linux-arm64.AppImage` | Any Linux distribution (x64 / ARM64) | libfuse3 |
 | `release_X.Y.Z_osx-x64.dmg` / `..._osx-arm64.dmg` | macOS (Intel / Apple silicon) | macFUSE |
 
-The Linux tarballs contain a top-level `SimpleZipDrive-X.Y.Z-linux-<arch>/` folder and preserve the executable bit; the macOS disk images contain the same folder with `SimpleZipDrive` and `7zz` already executable.
+The Linux tarballs contain a top-level `SimpleZipDrive-X.Y.Z-linux-<arch>/` folder and preserve the executable bit; the macOS disk images contain the same folder with `SimpleZipDrive` and `7zz` already executable. The `.deb` and `.AppImage` packages are **self-contained** (the .NET runtime is included) and only need libfuse3; the tarball, Windows and macOS packages are framework-dependent and need the .NET 11 runtime.
 
 - **Windows x64** — standard 64-bit Intel/AMD systems (the vast majority of PCs).
 - **Windows ARM64** — Windows-on-ARM devices (Snapdragon X, Surface Pro X, etc.).
@@ -27,12 +29,13 @@ The Linux tarballs contain a top-level `SimpleZipDrive-X.Y.Z-linux-<arch>/` fold
 
 ## 2. Install prerequisites
 
-All packages are **framework-dependent** — the .NET runtime is *not* bundled:
+The portable tarball, Windows and macOS packages are **framework-dependent** - the .NET
+runtime is *not* bundled. The Linux `.deb` and `.AppImage` packages are self-contained:
 
-1. **[.NET 11 runtime](https://dotnet.microsoft.com/download/dotnet/11.0)** — install the runtime matching your OS architecture.
+1. **[.NET 11 runtime](https://dotnet.microsoft.com/download/dotnet/11.0)** — install the runtime matching your OS architecture (only needed for the portable/Windows/macOS packages).
 2. **The filesystem driver** for your platform:
-   - **Windows — Dokan**: install the latest **Dokan v2** `DokanSetup.exe` (**2.3.0 or newer is required** — older `dokan2.dll` versions are refused with a *"Dokan Driver Outdated"* dialog).
-   - **Windows — WinFsp**: install **WinFsp 2.1 or newer** (2.2.x beta releases are also supported). Mounting is blocked if an older version is detected. The `WinFsp.Launcher` service must be running — it is installed and started automatically by the WinFsp installer.
+   - **Windows - Dokan**: install the latest **Dokan v2** `DokanSetup.exe` (**2.3.0 or newer is required** - older `dokan2.dll` versions are refused with a *"Dokan Driver Outdated"* dialog).
+   - **Windows - WinFsp**: install **WinFsp 2.1 or newer** (2.2.x beta releases are also supported). Mounting is blocked if an older version is detected. The `WinFsp.Launcher` service must be running - it is installed and started automatically by the WinFsp installer.
    - **Linux**: install libfuse3 (e.g. `sudo apt install libfuse3-3`).
    - **macOS**: install macFUSE.
 
@@ -41,27 +44,36 @@ Administrator rights are **not** required to run SimpleZipDrive (see [Security &
 ## 3. Install the application
 
 1. Download the package for your platform and architecture from the [Releases page](https://github.com/purelogiccode/SimpleZipDrive/releases).
-2. Extract **all files** into a dedicated folder:
+2. Install or extract the package:
 
    ```bash
-   # Linux
+   # Debian / Ubuntu / Linux Mint - installs to /opt/simplezipdrive with a launcher
+   sudo apt install ./release_X.Y.Z_linux-x64.deb
+
+   # AppImage - no installation required
+   chmod +x release_X.Y.Z_linux-x64.AppImage
+   ./release_X.Y.Z_linux-x64.AppImage
+
+   # Portable tarball
    tar -xzf release_X.Y.Z_linux-x64.tar.gz
    cd SimpleZipDrive-X.Y.Z-linux-x64
+   ```
 
+   ```bash
    # macOS - open the .dmg and copy the SimpleZipDrive-X.Y.Z-osx-<arch> folder
    # to a location of your choice (e.g. Applications or ~/Applications).
    ```
 
    On Windows, extract the `.zip` with Explorer or any zip tool.
 
-   The package contains:
+   The portable package contains:
    - the executable (`SimpleZipDrive.exe` on Windows, `SimpleZipDrive` on Linux/macOS),
    - the bundled 7-Zip fallback extractor — `7za.exe` on Windows, `7zzs` on Linux, `7zz` on macOS (required for the fallback; mark it executable if your archive tool dropped the permission),
    - `7zip-license.txt` — the license for the bundled 7-Zip binaries,
    - `winfsp-msil.dll` (Windows only) — the WinFsp .NET interop (required when using the WinFsp backend),
    - Avalonia native libraries (`libSkiaSharp`, `libHarfBuzzSharp`, and on Windows `av_libglesv2`),
    - `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md`.
-3. Run the executable. No installer, no registry changes.
+3. Run the executable (or launch **SimpleZipDrive** from your desktop menu after installing the `.deb`). No registry changes.
 
 > **Do not** separate the support files from the executable. The 7-Zip fallback binary, the WinFsp interop, and the Avalonia native libraries are probed next to the executable; if they are missing, the app will not start or archives that need the fallback will fail to open.
 

@@ -9,30 +9,42 @@ nav_order: 19
 
 ## Release artifacts
 
-Every release ships **six** packages - one per supported runtime identifier - using the most
-compatible container for each platform:
+Every release ships **ten** packages - one portable bundle per supported runtime identifier
+plus two self-contained installer formats for each Linux architecture:
 
 ```
 release_<version>_win-x64.zip        release_<version>_win-arm64.zip
 release_<version>_linux-x64.tar.gz   release_<version>_linux-arm64.tar.gz
+release_<version>_linux-x64.deb      release_<version>_linux-arm64.deb
+release_<version>_linux-x64.AppImage release_<version>_linux-arm64.AppImage
 release_<version>_osx-x64.dmg        release_<version>_osx-arm64.dmg
 <rid> = win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
 ```
 
-The Linux `.tar.gz` and macOS `.dmg` bundles contain a top-level
-`SimpleZipDrive-<version>-<rid>/` folder and preserve the executable bit on the apphost and the
-7-Zip binary. When the packaging script runs on a non-macOS host it produces a `.tar.gz` instead
-of a `.dmg` for the macOS runtime identifiers (a DMG requires `hdiutil`); CI always builds the
-macOS bundles on macOS, so the published release contains the DMGs.
+The Linux `.tar.gz`, `.deb` and `.AppImage` bundles contain a top-level
+`SimpleZipDrive-<version>-<rid>/` folder (or the equivalent installed layout) and preserve the
+executable bit on the apphost and the 7-Zip binary. The **installer formats are self-contained**:
+they include the .NET 11 runtime, so only libfuse3 and the desktop libraries are required. The
+portable `.tar.gz` and the Windows/macOS bundles remain framework-dependent (they need the
+[.NET 11 runtime](https://dotnet.microsoft.com/download)). When the packaging script runs on a
+non-macOS host it produces a `.tar.gz` instead of a `.dmg` for the macOS runtime identifiers (a DMG
+requires `hdiutil`); CI always builds the macOS bundles on macOS, so the published release contains
+the DMGs.
 
 | Package | Contents |
 |---|---|
 | `release_<version>_win-x64.zip` | `SimpleZipDrive.exe`, `7za.exe`, `7zip-license.txt`, `winfsp-msil.dll`, Avalonia native libraries (`libSkiaSharp.dll`, `libHarfBuzzSharp.dll`, `av_libglesv2.dll`), `ReadMe.md`, `LICENSE.txt`, `WhatsNew.md` |
 | `release_<version>_win-arm64.zip` | same layout (ARM64 `7za.exe`) |
 | `release_<version>_linux-x64.tar.gz` / `release_<version>_linux-arm64.tar.gz` | `SimpleZipDrive` (apphost), `7zzs`, `7zip-license.txt`, `libSkiaSharp.so`, `libHarfBuzzSharp.so`, docs |
+| `release_<version>_linux-x64.deb` / `release_<version>_linux-arm64.deb` | Self-contained app under `/opt/simplezipdrive`, launcher in `/usr/bin/simplezipdrive`, desktop entry and icon |
+| `release_<version>_linux-x64.AppImage` / `release_<version>_linux-arm64.AppImage` | Self-contained AppDir (apphost, runtime, 7-Zip helper, native libraries) with an `AppRun` launcher |
 | `release_<version>_osx-x64.dmg` / `release_<version>_osx-arm64.dmg` | `SimpleZipDrive`, universal `7zz`, `7zip-license.txt`, `libSkiaSharp.dylib`, `libHarfBuzzSharp.dylib`, docs |
 
-All are **framework-dependent single-file** executables: the [.NET 11 runtime](https://dotnet.microsoft.com/download) and the filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only prerequisites.
+The portable `.tar.gz`, Windows `.zip` and macOS `.dmg` bundles are **framework-dependent
+single-file** executables: the [.NET 11 runtime](https://dotnet.microsoft.com/download) and the
+filesystem driver (WinFsp/Dokan on Windows, libfuse3/macFUSE on Linux/macOS) are the only
+prerequisites. The Linux `.deb` and `.AppImage` bundles are self-contained and only need
+libfuse3.
 
 ## Automated builds (GitHub Actions)
 
@@ -46,16 +58,16 @@ Pages deployment publishes the documentation site from `docs/`:
 | `dependency-review.yml` | Pull requests to `master` | Fails the PR when it adds a high-severity runtime dependency with a known vulnerability |
 | `scorecard.yml` | Push to `master`, weekly schedule, branch-protection changes (or manually) | Runs the OpenSSF Scorecard supply-chain checks and uploads the SARIF report to code scanning |
 | `dependabot.yml` | Weekly | Opens grouped update PRs for NuGet packages and GitHub Actions |
-| `release.yml` | `workflow_dispatch` (version input) or a `release_*` tag push | Verifies the csproj version matches, builds + tests on Windows, publishes and packages the six bundles on Windows/Linux/macOS runners, uploads them as `release-bundles-*` artifacts, then **waits for approval in the protected `release` environment** before creating/updating the GitHub release |
+| `release.yml` | `workflow_dispatch` (version input) or a `release_*` tag push | Verifies the csproj version matches, builds + tests on Windows, publishes and packages the ten bundles (Windows `.zip`, Linux `.tar.gz`/`.deb`/`.AppImage`, macOS `.dmg`) on Windows/Linux/macOS runners (Linux arm64 uses a native `ubuntu-24.04-arm` runner), uploads them as `release-bundles-*` artifacts, then **waits for approval in the protected `release` environment** before creating/updating the GitHub release |
 | `wiki-sync.yml` | Push to `master` touching `docs/**` (or manually) | Mirrors `docs/*.md` into the repository wiki (`index.md` → `Home.md`); the wiki side menu comes from `docs/_Sidebar.md` |
 | Built-in Pages build (`pages-build-deployment`) | Push to `master` touching `docs/**` | Builds `docs/` with Jekyll (just-the-docs theme) and deploys <https://purelogiccode.github.io/SimpleZipDrive/>; the site side menu comes from the `parent`/`nav_order` front matter in each page |
 
 ### Reviewing a release before it is published
 
 1. Run **Release** from the Actions tab (or push a `release_x.y.z` tag).
-2. When the *Build bundles* jobs finish, download the **release-bundles-*** artifacts from the run summary - the six packages (Windows `.zip`, Linux `.tar.gz`, macOS `.dmg`). The run summary lists sizes and SHA256 checksums, and nothing is public yet.
-3. Inspect the packages and smoke-test at least one packaged executable per OS.
-4. Approve the waiting **Publish release** job in the `release` environment (Settings → Environments → `release` → required reviewer). The workflow then creates the GitHub release with the six bundles attached and the matching `WhatsNew.md` section as the release notes.
+2. When the *Build bundles* jobs finish, download the **release-bundles-*** artifacts from the run summary - the ten packages (Windows `.zip`, Linux `.tar.gz`/`.deb`/`.AppImage`, macOS `.dmg`). The run summary lists sizes and SHA256 checksums, and nothing is public yet.
+3. Inspect the packages and smoke-test at least one packaged executable per OS (Linux: all three formats).
+4. Approve the waiting **Publish release** job in the `release` environment (Settings → Environments → `release` → required reviewer). The workflow then creates the GitHub release with the ten bundles attached and the matching `WhatsNew.md` section as the release notes.
 
 If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 
@@ -66,22 +78,27 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 `scripts/package-release.ps1` performs the same publish/package steps locally:
 
 ```powershell
-# All six targets (any host can build any runtime identifier; macOS gets .tar.gz instead of
-# .dmg on a non-macOS host because hdiutil is macOS-only)
-.\scripts\package-release.ps1 -Version 3.1.3
+# All targets (any host can build any runtime identifier; macOS gets .tar.gz instead of
+# .dmg on a non-macOS host because hdiutil is macOS-only). On Windows the AppImage format
+# is skipped; run the script on Linux to produce it.
+.\scripts\package-release.ps1 -Version 3.1.4
 
 # Only the targets for one OS
-.\scripts\package-release.ps1 -Version 3.1.3 -RuntimeIdentifiers win-x64,win-arm64
+.\scripts\package-release.ps1 -Version 3.1.4 -RuntimeIdentifiers win-x64,win-arm64
+
+# Linux portable + installer formats (AppImage needs appimagetool)
+.\scripts\package-release.ps1 -Version 3.1.4 -RuntimeIdentifiers linux-x64,linux-arm64 `
+    -LinuxFormats deb,appimage
 ```
 
-It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Windows bundles are flat `.zip` files, Linux bundles are `.tar.gz` files written through `System.Formats.Tar` (with a top-level folder and the Unix executable bit on the apphost and `7zzs`), and macOS bundles are `.dmg` disk images when the script runs on macOS. On Windows the zip is written through `System.IO.Compression`, records the Unix executable bit (external attributes) explicitly when needed, and patches the *version-made-by* host byte of every real central-directory header to Unix (located through the end-of-central-directory record, never by scanning for the signature - compressed data can contain the same bytes). On Linux/macOS the `zip` CLI writes the Windows-targeted zips. **Linux and macOS bundles can be produced on any host; the macOS DMG requires a macOS host** (CI still builds each OS on its matching runner).
+It runs the test suite first (pass `-SkipTests` to skip), publishes the requested runtime identifiers, and writes the bundles into `SimpleZipDrive\bin\Release` next to the historical releases. Windows bundles are flat `.zip` files, Linux portable bundles are `.tar.gz` files written through `System.Formats.Tar` (with a top-level folder and the Unix executable bit on the apphost and `7zzs`), and macOS bundles are `.dmg` disk images when the script runs on macOS. The Linux `.deb` is assembled in managed code (an `ar` container holding `control.tar.gz` and a mode-preserving `data.tar.gz`), so it can be produced on any host. `.AppImage` requires a Linux host of the target architecture: the script downloads the official `appimagetool` for that architecture (CI uses `ubuntu-latest` for linux-x64 and the native `ubuntu-24.04-arm` runner for linux-arm64); pass `-RequireAllLinuxFormats` in CI so a missing tool fails the build instead of silently skipping a format. On Windows the zip is written through `System.IO.Compression`, records the Unix executable bit (external attributes) explicitly when needed, and patches the *version-made-by* host byte of every real central-directory header to Unix (located through the end-of-central-directory record, never by scanning for the signature - compressed data can contain the same bytes). On Linux/macOS the `zip` CLI writes the Windows-targeted zips. **Linux and macOS bundles can be produced on any host; the macOS DMG requires a macOS host** (CI still builds each OS on its matching runner).
 
 > **`SimpleZipDrive\bin\Release` is append-only - never delete files in it.** It holds locally
 > produced bundles (and may hold historical ones), and they are intentionally not tracked by
 > git (`.gitignore` ignores `bin/`), so a deleted bundle is gone permanently. Never run
 > `Remove-Item -Recurse`, `git clean`, `rm -rf` or any "clear output directory" step against
 > that path. Packaging may only overwrite the exact bundle file being regenerated
-> (`release_<version>_<rid>.zip`, `.tar.gz` or `.dmg`); every other file must stay untouched.
+> (`release_<version>_<rid>.zip`, `.tar.gz`, `.dmg`, `.deb` or `.AppImage`); every other file must stay untouched.
 > `scripts/package-release.ps1` follows this rule - keep it that way when editing the script.
 
 ## Publish commands
@@ -128,10 +145,10 @@ Three constraints make the file layout non-negotiable:
 1. Bump `<AssemblyVersion>`/`<FileVersion>` to the new version in `SimpleZipDrive.csproj` and `SimpleZipDrive.Tests.csproj` (there is no explicit `<Version>` property; `AssemblyVersion` drives the published version).
 2. Update `WhatsNew.md` (user-facing Added/Fixed/Changed/Internal sections) - the matching `## <version>` section becomes the GitHub release notes automatically.
 3. Push to `master` - the **CI** workflow must be green.
-4. Run **Release** from the Actions tab with the version, or push a `release_<version>` tag. The workflow verifies the csproj version, runs the tests again, and builds the six bundles.
+4. Run **Release** from the Actions tab with the version, or push a `release_<version>` tag. The workflow verifies the csproj version, runs the tests again, and builds the ten bundles.
 5. Download the **release-bundles-*** artifacts and **review the packages before approving** - the run summary lists sizes and SHA256 checksums.
 6. Smoke-test a downloaded bundle on each OS: mount a stored ZIP, a compressed archive, a `.zar` container, and an Xbox `.iso`/`.cso` image through the *packaged* executable (both a drive letter and a folder; elevated *and* non-elevated for WinFsp; a folder mount on Linux/macOS).
-7. Approve the **Publish release** job in the `release` environment. The workflow creates the GitHub release with the six bundles attached (full release - not draft/prerelease).
+7. Approve the **Publish release** job in the `release` environment. The workflow creates the GitHub release with the ten bundles attached (full release - not draft/prerelease).
 8. Inform issue reporters whose bugs the release fixes.
 
-Bundles can also be produced locally with `scripts/package-release.ps1 -Version <version>` and uploaded by hand with `gh release create release_<version> --title "<version>" --notes-file . *.zip *.tar.gz *.dmg`, but the Actions path is the supported one.
+Bundles can also be produced locally with `scripts/package-release.ps1 -Version <version>` and uploaded by hand with `gh release create release_<version> --title "<version>" --notes-file . *.zip *.tar.gz *.dmg *.deb *.AppImage`, but the Actions path is the supported one.

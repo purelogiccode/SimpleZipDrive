@@ -27,6 +27,7 @@
 
 - [Architecture](architecture)
 - [Building & Packaging](building-and-packaging)
+- [Release Validation 3.1.4](release-validation-3-1-4)
 - [Development Setup](development)
 - [Contributing](contributing)
 

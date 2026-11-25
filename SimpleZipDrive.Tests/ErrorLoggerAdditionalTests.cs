@@ -378,6 +378,11 @@ public class ErrorLoggerAdditionalTests
     [InlineData("Dokan is not available: The Dokan driver (dokan2.dll) is not installed. Unable to mount archive.")]
     [InlineData("WinFsp is not available: The WinFsp driver is not installed. Unable to mount archive.")]
     [InlineData("Dokan is not available: Dokan is only available on Windows.")]
+    // An outdated but installed driver is the same environment condition as a missing one
+    // (bug report #69974: Dokan 2.0.5 with 2.3.0 required).
+    [InlineData(
+        "Dokan is not available: The Dokan driver is outdated (found 2.0.5, minimum required is 2.3.0). Unable to mount archive.")]
+    [InlineData("WinFsp is not available: The WinFsp driver is outdated (found 2.0, minimum required is 2.1).")]
     // Shell-launch failures: broken URL/file association or shell COM registration
     // (bug reports #68197/#68198 — opening the Dokan download page).
     [InlineData(

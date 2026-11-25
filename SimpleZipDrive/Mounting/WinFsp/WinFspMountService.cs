@@ -663,7 +663,15 @@ public class WinFspMountService : IDisposable, IMountService
 
             _loggingService.Log($"Attempting to mount on '{currentMountPoint}'...");
 
-            if (await AttemptMountLifecycleAsync(archivePath, currentMountPoint, archiveType)) return;
+            var outcome = await AttemptMountLifecycleAsync(archivePath, currentMountPoint, archiveType);
+
+            // Only an unusable drive letter is worth retrying: any other failure (driver
+            // problem, encrypted archive opened with a cancelled/wrong password, corrupt
+            // archive) would repeat the same work and the same error on every remaining
+            // letter. In particular, re-prompting for a password after the user cancelled it
+            // produced the repeated "Cannot show window with non-visible owner" reports
+            // (#70017-#70042) once the main window had gone away.
+            if (outcome != MountAttemptOutcome.MountPointUnavailable) return;
         }
 
         _loggingService.Log("Error: Failed to auto-mount on any preferred drive letters.");
@@ -676,7 +684,7 @@ public class WinFspMountService : IDisposable, IMountService
         var mountPoint = GetCrossIntegrityMountPath(archivePath);
         _loggingService.Log($"Cross-integrity mode: mounting to folder '{mountPoint}'.");
 
-        if (!await AttemptMountLifecycleAsync(archivePath, mountPoint, archiveType))
+        if (await AttemptMountLifecycleAsync(archivePath, mountPoint, archiveType) != MountAttemptOutcome.Mounted)
             _loggingService.Log($"Error: Failed to cross-integrity mount on '{mountPoint}'.");
     }
 
@@ -686,11 +694,28 @@ public class WinFspMountService : IDisposable, IMountService
     {
         if (mountPoint.Length == 1 && char.IsLetter(mountPoint[0])) mountPoint = mountPoint.ToUpperInvariant() + ":";
 
-        if (!await AttemptMountLifecycleAsync(archivePath, mountPoint, archiveType))
+        if (await AttemptMountLifecycleAsync(archivePath, mountPoint, archiveType) != MountAttemptOutcome.Mounted)
             _loggingService.Log($"Error: Failed to mount on '{mountPoint}'.");
     }
 
-    private async Task<bool> AttemptMountLifecycleAsync(string archivePath, string mountPoint, string archiveType)
+    /// <summary>
+    ///     Outcome of a single mount attempt, used by the auto-mount loop to decide whether
+    ///     trying another drive letter could plausibly succeed.
+    /// </summary>
+    private enum MountAttemptOutcome
+    {
+        /// <summary>The mount succeeded (and was later unmounted by the user).</summary>
+        Mounted,
+
+        /// <summary>The drive letter or folder could not be used; another mount point may work.</summary>
+        MountPointUnavailable,
+
+        /// <summary>Any other failure; another mount point would fail the same way.</summary>
+        Failed
+    }
+
+    private async Task<MountAttemptOutcome> AttemptMountLifecycleAsync(string archivePath, string mountPoint,
+        string archiveType)
     {
         var isDriveLetter = IsDriveLetterMountPoint(mountPoint);
 
@@ -705,7 +730,7 @@ public class WinFspMountService : IDisposable, IMountService
             DiagnosticLogger.Log("WinFsp driver service check failed - service not running.");
             ShowWinFspDriverErrorDialog(
                 "The WinFsp driver service is not running. Please start the WinFsp.Launcher service and try again.");
-            return false;
+            return MountAttemptOutcome.Failed;
         }
 
         // Pre-validate that the native WinFsp DLL can be loaded by the .NET runtime
@@ -721,7 +746,7 @@ public class WinFspMountService : IDisposable, IMountService
                 "- The DLL architecture doesn't match this application (32-bit vs 64-bit)\n" +
                 "- The DLL is locked or inaccessible\n\n" +
                 "Please reinstall WinFsp and try again.");
-            return false;
+            return MountAttemptOutcome.Failed;
         }
 
         // Verify mount point accessibility
@@ -734,7 +759,7 @@ public class WinFspMountService : IDisposable, IMountService
             else
                 ShowWinFspDriverErrorDialog(
                     $"The mount point '{mountPoint}' is not accessible. Please choose a different location or check permissions.");
-            return false;
+            return MountAttemptOutcome.MountPointUnavailable;
         }
 
         try
@@ -747,7 +772,7 @@ public class WinFspMountService : IDisposable, IMountService
             ErrorLoggerStatic.ReportSilentException(ex, $"Failed to create mount directory '{mountPoint}'");
             DiagnosticLogger.Log(ex, $"Failed to create mount directory '{mountPoint}'");
             _loggingService.LogError($"Error: Failed to create mount directory '{mountPoint}'. {ex.Message}");
-            return false;
+            return MountAttemptOutcome.Failed;
         }
 
         _mountCancellation?.Dispose();
@@ -810,7 +835,7 @@ public class WinFspMountService : IDisposable, IMountService
                     ShowWinFspVersionMismatchFailedDialog(installedVersion, RequiredWinFspVersion);
                     _currentZipFs?.Dispose();
                     _currentZipFs = null;
-                    return false;
+                    return MountAttemptOutcome.Failed;
                 }
             }
             else
@@ -832,7 +857,7 @@ public class WinFspMountService : IDisposable, IMountService
                 ShowWinFspVersionMismatchFailedDialog(installedVersion ?? new Version(2, 1), RequiredWinFspVersion);
                 _currentZipFs?.Dispose();
                 _currentZipFs = null;
-                return false;
+                return MountAttemptOutcome.Failed;
             }
 
             try
@@ -867,6 +892,7 @@ public class WinFspMountService : IDisposable, IMountService
                     _loggingService.LogError($"WinFsp mount failed with status 0x{mountStatus:X8}: {specificError}");
                     DiagnosticLogger.Log($"  Specific error: {specificError}");
 
+                    var outcome = MountAttemptOutcome.Failed;
                     switch (mountStatus)
                     {
                         // Show specific error dialog based on status code
@@ -877,18 +903,21 @@ public class WinFspMountService : IDisposable, IMountService
                             break;
                         case StatusObjectNameCollision:
                             // The mount point is already in use - this is not a driver problem,
-                            // so don't suggest reinstalling/updating WinFsp.
+                            // so don't suggest reinstalling/updating WinFsp. Another drive letter
+                            // may still be free.
                             ShowMountPointInUseDialog(mountPoint);
+                            outcome = MountAttemptOutcome.MountPointUnavailable;
                             break;
                         case StatusObjectNameInvalid:
                             ShowInvalidMountPointDialog(mountPoint);
+                            outcome = MountAttemptOutcome.MountPointUnavailable;
                             break;
                         default:
                             ShowWinFspMountFailedUpdateDialog(specificError);
                             break;
                     }
 
-                    return false;
+                    return outcome;
                 }
             }
             catch (Exception ex)
@@ -941,7 +970,7 @@ public class WinFspMountService : IDisposable, IMountService
                         true);
                 }
 
-                return false;
+                return MountAttemptOutcome.Failed;
             }
 
             _currentHost = host;
@@ -984,14 +1013,14 @@ public class WinFspMountService : IDisposable, IMountService
                 host.Dispose();
             }
 
-            return true;
+            return MountAttemptOutcome.Mounted;
         }
         catch (OperationCanceledException ex)
         {
             // User cancelled the password prompt - expected behavior, not an error.
             _loggingService.Log($"Mount cancelled: {ex.Message}");
             CurrentArchivePath = null;
-            return false;
+            return MountAttemptOutcome.Failed;
         }
         catch (Exception ex) when (ex.Message.Contains("drive", StringComparison.OrdinalIgnoreCase) ||
                                    ex.Message.Contains("mount", StringComparison.OrdinalIgnoreCase))
@@ -1002,7 +1031,7 @@ public class WinFspMountService : IDisposable, IMountService
                 $"WinFspMountService.AttemptMountLifecycleAsync: Drive/mount error for '{archivePath}' to '{mountPoint}'",
                 true);
             CurrentArchivePath = null;
-            return false;
+            return MountAttemptOutcome.Failed;
         }
         catch (Exception ex)
         {
@@ -1011,7 +1040,7 @@ public class WinFspMountService : IDisposable, IMountService
             ErrorLoggerStatic.LogErrorSync(ex,
                 $"WinFspMountService.AttemptMountLifecycleAsync: Error mounting archive '{archivePath}' to '{mountPoint}'");
             CurrentArchivePath = null;
-            return false;
+            return MountAttemptOutcome.Failed;
         }
     }
 

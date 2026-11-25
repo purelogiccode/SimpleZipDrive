@@ -1,5 +1,19 @@
 # What's New
 
+## 3.1.4
+
+### Changed
+- **Linux now ships `.deb` and `.AppImage` packages (x64 and ARM64) in addition to the portable `.tar.gz`.** The new installer formats are self-contained, so they run without a separate .NET 11 runtime; the `.deb` installs to `/opt/simplezipdrive` with a `/usr/bin` launcher, desktop entry and icon, and the AppImage is a single executable. The portable tarball, Windows and macOS packages remain framework-dependent and unchanged. A Flatpak bundle was evaluated and produced during validation, but is **not shipped**: Flatpak sandboxes cannot mount FUSE without granting `--talk-name=org.freedesktop.Flatpak` (arbitrary host commands), so the `.deb`/`.AppImage` formats are the supported Linux installers. All bundles for the tested matrix (Windows x64/ARM64, Linux x64/ARM64 and macOS ARM64) were validated; see [Release Validation 3.1.4](release-validation-3-1-4).
+
+### Fixed
+- **Password prompts can no longer fail with *"Cannot show window with non-visible owner"* (bug reports #70017-#70042).** The dialog host now only uses visible windows that still have a platform window as dialog owners. When no such owner exists - for example a command-line mount that starts before the main window is shown, or a mount that is still finishing while the window closes - the prompt is shown as a topmost standalone window instead of throwing inside Avalonia and aborting the mount.
+- **Auto-mount stops after a failed attempt instead of retrying every drive letter.** WinFsp now distinguishes an unusable drive letter (collision or invalid name) from a failure that would repeat identically on the next letter (driver error, corrupt archive, or a cancelled/wrong password). Previously, cancelling the password prompt made the auto-mount loop prompt again on every remaining letter (the source of the repeated #70017-#70042 reports).
+- **An unavailable mount driver is no longer forwarded as an application bug (bug report #69974).** *"Dokan is not available: The Dokan driver is outdated ..."* (and the equivalent WinFsp/FUSE messages) are environment conditions with their own dialog, matching the existing handling of missing drivers.
+
+### Internal
+- Dependency updates: Avalonia 12.2.0, SharpCompress 0.50.12, XISOSharp 2.1.0, coverlet.collector 10.1.1 and Meziantou.Analyzer 3.0.342. The WinFsp interop stays pinned at 2.1.25156 so the stable native WinFsp 2.1 driver remains supported (the 2.2 interop rejects it at runtime).
+- The release workflow now builds Linux arm64 packages on a native `ubuntu-24.04-arm` runner (no QEMU), and the suite is 1,492 tests, InspectCode-clean.
+
 ## 3.1.3
 
 ### Fixed

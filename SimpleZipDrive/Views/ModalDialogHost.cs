@@ -60,14 +60,57 @@ internal static class ModalDialogHost
     }
 
     /// <summary>
-    ///     Returns the most recently active window as the dialog owner (falling back to the
-    ///     main window), so a dialog raised from a modal settings window is owned by it.
+    ///     Returns a window Avalonia can use as a dialog owner: the most recently active visible
+    ///     window (so a dialog raised from a modal settings window is owned by it), falling back
+    ///     to the main window and then to any other visible window.
     /// </summary>
-    /// <returns>The owner window, or <see langword="null" /> when no desktop lifetime exists.</returns>
-    public static Window? GetOwnerWindow()
+    /// <returns>
+    ///     The owner window, or <see langword="null" /> when no desktop lifetime exists or no
+    ///     visible window can own a dialog.
+    /// </returns>
+    /// <remarks>
+    ///     Avalonia throws <see cref="InvalidOperationException" /> ("Cannot show window with
+    ///     non-visible owner.") when the owner is hidden or already closed. That happens when a
+    ///     mount starts before the main window is shown or after it was hidden/closed (bug
+    ///     reports #70017-#70042), so only windows that can actually host a dialog are returned.
+    /// </remarks>
+    private static Window? GetOwnerWindow()
     {
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        return lifetime?.Windows.LastOrDefault(static window => window.IsActive) ?? lifetime?.MainWindow;
+        if (lifetime is null)
+            return null;
+
+        for (var i = lifetime.Windows.Count - 1; i >= 0; i--)
+        {
+            var window = lifetime.Windows[i];
+            if (window.IsActive && CanOwnDialog(window))
+                return window;
+        }
+
+        if (CanOwnDialog(lifetime.MainWindow))
+            return lifetime.MainWindow;
+
+        for (var i = lifetime.Windows.Count - 1; i >= 0; i--)
+        {
+            var window = lifetime.Windows[i];
+            if (CanOwnDialog(window))
+                return window;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Determines whether a window is currently able to own a dialog.
+    /// </summary>
+    /// <param name="window">The candidate owner.</param>
+    /// <returns>
+    ///     <see langword="true" /> when the window is visible and still has a platform window;
+    ///     otherwise <see langword="false" />.
+    /// </returns>
+    private static bool CanOwnDialog(Window? window)
+    {
+        return window is { IsVisible: true, PlatformImpl: not null };
     }
 
     private static T Run<T>(Func<Window> createDialog, Func<Window, T> readResult)
@@ -85,10 +128,10 @@ internal static class ModalDialogHost
 
         try
         {
-            if (owner != null && owner != dialog)
+            if (owner != null && owner != dialog && CanOwnDialog(owner))
                 _ = dialog.ShowDialog(owner);
             else
-                dialog.Show();
+                ShowWithoutOwner(dialog);
 
             // Nested dispatcher loop: keeps the modal dialog responsive while the calling
             // (possibly background) thread blocks until the user closes it. The token is
@@ -102,6 +145,20 @@ internal static class ModalDialogHost
             dialog.Closed -= closeHandler.OnClosed;
             closed.Dispose();
         }
+    }
+
+    /// <summary>
+    ///     Shows a dialog when no visible window can own it (for example a command-line mount
+    ///     that starts before the main window is shown, or a mount still finishing after the
+    ///     window was closed). The window is made topmost so the prompt cannot get lost behind
+    ///     other applications; <see cref="WindowStartupLocation.CenterOwner" /> dialogs fall
+    ///     back to the screen center when they have no owner.
+    /// </summary>
+    /// <param name="dialog">The dialog to show.</param>
+    private static void ShowWithoutOwner(Window dialog)
+    {
+        dialog.Topmost = true;
+        dialog.Show();
     }
 
     /// <summary>

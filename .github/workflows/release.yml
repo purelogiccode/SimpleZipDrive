@@ -86,9 +86,12 @@ jobs:
           - name: windows
             os: windows-latest
             rids: win-x64,win-arm64
-          - name: linux
+          - name: linux-x64
             os: ubuntu-latest
-            rids: linux-x64,linux-arm64
+            rids: linux-x64
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            rids: linux-arm64
           - name: macos
             os: macos-latest
             rids: osx-x64,osx-arm64
@@ -96,6 +99,7 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
       RIDS: ${{ matrix.rids }}
+      BUNDLE_OS: ${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -113,14 +117,22 @@ jobs:
         shell: pwsh
         run: |
           $rids = $env:RIDS.Split(',', [System.StringSplitOptions]::RemoveEmptyEntries)
-          ./scripts/package-release.ps1 -Version $env:VERSION -RuntimeIdentifiers $rids -OutputDirectory "$env:RUNNER_TEMP/bundles" -StagingDirectory "$env:RUNNER_TEMP/staging" -SkipTests
+          $arguments = @{
+            Version = $env:VERSION
+            RuntimeIdentifiers = $rids
+            OutputDirectory = "$env:RUNNER_TEMP/bundles"
+            StagingDirectory = "$env:RUNNER_TEMP/staging"
+            SkipTests = $true
+          }
+          if ($env:BUNDLE_OS -like 'linux*') { $arguments.RequireAllLinuxFormats = $true }
+          ./scripts/package-release.ps1 @arguments
 
       - name: Write checksum summary
         shell: pwsh
         run: |
           $lines = @('## Bundles ready for review', '')
           Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/bundles" -File |
-            Where-Object { $_.Name -match '\.(zip|tar\.gz|dmg)$' } |
+            Where-Object { $_.Name -match '\.(zip|tar\.gz|dmg|deb|AppImage)$' } |
             Sort-Object Name | ForEach-Object {
               $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
               $lines += ('- `{0}` - {1:N0} bytes - SHA256 `{2}`' -f $_.Name, $_.Length, $hash)
@@ -137,6 +149,8 @@ jobs:
             ${{ runner.temp }}/bundles/*.zip
             ${{ runner.temp }}/bundles/*.tar.gz
             ${{ runner.temp }}/bundles/*.dmg
+            ${{ runner.temp }}/bundles/*.deb
+            ${{ runner.temp }}/bundles/*.AppImage
           if-no-files-found: error
           retention-days: 30
 
@@ -171,7 +185,11 @@ jobs:
             "release_$($env:VERSION)_win-x64.zip",
             "release_$($env:VERSION)_win-arm64.zip",
             "release_$($env:VERSION)_linux-x64.tar.gz",
+            "release_$($env:VERSION)_linux-x64.deb",
+            "release_$($env:VERSION)_linux-x64.AppImage",
             "release_$($env:VERSION)_linux-arm64.tar.gz",
+            "release_$($env:VERSION)_linux-arm64.deb",
+            "release_$($env:VERSION)_linux-arm64.AppImage",
             "release_$($env:VERSION)_osx-x64.dmg",
             "release_$($env:VERSION)_osx-arm64.dmg"
           )
@@ -202,7 +220,7 @@ jobs:
         run: |
           TAG="release_${VERSION}"
           shopt -s nullglob
-          assets=(bundles/*.zip bundles/*.tar.gz bundles/*.dmg)
+          assets=(bundles/*.zip bundles/*.tar.gz bundles/*.dmg bundles/*.deb bundles/*.AppImage)
           if [ "${#assets[@]}" -eq 0 ]; then
             echo "No release bundles were downloaded." >&2
             exit 1

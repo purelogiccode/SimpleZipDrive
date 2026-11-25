@@ -530,6 +530,13 @@ public class ErrorLogger : IDisposable
              messageLower.Contains("not installed", StringComparison.OrdinalIgnoreCase)) ||
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("not installed", StringComparison.OrdinalIgnoreCase)) ||
+            // The cross-platform facade prefixes every unavailable backend with
+            // "<Backend> is not available:"; the reason may be an outdated driver, an
+            // architecture mismatch, or a backend that does not exist on this OS. Each case is
+            // an environment condition with its own dialog (bug report #69974).
+            messageLower.Contains("dokan is not available", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("winfsp is not available", StringComparison.OrdinalIgnoreCase) ||
+            messageLower.Contains("fuse is not available", StringComparison.OrdinalIgnoreCase) ||
             ((messageLower.Contains("libfuse3", StringComparison.OrdinalIgnoreCase) ||
               messageLower.Contains("macfuse", StringComparison.OrdinalIgnoreCase)) &&
              (messageLower.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
