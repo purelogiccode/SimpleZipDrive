@@ -13,26 +13,27 @@ release folder - the 3.1.0-3.1.2 bundles on disk have no accompanying test recor
 
 - **Date:** 2026-11-25
 - **Version under test:** 3.1.4
-- **Base commit:** `0d5f06c` plus the local 3.1.4 changes (dialog/FUSE fixes and the new Linux
-  packaging)
-- **Artifacts:** `SimpleZipDrive\bin\Release` (monotonically extended, nothing removed)
+- **Release commit:** `b537dab` (tag `release_3.1.4`)
+- **Artifacts:** published `release_3.1.4` GitHub assets (the matching local files live in
+  `SimpleZipDrive\bin\Release`, which is append-only)
 
 ## Bundles and SHA256
 
 | Bundle | Bytes | SHA256 |
 |---|---:|---|
-| `release_3.1.4_win-x64.zip` | 15,102,333 | `13FEEF8B76CC361A692F32F86C30600A0C55C651BCC5148FE745AA5A1CF4AAA8` |
-| `release_3.1.4_win-arm64.zip` | 14,532,827 | `F7D25F35EA6C565649D4E15E8F94397B456C2656FCCBD1C73C0B9DB14FB300FB` |
-| `release_3.1.4_linux-x64.tar.gz` | 13,592,377 | `5EE8D96C71F2FD6EFA54CCDA43399DD88123BFB95AAE5C70090D681F9DFAE9D2` |
-| `release_3.1.4_linux-x64.deb` | 47,476,702 | `3B4B0207D2B1DF6265944172806339D1E6F51312B1F925E136F8D7403666DF3A` |
-| `release_3.1.4_linux-x64.AppImage` | 44,591,608 | `B5838F1D452B3EAA85FD3F808D9012A53F1EDF3CBDE5F63A040B611307788C75` |
-| `release_3.1.4_linux-arm64.tar.gz` | 13,110,451 | `A3DCF10D4EB3F6B432C9F0BC2C28D949FA68402ED02203355B2295CE6F06AFC7` |
-| `release_3.1.4_linux-arm64.deb` | 44,983,108 | `DCC3C6CC1183E56DA4A5EBEB3E5918C591B37D80DF378BC00EBECC146E84153F` |
-| `release_3.1.4_linux-arm64.AppImage` | 42,019,336 | `F1A3F104222290D6DF672E59C56591857CEBC6D4179B3A096574210E45B2D5B6` |
+| `release_3.1.4_win-x64.zip` | 15,102,476 | `BC5D393FF664638A68A029BD8A509E6C5BF1CBF8C6271E7B5B5798567747D77E` |
+| `release_3.1.4_win-arm64.zip` | 14,533,013 | `1C39D48C51679858EBBA24DFD515F851E44305FF44AF480EF613B325A8250FC7` |
+| `release_3.1.4_linux-x64.tar.gz` | 13,592,355 | `B77FE1BEB283B14CF06307B9FDECBDFEF45F236B153375ECC581A033A10CEB96` |
+| `release_3.1.4_linux-x64.deb` | 47,476,870 | `C46C7D8ECFAE79960794E329942C129E3A8067C80AC6B1DF39D2E0E0C27CCA08` |
+| `release_3.1.4_linux-x64.AppImage` | 44,591,608 | `81B2FA6A404FD9154C7A23F16C9A8EA451CC66F24169D50D0EF0CD3C901EBD46` |
+| `release_3.1.4_linux-arm64.tar.gz` | 13,110,297 | `5B1C7FF1354EC98EFE271622D7FB31919D337981E04F9F51B208B45BF8E0171D` |
+| `release_3.1.4_linux-arm64.deb` | 44,982,202 | `B39D1A87D515F44BFF929104F31C899F828BABF334F2A50DDB9E9ECE53CADB6A` |
+| `release_3.1.4_linux-arm64.AppImage` | 42,019,336 | `9C3F9184318DA3ED5A59FCC60D84818F9FAB0D9EB76D82CD7FD193C071A90CA5` |
+| `release_3.1.4_osx-x64.dmg` | 19,192,919 | `C710E2C0BDFFEC2C340A4F97B6C2A9DE7615A09DBD12D79D61F0E802C0E31DEB` |
+| `release_3.1.4_osx-arm64.dmg` | 19,097,264 | `81480DC7AA2524F4A7997442B4E967F4CDFE5236D8392244D7991FDAA3C76F79` |
 
-The macOS arm64 DMG used for the run was assembled on the Mac with `hdiutil` from the
-`osx-arm64` publish output (the packaging script's DMG path); it is not kept locally because the
-rented Mac was deleted after the session.
+The macOS arm64 run used a DMG assembled on the Mac with `hdiutil` from the `osx-arm64` publish
+output (the same packaging path the CI release job uses); the published DMGs are CI-built.
 
 ## Results
 
