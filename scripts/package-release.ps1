@@ -611,6 +611,12 @@ function New-ReleaseAppImage
     Copy-Item -LiteralPath $IconPath -Destination (Join-Path $appDir 'simplezipdrive.png') -Force
     Copy-Item -LiteralPath $IconPath -Destination (Join-Path $appDir '.DirIcon') -Force
 
+    # dotnet publish can leave native libraries at 0744. appimagetool warns that group/other
+    # users then cannot execute them (and future versions may fail the build), so make the
+    # payload world-readable and add execute where a file is already executable.
+    & chmod -R a+rX $appDir
+    if ($LASTEXITCODE -ne 0) { throw "chmod failed for the AppDir of $Rid." }
+
     $tool = Get-Command appimagetool -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
     if (-not $tool)
     {
