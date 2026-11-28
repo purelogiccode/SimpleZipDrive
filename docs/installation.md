@@ -20,6 +20,8 @@ SimpleZipDrive is a single cross-platform application. Download the package for 
 
 The Linux tarballs contain a top-level `SimpleZipDrive-X.Y.Z-linux-<arch>/` folder and preserve the executable bit; the macOS disk images contain the same folder with `SimpleZipDrive` and `7zz` already executable. The `.deb` and `.AppImage` packages are **self-contained** (the .NET runtime is included) and only need libfuse3; the tarball, Windows and macOS packages are framework-dependent and need the .NET 11 runtime.
 
+> **Flatpak is not supported.** No Flatpak bundle is built or published: a Flatpak sandbox cannot mount FUSE, so the app cannot work there. On Linux use the `.deb` or `.AppImage` package (or the portable `.tar.gz`).
+
 - **Windows x64** — standard 64-bit Intel/AMD systems (the vast majority of PCs).
 - **Windows ARM64** — Windows-on-ARM devices (Snapdragon X, Surface Pro X, etc.).
 - **Linux** — install libfuse3 from your distribution (`libfuse3-3` on Debian/Ubuntu, `fuse3` on Fedora).

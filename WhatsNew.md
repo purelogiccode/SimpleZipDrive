@@ -6,6 +6,12 @@
 - **A mount point that is an existing file is rejected with a clear message and no longer fills the bug tracker (bug reports #70391-#70394).** On Linux/macOS, passing a regular file as the explicit mount point made `Directory.CreateDirectory` throw *"The file '…' already exists."*; the failure was logged twice (once by the FUSE backend and once by the command-line handler) and both copies were forwarded. The backend now validates the path up front, names the offending mount point, explains that it must be a folder, and the failure is reported once. Mount-point path errors are classified as user/environment conditions.
 - **A FUSE mount failure inside a Flatpak sandbox is explained and no longer reported as an application bug (bug reports #70380/#70387).** Flatpak has no mount capabilities of its own, so libfuse returns a bare non-zero exit code. The failure log now states that the app is running in a Flatpak sandbox and points to the supported `.deb`/`.AppImage` packages; that condition is no longer forwarded.
 
+### Changed
+- **Flatpak is not a packaging target in any form.** No Flatpak bundle is built, validated as a release asset, or published: a Flatpak sandbox cannot mount FUSE without granting arbitrary host-command access. The supported Linux packages remain the `.deb`, `.AppImage` and portable `.tar.gz`; the app now explains the unsupported sandbox when a FUSE mount fails inside one. Historical local `.flatpak` test files stay in the append-only build output folder but are not release assets.
+
+### Internal
+- The suite now contains **1,503 tests** and the solution stays analyzer-warning-clean.
+
 ## 3.1.4
 
 ### Changed

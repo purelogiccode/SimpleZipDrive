@@ -21,6 +21,12 @@ release_<version>_osx-x64.dmg        release_<version>_osx-arm64.dmg
 <rid> = win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-x64 | osx-arm64
 ```
 
+> **Flatpak is not a supported target.** No Flatpak bundle is built, validated as a release asset,
+> or published: Flatpak sandboxes cannot mount FUSE without forwarding the mount handshake to the
+> host (`--talk-name=org.freedesktop.Flatpak`, which permits arbitrary host commands). The `.deb`
+> and `.AppImage` packages are the supported Linux installers. Do not add a Flatpak target to the
+> packaging script, release workflow, or bundle list.
+
 The Linux `.tar.gz`, `.deb` and `.AppImage` bundles contain a top-level
 `SimpleZipDrive-<version>-<rid>/` folder (or the equivalent installed layout) and preserve the
 executable bit on the apphost and the 7-Zip binary. The **installer formats are self-contained**:
@@ -81,13 +87,13 @@ If the bundles are wrong, do **not** approve: cancel the run, fix, and re-run.
 # All targets (any host can build any runtime identifier; macOS gets .tar.gz instead of
 # .dmg on a non-macOS host because hdiutil is macOS-only). On Windows the AppImage format
 # is skipped; run the script on Linux to produce it.
-.\scripts\package-release.ps1 -Version 3.1.4
+.\scripts\package-release.ps1 -Version 3.1.5
 
 # Only the targets for one OS
-.\scripts\package-release.ps1 -Version 3.1.4 -RuntimeIdentifiers win-x64,win-arm64
+.\scripts\package-release.ps1 -Version 3.1.5 -RuntimeIdentifiers win-x64,win-arm64
 
 # Linux portable + installer formats (AppImage needs appimagetool)
-.\scripts\package-release.ps1 -Version 3.1.4 -RuntimeIdentifiers linux-x64,linux-arm64 `
+.\scripts\package-release.ps1 -Version 3.1.5 -RuntimeIdentifiers linux-x64,linux-arm64 `
     -LinuxFormats deb,appimage
 ```
 

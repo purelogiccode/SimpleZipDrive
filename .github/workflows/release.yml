@@ -196,6 +196,12 @@ jobs:
           foreach ($name in $expected) {
             if (-not (Test-Path -LiteralPath (Join-Path 'bundles' $name))) { throw "Missing expected bundle: $name" }
           }
+          # Flatpak is not a supported target: its sandbox cannot mount FUSE, so no Flatpak
+          # bundle may ever be published.
+          $flatpak = Get-ChildItem -LiteralPath bundles -File -Filter '*.flatpak' -ErrorAction SilentlyContinue
+          if ($flatpak) {
+            throw "Flatpak bundles are not supported and must not be published: $($flatpak.Name -join ', ')"
+          }
           Get-ChildItem -LiteralPath bundles -File | Select-Object Name, Length
 
       - name: Generate release notes from WhatsNew.md

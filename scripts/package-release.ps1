@@ -20,6 +20,10 @@
     skipped unless -RequireAllLinuxFormats is set, which turns the skip into an error
     (used by the release workflow).
 
+    Flatpak is intentionally NOT supported and is never produced: a Flatpak sandbox cannot
+    mount FUSE without forwarding the mount handshake to the host (arbitrary host commands).
+    Do not add a Flatpak target to this script or to the release workflow.
+
     Every bundle contains the 7-Zip command-line fallback binary for its platform
     (7za.exe on Windows, 7zzs on Linux, 7zz on macOS) and the 7-Zip license text.
     Windows bundles additionally contain the loose winfsp-msil.dll interop assembly;
