@@ -25,6 +25,7 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 | *"FUSE Not Available"* dialog on Linux | libfuse3 missing | Install it (`sudo apt install libfuse3-3`, `sudo dnf install fuse3`, …) |
 | *"FUSE Not Available"* dialog on macOS | macFUSE missing or not loaded | Install [macFUSE](https://macfuse.github.io/) and approve the system extension |
 | FUSE mount fails with *"failed to mount at '…'"* | `/dev/fuse` not accessible (containers, WSL1) or the mount folder is not empty | Ensure `/dev/fuse` exists and is readable; use an empty mount folder |
+| *"The application is running inside a Flatpak sandbox, where FUSE mounting is not supported."* | The Flatpak sandbox has no mount capabilities (the Flatpak target is not shipped) | Use the `.deb` or `.AppImage` package instead |
 | FUSE session does not exit / *"the drive may still be mounted"* | The session is wedged or `fusermount3`/`umount` failed | Unmount from the system (`fusermount3 -u <folder>` / `umount <folder>`) or close the app; the mount is not reported as unmounted until the session actually exits |
 
 ## Mount-point problems
@@ -38,6 +39,7 @@ Symptom → cause → fix. If your case is not here, check the session log (`%LO
 | `0xC000003A` *"The mount point path was not found"* | Folder path invalid | Check the path |
 | `0xC0000022` *"Access denied"* | Permissions on the folder | Choose a folder you can write to |
 | *"The path is empty"* on every WinFsp mount in versions < 2.9.0 | WinFsp interop crashed inside the single-file bundle (`Assembly.Location` empty) | **Upgrade to 2.9.0+** — `winfsp-msil.dll` now ships beside the exe |
+| *"The mount point '…' is an existing file, not a folder."* | The explicit mount-point argument names a regular file; a folder path (or no path) is required | Pass a folder path, or omit the argument to use a temporary folder |
 
 ## Archive problems
 

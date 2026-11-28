@@ -105,15 +105,9 @@ public sealed class FuseMountService : IDisposable, IMountService
         var isTempMountPoint = string.IsNullOrEmpty(mountPoint);
         var resolvedMountPoint = isTempMountPoint ? CreateTempMountPoint() : Path.GetFullPath(mountPoint!);
 
-        try
-        {
-            if (!isTempMountPoint) Directory.CreateDirectory(resolvedMountPoint);
-        }
-        catch (Exception ex)
-        {
-            _loggingService.LogError($"Error: Failed to create mount directory '{resolvedMountPoint}'. {ex.Message}");
-            throw;
-        }
+        // The caller (command-line handler or mount dialog) logs/reports the exception; logging
+        // it here as well produced two bug reports for the same failure (#70391-#70394).
+        if (!isTempMountPoint) EnsureMountPointDirectory(resolvedMountPoint);
 
         Interlocked.Exchange(ref _cleanedUp, 0);
         Interlocked.Exchange(ref _unmountRequested, 0);
@@ -185,7 +179,8 @@ public sealed class FuseMountService : IDisposable, IMountService
             {
                 var result = fileSystem.Run(resolvedMountPoint, debug: false, OnMounted);
                 if (result != 0)
-                    _loggingService.LogError($"FUSE mount failed for '{resolvedMountPoint}' (exit code {result}).");
+                    _loggingService.LogError(
+                        $"FUSE mount failed for '{resolvedMountPoint}' (exit code {result}).{GetMountFailureHint()}");
             }
             catch (Exception ex)
             {
@@ -414,6 +409,63 @@ public sealed class FuseMountService : IDisposable, IMountService
             $"simplezipdrive-{Environment.ProcessId}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    /// <summary>
+    ///     Ensures that an explicitly requested mount point is a folder that can be mounted on.
+    ///     FUSE requires an existing directory, so a path that exists as a file (or cannot be
+    ///     created) must produce an actionable message instead of the raw
+    ///     "The file '...' already exists." error from <see cref="Directory.CreateDirectory(string)" />
+    ///     (bug reports #70391-#70394).
+    /// </summary>
+    /// <param name="mountPoint">The absolute mount-point path requested by the user.</param>
+    /// <exception cref="IOException">The path exists as a non-folder or cannot be created.</exception>
+    internal static void EnsureMountPointDirectory(string mountPoint)
+    {
+        if (File.Exists(mountPoint))
+        {
+            throw new IOException(
+                $"The mount point '{mountPoint}' is an existing file, not a folder. " +
+                "Choose a different folder, or omit the mount point to use a temporary folder.");
+        }
+
+        try
+        {
+            Directory.CreateDirectory(mountPoint);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                       or NotSupportedException or ArgumentException)
+        {
+            // Covers dangling symlinks and other path entries that exist but are not folders,
+            // as well as permission/path errors; rephrase the bare system text so the log/UI
+            // names the mount point (and BugReportSink filters it as a user error).
+            throw new IOException($"The mount point '{mountPoint}' cannot be used: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    ///     Gets an explanation appended to a failed FUSE mount log entry when the running
+    ///     environment is known to be unable to mount FUSE.
+    /// </summary>
+    internal static string GetMountFailureHint()
+    {
+        if (IsFlatpakSandbox())
+        {
+            return " The application is running inside a Flatpak sandbox, where FUSE mounting is not supported. " +
+                   "Install the .deb or AppImage package instead.";
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
+    ///     Determines whether the process runs inside a Flatpak sandbox. Flatpak has no mount
+    ///     capabilities of its own, so a FUSE mount attempt there fails with a bare exit code.
+    /// </summary>
+    internal static bool IsFlatpakSandbox()
+    {
+        return File.Exists("/.flatpak-info") ||
+               !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID"));
     }
 
     private static async Task<FileStream> OpenArchiveFileStreamAsync(string archivePath)

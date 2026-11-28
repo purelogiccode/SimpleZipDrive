@@ -28,6 +28,7 @@ flowchart TD
 - **Drive-letter pool:** `M, N, O, P, Q` — tried in order. Occupied letters are skipped: *"Skipping 'M:\' (already in use)."*
 - **Normalization:** a single letter (`M`) or `M:` is expanded to a full mount point (`M:` in the WinFsp variant, `M:\` in the Dokan variant). Any longer string is treated as a folder path — this distinction is deliberate; misclassifying absolute folder paths as drive letters historically caused mount failures (`0xC0000034`, fixed in 2.9.0).
 - **Folder mounts** are created if missing (WinFsp) and write-tested with a probe file (`.sfz_test_<guid>`) before the mount.
+- **FUSE folder mounts** are created if missing. A requested path that is an existing *file* is rejected with an actionable message instead of the raw *"The file '…' already exists."* error — FUSE can only mount on a folder.
 
 ## Pre-mount checks
 

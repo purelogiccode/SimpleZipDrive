@@ -363,6 +363,21 @@ public class ErrorLoggerAdditionalTests
     [InlineData(
         "WinFsp mount failed with status 0xC0000033: Mount failed with status 0xC0000033. This may be caused by an outdated WinFsp driver.")]
     [InlineData("Mount point 'N:' is not accessible or cannot be created.")]
+    // A user-supplied FUSE mount point that is an existing file (bug reports #70391-#70394).
+    // The 3.1.3 reports contained the raw Directory.CreateDirectory text in both the
+    // service message and the command-line mirror.
+    [InlineData(
+        "Error: Failed to create mount directory '/home/vm/szd/mnt-f'. The file '/home/vm/szd/mnt-f' already exists.")]
+    [InlineData(
+        "Error: Failed to mount '/home/vm/szd/payload/sample.zip'. The file '/home/vm/szd/mnt-f' already exists.")]
+    [InlineData(
+        "Error: Failed to mount '/home/vm/szd/payload/sample.zip'. The mount point '/home/vm/szd/mnt-f' is an existing file, not a folder. Choose a different folder, or omit the mount point to use a temporary folder.")]
+    [InlineData(
+        "Error: Failed to mount '/home/vm/szd/payload/sample.zip'. The mount point '/home/vm/szd/mnt-f' cannot be used: Access to the path '/home/vm/szd/mnt-f' is denied.")]
+    // A FUSE mount attempt inside a Flatpak sandbox (bug reports #70380/#70387); Flatpak has
+    // no mount capabilities, so the failure is environmental and already carries its own hint.
+    [InlineData(
+        "FUSE mount failed for '/home/vm/szd/mnt-f' (exit code 1). The application is running inside a Flatpak sandbox, where FUSE mounting is not supported. Install the .deb or AppImage package instead.")]
     [InlineData(
         @"Mount error: Could not find a part of the path 'C:\Users\Red\AppData\Local\SimpleZipDrive\Temp\344344_4348ff0eabcd46499496a744557eb147'.")]
     [InlineData("The WinFsp driver was not found or is not running. Please install or start the WinFsp service.")]
@@ -396,6 +411,16 @@ public class ErrorLoggerAdditionalTests
         var ex = new InvalidOperationException(message);
         var result = ErrorLogger.IsUserError(ex);
         Assert.True(result);
+    }
+
+    [Fact]
+    public void IsUserError_BareFuseMountFailure_RemainsReportable()
+    {
+        // Without the Flatpak hint a failed FUSE session may be a real application/library
+        // defect and must stay reportable.
+        var ex = new InvalidOperationException(
+            "FUSE mount failed for '/home/user/mnt' (exit code 1).");
+        Assert.False(ErrorLogger.IsUserError(ex));
     }
 
     // ─── IsUserError: Avalonia render-pass invalidation is a framework condition ───

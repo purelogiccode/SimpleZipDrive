@@ -509,10 +509,26 @@ public class ErrorLogger : IDisposable
             (messageLower.Contains("winfsp", StringComparison.OrdinalIgnoreCase) &&
              messageLower.Contains("already in use", StringComparison.OrdinalIgnoreCase)) ||
             // Unavailable mount points (drive letter or folder in use, no permission to create
-            // the mount) and missing cache/temp directories are environment conditions.
+            // the mount, a path that exists as a file rather than a folder) and missing
+            // cache/temp directories are environment conditions. The raw
+            // "The file '...' already exists." text from Directory.CreateDirectory is included
+            // because the command-line handler mirrors the exception message as a message-only
+            // log event (bug reports #70391-#70394).
             (messageLower.Contains("mount point", StringComparison.OrdinalIgnoreCase) &&
              (messageLower.Contains("not accessible", StringComparison.OrdinalIgnoreCase) ||
-              messageLower.Contains("cannot be created", StringComparison.OrdinalIgnoreCase))) ||
+              messageLower.Contains("cannot be created", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("could not be created", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("failed to create", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("cannot be used", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("is an existing file", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("not a folder", StringComparison.OrdinalIgnoreCase) ||
+              messageLower.Contains("already exists", StringComparison.OrdinalIgnoreCase))) ||
+            // Pre-3.1.5 wording of the same mount-point failure (bug reports #70391-#70394).
+            (messageLower.Contains("mount directory", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("already exists", StringComparison.OrdinalIgnoreCase)) ||
+            // 3.1.3 command-line mirror: "Error: Failed to mount '<archive>'. The file '<path>' already exists."
+            (messageLower.Contains("failed to mount", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("already exists", StringComparison.OrdinalIgnoreCase)) ||
             // Missing application data/temp directories (the message includes the app-owned
             // path); unrelated missing-path failures are still reported.
             (messageLower.Contains("could not find a part of the path", StringComparison.OrdinalIgnoreCase) &&
@@ -543,6 +559,12 @@ public class ErrorLogger : IDisposable
               messageLower.Contains("not available", StringComparison.OrdinalIgnoreCase))) ||
             messageLower.Contains("only available on linux and macos", StringComparison.OrdinalIgnoreCase) ||
             messageLower.Contains("only available on windows", StringComparison.OrdinalIgnoreCase) ||
+            // A FUSE session that cannot mount inside a Flatpak sandbox is an environment
+            // condition: Flatpak has no mount capabilities of its own, so the app can only
+            // report a bare non-zero libfuse exit code. The failed-mount log entry includes
+            // this hint and the installer guidance (bug reports #70380/#70387).
+            (messageLower.Contains("flatpak", StringComparison.OrdinalIgnoreCase) &&
+             messageLower.Contains("fuse", StringComparison.OrdinalIgnoreCase)) ||
             // Shell-launch failures: the system has no handler associated with the URL/file type
             // or its shell/COM registration is partially broken, so Process.Start cannot launch
             // the browser or file manager (bug reports #68197/#68198 — "Class not registered"
